@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Email Verification Code</title>
+
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        color: #57564f;
+        box-sizing: border-box;
+      }
+      body {
+        max-width: 100vw;
+        max-height: 100vh;
+        height: 100dvh;
+        margin: 0;
+        padding: 20px;
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        background: url("./bg.jpg");
+        background-color: #09001b;
+        background-size: 100% 100%;
+        
+      }
+      .container {
+        max-width: 500px;
+        margin: 40px auto 20px;
+        background: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0px 5px 8px 0px rgba(0, 0, 0, 0.3);
+        -webkit-box-shadow: 0px 5px 8px 0px rgba(0, 0, 0, 0.3);
+        -moz-box-shadow: 0px 5px 8px 0px rgba(0, 0, 0, 0.3);
+        padding: 30px 30px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      h1 {
+        font-size: 24px;
+      }
+
+      .logo {
+        height: 40px;
+         margin: 30px auto 30px;
+      }
+
+      .des {
+        font-size: 13px;
+        margin-bottom: 8px;
+         margin: 10px auto 20px;
+      }
+
+      .important {
+        background-color: #f1e4ff;
+        border-radius: 12px;
+        padding: 10px 26px;
+        text-align: start;
+        color: #7b1979;
+         margin: 30px 10px;
+      }
+      .important p {
+        color: #7b1979;
+        font-weight: 700;
+      }
+
+      .important li {
+        font-size: 12px;
+        color: #7b1979;
+        padding: 2px 0;
+      }
+
+      .otp {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 9px;
+        margin-bottom: 8px;
+      }
+
+      .otp span {
+        display: inline-block;
+        font-size: 30px;
+        font-weight: bold;
+        padding: 10px 16px;
+        border-radius: 10px;
+        box-shadow: 0px 5px 8px 0px rgba(0, 0, 0, 0.3);
+        -webkit-box-shadow: 0px 5px 8px 0px rgba(0, 0, 0, 0.3);
+        -moz-box-shadow: 0px 5px 8px 0px rgba(0, 0, 0, 0.3);
+      }
+
+      .media-container {
+        max-width: 500px;
+        margin: 0 auto 20px;
+        text-align: center;
+        justify-content: center;
+        display: flex;
+        gap: 10px;
+      }
+      .media {
+        width: 30px;
+        height: 30px;
+        background-color: white;
+        padding: 5px;
+        border-radius: 100%;
+      }
+      .media img {
+        width: 100%;
+        height: 100%;
+        
+      }
+
+      .footer {
+        font-size: 16px;
+        color: #dcdcdc;
+        text-align: center;
+         font-size: 11px;
+      }
+      .footer a {
+        color: #dcdcdc;
+        font-size: 11px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <img src="./logo.png" class="logo" />
+      <h1>Confirm Your Email Address</h1>
+      <p class="des">
+        Hi <strong>mamadbayat777@gmail.com</strong>, thank you for joining us.
+        To complete your registration, please enter the confirmation code below:
+      </p>
+      <div class="otp">
+        <span id="1">1</span>
+        <span id="2">2</span>
+        <span id="3">3</span>
+        <span id="4">4</span>
+        <span id="5">5</span>
+      </div>
+      <div class="important">
+        <p>Important:</p>
+        <ul>
+          <li>This code will expire in 15 minutes</li>
+          <li>Enter this code in the app to complete your registration</li>
+          <li>If you didn't create an account, please ignore this email</li>
+        </ul>
+      </div>
+    </div>
+    <div class="media-container">
+      <div class="media">
+        <a href="https://www.facebook.com/fikoapp" target="_blank">
+          <img src="./facebook.svg" />
+        </a>
+      </div>
+      
+      <div class="media">
+        <a
+          href="https://www.instagram.com/accounts/suspended/?next=https%3A%2F%2Fwww.instagram.com%2Ffikoapp%2F%3F__coig_ufac%3D1"
+          target="_blank"
+        >
+          <img src="./instagram.svg" />
+        </a>
+      </div>
+      <div class="media">
+        <a href="https://t.me/Fikoapp" target="_blank">
+          <img src="./telegram.svg" />
+        </a>
+      </div>
+    </div>
+    <p class="footer">This is an automated message from Fiko.net</p>
+    <p class="footer">
+      If you need help, contact us at <a href="">support@fiko.net</a>
+    </p>
+  </body>
+</html>

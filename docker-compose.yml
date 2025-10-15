@@ -1,0 +1,173 @@
+services:
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: django_app
+    command: daphne -b 0.0.0.0 -p 8000 core.asgi:application
+    working_dir: /app
+    volumes:
+      - ./src:/app
+      - static_volume:/app/static
+      - media_volume:/app/media
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - RAPIDAPI_KEY=${RAPIDAPI_KEY}
+      # Email Configuration (set EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend to enable email sending)
+      - EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+      - EMAIL_HOST=email-smtp.us-east-2.amazonaws.com
+      - EMAIL_PORT=587
+      - EMAIL_USE_TLS=True
+      - EMAIL_USE_SSL=False
+      - EMAIL_HOST_USER=AKIARTLO5HLCKHLZ7KWR
+      - EMAIL_HOST_PASSWORD=BLrFuGxymqJxlgcGdrWLJXFfX4+pMc33Dqi43J/av31h
+      - EMAIL_TIMEOUT=30
+      - DEFAULT_FROM_EMAIL=noreply@fiko.net
+      # Google OAuth Configuration (Production)
+      - GOOGLE_OAUTH2_REDIRECT_URI=https://api.fiko.net/api/v1/usr/google/callback
+      - GOOGLE_OAUTH2_FRONTEND_REDIRECT=https://app.fiko.net/auth/success
+    depends_on:
+      - db
+      - redis
+
+  db:
+    image: pgvector/pgvector:pg15
+    container_name: postgres_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    command: >
+      postgres -c shared_preload_libraries='vector'
+
+  redis:
+    image: redis:7
+    container_name: redis_cache
+    ports:
+      - "6379:6379"
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: celery_worker
+    command: bash /start_celery_with_metrics.sh
+    working_dir: /app
+    volumes:
+      - ./src:/app
+      - ./start_celery_with_metrics.sh:/start_celery_with_metrics.sh
+      - media_volume:/app/media
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - RAPIDAPI_KEY=${RAPIDAPI_KEY}
+    ports:
+      - "9808:9808"
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 1536M
+        reservations:
+          memory: 512M
+
+  celery_beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: celery_beat
+    command: celery -A core beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    working_dir: /app
+    volumes:
+      - ./src:/app
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - RAPIDAPI_KEY=${RAPIDAPI_KEY}
+    depends_on:
+      - db
+      - redis
+      - celery_worker
+    restart: unless-stopped
+
+  # Monitoring Stack
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+    depends_on:
+      - web
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:3001
+      - GF_INSTALL_PLUGINS=redis-datasource
+    ports:
+      - "3001:3000"
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+
+  redis_exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: redis_exporter
+    command:
+      - '--redis.addr=redis://redis:6379'
+    ports:
+      - "9121:9121"
+    restart: unless-stopped
+    depends_on:
+      - redis
+
+  postgres_exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: postgres_exporter
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable"
+    ports:
+      - "9187:9187"
+    restart: unless-stopped
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:
+  static_volume:
+  media_volume:
+  prometheus_data:
+  grafana_data:
