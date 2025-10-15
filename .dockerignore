@@ -1,0 +1,106 @@
+# Git
+.git
+.gitignore
+.github
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env
+pip-log.txt
+pip-delete-this-directory.txt
+.tox
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.mypy_cache
+.pytest_cache
+.hypothesis
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+media
+staticfiles
+!src/media
+!src/staticfiles
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Node.js (if any frontend assets)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Documentation
+README.md
+docs/
+*.md
+!requirements*.txt
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+test_*
+
+# Development files
+Makefile
+docker-compose.override.yml
+.env.example
+.env.local
+
+# Deployment
+deploy*.sh
+auto_deploy.sh
+disk_cleanup.sh
+*.yml
+!docker-compose.yml
+
+# Logs and temp files
+logs/
+tmp/
+*.tmp
+*.log
+
+# SSL certificates
+ssl/
+*.pem
+*.key
+*.crt
+
+# Backup files
+*.bak
+*.backup
+*~

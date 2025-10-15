@@ -1,4 +1,4 @@
-# Fiko-Backend
+# Pilito-Backend
 ## Resolve customer requests instantly with AI customer service. 
 
 
@@ -53,7 +53,7 @@ This project is a Django application containerized with Docker, using PostgreSQL
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/nimadorostkar/Fiko-Backend.git
+git clone https://github.com/usefiko/pilito.git
 cd Fiko-Backend
 ```
 
