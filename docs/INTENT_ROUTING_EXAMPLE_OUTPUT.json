@@ -1,0 +1,100 @@
+{
+  "version": "1.0",
+  "description": "Intent Routing Configuration for Fiko AI System",
+  "total_intents": 5,
+  "author": "AI Generated",
+  "date": "2025-10",
+  "routing_rules": [
+    {
+      "intent": "pricing",
+      "description": "Routes pricing and payment related queries to product catalog first",
+      "primary_source": "products",
+      "primary_token_budget": 800,
+      "secondary_sources": ["faq", "manual"],
+      "secondary_token_budget": 300,
+      "is_active": true,
+      "examples": [
+        "قیمت چقدره؟",
+        "چند تومنه؟",
+        "تخفیف داری؟",
+        "How much does it cost?",
+        "What's the price?"
+      ]
+    },
+    {
+      "intent": "product",
+      "description": "Routes product information queries to product catalog and website",
+      "primary_source": "products",
+      "primary_token_budget": 800,
+      "secondary_sources": ["website", "faq"],
+      "secondary_token_budget": 300,
+      "is_active": true,
+      "examples": [
+        "چه محصولاتی دارید؟",
+        "ویژگی‌های این محصول چیه؟",
+        "What products do you have?",
+        "Product features?"
+      ]
+    },
+    {
+      "intent": "howto",
+      "description": "Routes tutorial and how-to queries to manual and guides",
+      "primary_source": "manual",
+      "primary_token_budget": 800,
+      "secondary_sources": ["website", "faq"],
+      "secondary_token_budget": 300,
+      "is_active": true,
+      "examples": [
+        "چطور استفاده کنم؟",
+        "راهنمای نصب",
+        "How do I use this?",
+        "Installation guide?"
+      ]
+    },
+    {
+      "intent": "contact",
+      "description": "Routes contact and support queries to FAQ and manual",
+      "primary_source": "faq",
+      "primary_token_budget": 600,
+      "secondary_sources": ["manual"],
+      "secondary_token_budget": 200,
+      "is_active": true,
+      "examples": [
+        "چطور باهاتون تماس بگیرم؟",
+        "شماره تماس",
+        "How to contact you?",
+        "Support email?"
+      ]
+    },
+    {
+      "intent": "general",
+      "description": "Routes general queries to FAQ first, then searches all sources",
+      "primary_source": "faq",
+      "primary_token_budget": 600,
+      "secondary_sources": ["manual", "products", "website"],
+      "secondary_token_budget": 400,
+      "is_active": true,
+      "examples": [
+        "سلام",
+        "کمک",
+        "درباره شما",
+        "Hello",
+        "Help"
+      ]
+    }
+  ],
+  "notes": [
+    "Total budget per query should not exceed 1500 tokens",
+    "Primary source is always checked first",
+    "Secondary sources are only checked if primary doesn't provide sufficient answer",
+    "All budgets are in tokens (1 token ≈ 0.75 words for English, ≈ 0.5 words for Persian)",
+    "is_active controls whether this routing rule is enabled"
+  ],
+  "validation": {
+    "total_intents": 5,
+    "all_active": true,
+    "max_combined_budget": 1200,
+    "min_combined_budget": 800
+  }
+}
+

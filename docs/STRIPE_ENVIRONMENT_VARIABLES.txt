@@ -1,0 +1,48 @@
+# ===========================================
+# STRIPE ENVIRONMENT VARIABLES
+# ===========================================
+# Copy these variables to your .env file and fill in your actual Stripe keys
+# Get your keys from: https://dashboard.stripe.com/apikeys
+
+# Stripe API Keys (REQUIRED)
+STRIPE_PUBLISHABLE_KEY=pk_test_your_publishable_key_here
+STRIPE_SECRET_KEY=sk_test_your_secret_key_here
+
+# Stripe Webhook Secret (REQUIRED for production)
+# Get this from: https://dashboard.stripe.com/webhooks
+STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret_here
+
+# Stripe Configuration
+STRIPE_ENABLED=True
+STRIPE_TEST_MODE=True
+STRIPE_CURRENCY=usd
+STRIPE_AUTO_SYNC_PRODUCTS=False
+
+# Frontend URLs - Update these to match your frontend URLs
+# The {CHECKOUT_SESSION_ID} placeholder will be replaced by Stripe
+STRIPE_SUCCESS_URL=http://localhost:3000/billing/success?session_id={CHECKOUT_SESSION_ID}
+STRIPE_CANCEL_URL=http://localhost:3000/billing/plans
+STRIPE_PORTAL_RETURN_URL=http://localhost:3000/billing
+
+# ===========================================
+# PRODUCTION ENVIRONMENT VARIABLES
+# ===========================================
+# Use these in production (uncomment and update):
+
+# STRIPE_PUBLISHABLE_KEY=pk_live_your_live_key_here
+# STRIPE_SECRET_KEY=sk_live_your_live_key_here
+# STRIPE_WEBHOOK_SECRET=whsec_live_your_live_webhook_secret
+# STRIPE_TEST_MODE=False
+# STRIPE_SUCCESS_URL=https://app.fiko.net/billing/success?session_id={CHECKOUT_SESSION_ID}
+# STRIPE_CANCEL_URL=https://app.fiko.net/billing/plans
+# STRIPE_PORTAL_RETURN_URL=https://app.fiko.net/billing
+
+# ===========================================
+# NOTES
+# ===========================================
+# 1. Never commit your .env file to version control
+# 2. Test mode keys start with pk_test_ and sk_test_
+# 3. Live mode keys start with pk_live_ and sk_live_
+# 4. Webhook secrets start with whsec_
+# 5. Make sure to configure webhooks in Stripe Dashboard
+

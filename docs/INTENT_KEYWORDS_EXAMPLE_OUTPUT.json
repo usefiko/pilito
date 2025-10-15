@@ -1,0 +1,153 @@
+{
+  "version": "1.0",
+  "total_keywords": 250,
+  "description": "Intent Keywords for Fiko AI System - Complete multilingual keyword set",
+  "intents": {
+    "pricing": {
+      "description": "Keywords for pricing, cost, and payment related queries",
+      "keywords": [
+        {
+          "intent": "pricing",
+          "language": "fa",
+          "keyword": "قیمت",
+          "weight": 2.0,
+          "user": null,
+          "is_active": true
+        },
+        {
+          "intent": "pricing",
+          "language": "fa",
+          "keyword": "چقدر",
+          "weight": 1.8,
+          "user": null,
+          "is_active": true
+        },
+        {
+          "intent": "pricing",
+          "language": "fa",
+          "keyword": "چقدره",
+          "weight": 1.8,
+          "user": null,
+          "is_active": true
+        },
+        {
+          "intent": "pricing",
+          "language": "en",
+          "keyword": "price",
+          "weight": 2.0,
+          "user": null,
+          "is_active": true
+        },
+        {
+          "intent": "pricing",
+          "language": "en",
+          "keyword": "how much",
+          "weight": 2.0,
+          "user": null,
+          "is_active": true
+        }
+      ]
+    },
+    "product": {
+      "description": "Keywords for product information, features, and specifications",
+      "keywords": [
+        {
+          "intent": "product",
+          "language": "fa",
+          "keyword": "محصول",
+          "weight": 2.0,
+          "user": null,
+          "is_active": true
+        },
+        {
+          "intent": "product",
+          "language": "fa",
+          "keyword": "دارید",
+          "weight": 1.5,
+          "user": null,
+          "is_active": true
+        },
+        {
+          "intent": "product",
+          "language": "en",
+          "keyword": "product",
+          "weight": 2.0,
+          "user": null,
+          "is_active": true
+        }
+      ]
+    },
+    "howto": {
+      "description": "Keywords for tutorials, guides, and how-to questions",
+      "keywords": [
+        {
+          "intent": "howto",
+          "language": "fa",
+          "keyword": "چطور",
+          "weight": 2.0,
+          "user": null,
+          "is_active": true
+        },
+        {
+          "intent": "howto",
+          "language": "fa",
+          "keyword": "آموزش",
+          "weight": 1.8,
+          "user": null,
+          "is_active": true
+        }
+      ]
+    },
+    "contact": {
+      "description": "Keywords for contact, support, and help queries",
+      "keywords": [
+        {
+          "intent": "contact",
+          "language": "fa",
+          "keyword": "تماس",
+          "weight": 2.0,
+          "user": null,
+          "is_active": true
+        },
+        {
+          "intent": "contact",
+          "language": "fa",
+          "keyword": "پشتیبانی",
+          "weight": 1.8,
+          "user": null,
+          "is_active": true
+        }
+      ]
+    },
+    "general": {
+      "description": "Keywords for general questions and greetings",
+      "keywords": [
+        {
+          "intent": "general",
+          "language": "fa",
+          "keyword": "سلام",
+          "weight": 1.0,
+          "user": null,
+          "is_active": true
+        },
+        {
+          "intent": "general",
+          "language": "fa",
+          "keyword": "کمک",
+          "weight": 1.5,
+          "user": null,
+          "is_active": true
+        }
+      ]
+    }
+  },
+  "notes": [
+    "This is a SAMPLE output format",
+    "Complete file should have 250-300 keywords total",
+    "Each intent should have keywords in multiple languages (fa, en, ar, tr)",
+    "user field should be null for global keywords",
+    "is_active should be true for all keywords",
+    "weight ranges from 0.5 to 3.0 (higher = more important)"
+  ]
+}
+
