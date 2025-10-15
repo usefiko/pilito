@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Email Verification Code</title>
+
+    <!-- <style>
+      * {
+        margin: 0;
+        padding: 0;
+        color: #57564f;
+        box-sizing: border-box;
+      }
+      body {
+        max-width: 100vw;
+        max-height: 100vh;
+        height: 100dvh;
+        margin: 0;
+        padding: 20px;
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        background: url("data:image/jpeg;base64,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...");
+        background-color: #09001b;
+        background-size: 100% 100%;
+        
+      }
+      .container {
+        max-width: 500px;
+        margin: 40px auto 20px;
+        background: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0px 5px 8px 0px rgba(0, 0, 0, 0.3);
+        -webkit-box-shadow: 0px 5px 8px 0px rgba(0, 0, 0, 0.3);
+        -moz-box-shadow: 0px 5px 8px 0px rgba(0, 0, 0, 0.3);
+        padding: 30px 30px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      h1 {
+        font-size: 24px;
+      }
+
+      .logo {
+        height: 40px;
+         margin: 30px auto 30px;
+      }
+
+      .des {
+        font-size: 13px;
+        margin-bottom: 8px;
+         margin: 10px auto 20px;
+      }
+
+      .important {
+        background-color: #f1e4ff;
+        border-radius: 12px;
+        padding: 10px 26px;
+        text-align: start;
+        color: #7b1979;
+         margin: 30px 10px;
+      }
+      .important p {
+        color: #7b1979;
+        font-weight: 700;
+      }
+
+      .important li {
+        font-size: 12px;
+        color: #7b1979;
+        padding: 2px 0;
+      }
+
+      .otp {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 9px;
+        margin-bottom: 8px;
+      }
+
+      .otp span {
+        display: inline-block;
+        font-size: 30px;
+        font-weight: bold;
+        padding: 10px 16px;
+        border-radius: 10px;
+        box-shadow: 0px 5px 8px 0px rgba(0, 0, 0, 0.3);
+        -webkit-box-shadow: 0px 5px 8px 0px rgba(0, 0, 0, 0.3);
+        -moz-box-shadow: 0px 5px 8px 0px rgba(0, 0, 0, 0.3);
+      }
+
+      .media-container {
+        max-width: 500px;
+        margin: 0 auto 20px;
+        text-align: center;
+        justify-content: center;
+        display: flex;
+        gap: 10px;
+      }
+      .media {
+        width: 30px;
+        height: 30px;
+        background-color: white;
+        padding: 5px;
+        border-radius: 100%;
+      }
+      .media img {
+        width: 100%;
+        height: 100%;
+        
+      }
+
+      .footer {
+        font-size: 16px;
+        color: #dcdcdc;
+        text-align: center;
+         font-size: 11px;
+      }
+      .footer a {
+        color: #dcdcdc;
+        font-size: 11px;
+      }
+    </style> -->
+    {% load static %}
+  </head>
+  <body style="margin:0; padding:20px; color:#57564f; font-family:Helvetica, Arial, sans-serif; background-color:#09001b; background-image:url('{% static 'email_assets/bg.jpg' %}'); background-repeat:no-repeat; background-position:center bottom;">
+    <div class="container" style="display: block; max-width: 500px; margin: 40px auto 20px; background: #ffffff; border-radius: 12px; padding: 30px; text-align: center;">
+      <img src="{% static 'email_assets/logo.png' %}" alt="Fiko" style="height:40px; width:auto; margin:30px auto; display:block;" />
+      <h1 style="font-size: 24px; margin: 20px 0; color: #57564f;">Confirm Your Email Address</h1>
+      <p style="font-size: 13px; margin: 10px auto 20px; color: #57564f;">
+        Hi <strong>{{ user_email }}</strong>, thank you for joining us.
+        To complete your registration, please enter the confirmation code below:
+      </p>
+      <div style="display:block; text-align:center; margin:10px 0 20px 0;">
+        {% for digit in confirmation_code %}<span id="{{ forloop.counter }}" style="display:inline-block; width:36px; height:40px; line-height:40px; text-align:center; font-size:20px; font-weight:700; color:#57564f; border:1px solid #e9ecef; border-radius:10px; margin:0 4px;">{{ digit }}</span>{% endfor %}
+      </div>
+      <div class="important" style="background-color: #f1e4ff; border-radius: 12px; padding: 10px 26px; text-align: left; color: #7b1979; margin: 30px 10px;">
+        <p style="color: #7b1979; font-weight: 700; margin: 0 0 10px 0;">Important:</p>
+        <ul>
+          <li style="font-size: 12px; color: #7b1979; padding: 2px 0;">This code will expire in 15 minutes</li>
+          <li style="font-size: 12px; color: #7b1979; padding: 2px 0;">Enter this code in the app to complete your registration</li>
+          <li style="font-size: 12px; color: #7b1979; padding: 2px 0;">If you didn't create an account, please ignore this email</li>
+        </ul>
+      </div>
+    </div>
+    <div style="max-width: 500px; margin: 0 auto 20px; text-align: center;">
+      <div class="media" style="display: inline-block; width: 30px; height: 30px; background-color: white; padding: 5px; border-radius: 50%; margin: 0 5px;">
+        <a href="https://www.facebook.com/fikoapp" target="_blank">
+          <img style="width: 100%; height: 100%;" src="{% static 'email_assets/facebook.png' %}" />
+        </a>
+      </div>
+      
+      <div class="media" style="display: inline-block; width: 30px; height: 30px; background-color: white; padding: 5px; border-radius: 50%; margin: 0 5px;">
+        <a
+          href="https://www.instagram.com/accounts/suspended/?next=https%3A%2F%2Fwww.instagram.com%2Ffikoapp%2F%3F__coig_ufac%3D1"
+          target="_blank"
+        >
+          <img style="width: 100%; height: 100%;" src="{% static 'email_assets/instagram.png' %}" />
+        </a>
+      </div>
+      <div class="media" style="display: inline-block; width: 30px; height: 30px; background-color: white; padding: 5px; border-radius: 50%; margin: 0 5px;">
+        <a href="https://t.me/Fikoapp" target="_blank">
+          <img style="width: 100%; height: 100%;" src="{% static 'email_assets/telegram.png' %}" />
+        </a>
+      </div>
+    </div>
+    <p style="font-size: 11px; color: #dcdcdc; text-align: center; margin: 10px 0;">This is an automated message from Fiko.net</p>
+    <p style="font-size: 11px; color: #dcdcdc; text-align: center; margin: 10px 0;">
+      If you need help, contact us at <a href="mailto:support@fiko.net" style="color: #dcdcdc; font-size: 11px;">support@fiko.net</a>
+    </p>
+  </body>
+</html>
