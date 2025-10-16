@@ -12,17 +12,6 @@ SECRET_KEY = environ.get("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 ALLOWED_HOSTS=['*']
-"""
-ALLOWED_HOSTS = [
-    'api.fiko.net',
-    'fiko.net',
-    'app.fiko.net',
-    'localhost',
-    '127.0.0.1',
-    '0.0.0.0',
-    '18.119.134.7',
-]
-"""
 
 # APP CONFIGURATION
 DJANGO_APPS = (
@@ -265,8 +254,9 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
     "http://0.0.0.0:8000",
     "http://localhost:5173",
-    "http://172.27.192.1:5173",
-    "http://192.168.1.6:5173",
+    "http://185.164.72.165:8000",
+    "http://185.164.72.165:5173",
+    "http://185.164.72.165:5173",
     # Google OAuth domains
     'https://accounts.google.com',
     'https://oauth2.googleapis.com',
@@ -282,8 +272,9 @@ CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1:3000',
     "http://0.0.0.0:8000",
     "http://localhost:5173",
-    "http://172.27.192.1:5173",
-    "http://192.168.1.6:5173",
+    "http://185.164.72.165:8000",
+    "http://185.164.72.165:5173",
+    "http://185.164.72.165:5173",
     # Google OAuth domains
     'https://accounts.google.com',
     'https://oauth2.googleapis.com',

@@ -73,16 +73,13 @@ except ImportError:
 
 # PRODUCTION ALLOWED HOSTS - مهم برای WebSocket
 ALLOWED_HOSTS = [
-    'api.fiko.net',
-    'fiko.net', 
-    'app.fiko.net',
+    'api.pilito.com',
+    'pilito.com',
+    'app.pilito.com',
     'localhost',
     '127.0.0.1',
     '0.0.0.0',
-    '18.119.134.7',
-    '172.31.8.229',
-    '3.12.166.146',
-    'ec2-3-12-166-146.us-east-2.compute.amazonaws.com',
+    '185.164.72.165',
     # Docker internal network hostnames for monitoring
     'web',
     'django_app',
@@ -100,15 +97,16 @@ CORS_ALLOW_CREDENTIALS = True
 
 # WebSocket CORS Settings - حل مشکل 403
 CORS_ALLOWED_ORIGINS = [
-    "https://app.fiko.net",
-    "https://fiko.net",
-    "https://api.fiko.net",
+    "https://app.pilito.net",
+    "https://pilito.net",
+    "https://api.pilito.net",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://0.0.0.0:8000",
     "http://localhost:5173",
-    "http://172.27.192.1:5173",
-    "http://192.168.1.6:5173",
+    "http://185.164.72.165:8000",
+    "http://185.164.72.165:5173",
+    "http://185.164.72.165:5173",
     # Google OAuth domains
     "https://accounts.google.com",
     "https://oauth2.googleapis.com",
@@ -116,18 +114,18 @@ CORS_ALLOWED_ORIGINS = [
 
 # CSRF settings برای WebSocket
 CSRF_TRUSTED_ORIGINS = [
-    'https://app.fiko.net',
-    'https://api.fiko.net',
-    'https://fiko.net',
+    'https://app.pilito.net',
+    'https://api.pilito.net',
+    'https://pilito.net',
     'http://localhost:8000',
     'http://localhost:3000',
     'http://127.0.0.1:8000',
     'http://127.0.0.1:3000',
     "http://0.0.0.0:8000",
     "http://localhost:5173",
-    "http://172.27.192.1:5173",
-    "http://192.168.1.6:5173",
-    'http://ec2-3-12-166-146.us-east-2.compute.amazonaws.com:8000',
+    "http://185.164.72.165:8000",
+    "http://185.164.72.165:5173",
+    "http://185.164.72.165:5173",
     # Google OAuth domains
     'https://accounts.google.com',
     'https://oauth2.googleapis.com',
