@@ -11,6 +11,7 @@ from drf_yasg import openapi
 from core.swagger_inspectors import MultipleFileFieldInspector
 
 
+
 class CustomOpenAPISchemaGenerator(OpenAPISchemaGenerator):
     """Custom schema generator that includes our custom field inspectors."""
     
@@ -54,3 +55,4 @@ urlpatterns = [
 ]
 urlpatterns += static(MEDIA_URL, document_root=MEDIA_ROOT)
 urlpatterns += static(STATIC_URL, document_root=STATIC_ROOT)
+
