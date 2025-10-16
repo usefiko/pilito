@@ -230,11 +230,11 @@ jobs:
           echo ""
           echo "System Health Summary"
           echo "======================"
-          echo "Available Space - \${FINAL_AVAILABLE_GB}GB"
-          RUNNING=\$(docker ps | grep -c Up || echo 0)
-          echo "Docker Containers - \${RUNNING} running"
-          IMAGES=\$(docker images | tail -n +2 | wc -l)
-          echo "Docker Images - \${IMAGES} total"
+          echo "Available Space - ${FINAL_AVAILABLE_GB}GB"
+          RUNNING=$(docker ps | grep -c Up || echo 0)
+          echo "Docker Containers - ${RUNNING} running"
+          IMAGES=$(docker images | tail -n +2 | wc -l)
+          echo "Docker Images - ${IMAGES} total"
           if [ -f '/etc/cron.d/pilito-cleanup' ]; then
             echo "Cleanup Status - Automated"
           else
