@@ -477,7 +477,7 @@ KNOWLEDGE BASE:
 
 ADDITIONAL INFO:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-- محصول: پلن Professional - قیمت $29، لینک: https://fiko.net/pricing
+- محصول: پلن Professional - قیمت $29، لینک: https://pilito.com/pricing
 
 CUSTOMER QUESTION:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

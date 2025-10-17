@@ -82,7 +82,7 @@ class Command(BaseCommand):
         base_url = "https://www.instagram.com/oauth/authorize"
         params = {
             'client_id': '1426281428401641',
-            'redirect_uri': 'https://api.fiko.net/api/v1/message/instagram-callback/',
+            'redirect_uri': 'https://api.pilito.com/api/v1/message/instagram-callback/',
             'response_type': 'code',
             'scope': 'instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_content_publish,instagram_business_manage_insights',
             'state': str(user_id),  # Pass user_id in state parameter

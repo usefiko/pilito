@@ -534,7 +534,7 @@ curl -X PATCH \
     "position_x": 450,
     "position_y": 350
   }' \
-  "https://api.fiko.net/api/v1/workflow/api/nodes/{node-id}/"
+  "https://api.pilito.com/api/v1/workflow/api/nodes/{node-id}/"
 ```
 
 ### Complex Update with Position + Content
@@ -553,7 +553,7 @@ curl -X PATCH \
       "min_y": 0, "max_y": 1500
     }
   }' \
-  "https://api.fiko.net/api/v1/workflow/api/nodes/{node-id}/"
+  "https://api.pilito.com/api/v1/workflow/api/nodes/{node-id}/"
 ```
 
 ### When Node Update
@@ -566,7 +566,7 @@ curl -X PATCH \
     "channels": ["whatsapp"],
     "customer_tags": ["vip"]
   }' \
-  "https://api.fiko.net/api/v1/workflow/api/nodes/{node-id}/"
+  "https://api.pilito.com/api/v1/workflow/api/nodes/{node-id}/"
 ```
 
 ### Condition Node Update
@@ -582,7 +582,7 @@ curl -X PATCH \
       "value": "urgent"
     }]
   }' \
-  "https://api.fiko.net/api/v1/workflow/api/nodes/{node-id}/"
+  "https://api.pilito.com/api/v1/workflow/api/nodes/{node-id}/"
 ```
 
 ### Action Node Update
@@ -596,7 +596,7 @@ curl -X PATCH \
       "X-Custom": "value"
     }
   }' \
-  "https://api.fiko.net/api/v1/workflow/api/nodes/{node-id}/"
+  "https://api.pilito.com/api/v1/workflow/api/nodes/{node-id}/"
 ```
 
 ### Waiting Node Update
@@ -611,7 +611,7 @@ curl -X PATCH \
     "response_timeout_amount": 10,
     "response_timeout_unit": "minutes"
   }' \
-  "https://api.fiko.net/api/v1/workflow/api/nodes/{node-id}/"
+  "https://api.pilito.com/api/v1/workflow/api/nodes/{node-id}/"
 ```
 
 ---

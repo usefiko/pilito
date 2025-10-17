@@ -287,7 +287,7 @@ exit()
 ### ۵.۲ از Django Admin
 
 ```
-1. برو به: https://api.fiko.net/admin/web_knowledge/product/
+1. برو به: https://api.pilito.com/admin/web_knowledge/product/
 2. فیلتر کن: extraction_method = 'AI Auto-extracted'
 3. چک کن:
    ✅ محصولات auto-extracted رو می‌بینی
@@ -302,7 +302,7 @@ exit()
 ```bash
 # لیست محصولات
 curl -H "Authorization: Bearer YOUR_TOKEN" \
-  https://api.fiko.net/api/v1/web-knowledge/products/ | jq .
+  https://api.pilito.com/api/v1/web-knowledge/products/ | jq .
 
 # باید فیلدهای جدید رو ببینید:
 # - short_description

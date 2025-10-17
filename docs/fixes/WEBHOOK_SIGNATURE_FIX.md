@@ -59,7 +59,7 @@ brew install stripe/stripe-cli/stripe
 stripe login
 
 # Forward webhooks to your server
-stripe listen --forward-to https://api.fiko.net/api/v1/billing/stripe/webhook/
+stripe listen --forward-to https://api.pilito.com/api/v1/billing/stripe/webhook/
 
 # In another terminal, trigger test event
 stripe trigger checkout.session.completed
@@ -95,7 +95,7 @@ stripe trigger checkout.session.completed
 stripe trigger checkout.session.completed
 
 # Or listen and forward
-stripe listen --forward-to https://api.fiko.net/api/v1/billing/stripe/webhook/
+stripe listen --forward-to https://api.pilito.com/api/v1/billing/stripe/webhook/
 ```
 
 ✅ Includes proper signature!
@@ -132,7 +132,7 @@ Look for:
 ### ❌ Testing with curl
 ```bash
 # DON'T DO THIS - will always fail!
-curl -X POST https://api.fiko.net/api/v1/billing/stripe/webhook/ \
+curl -X POST https://api.pilito.com/api/v1/billing/stripe/webhook/ \
   -d '{"type": "checkout.session.completed"}'
 ```
 **Why it fails**: No Stripe signature header
@@ -211,7 +211,7 @@ stripe trigger checkout.session.completed
 
 ## ✅ Production Setup
 
-1. **Webhook URL**: `https://api.fiko.net/api/v1/billing/stripe/webhook/`
+1. **Webhook URL**: `https://api.pilito.com/api/v1/billing/stripe/webhook/`
 2. **Must be HTTPS** (Stripe requires it)
 3. **Must be publicly accessible** (not localhost)
 4. **Must respond within 30 seconds**

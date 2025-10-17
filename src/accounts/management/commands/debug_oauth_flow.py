@@ -168,7 +168,7 @@ class Command(BaseCommand):
         
         # Show test URLs
         self.stdout.write("\n🔗 Test URLs:")
-        base_url = "https://api.fiko.net" if "api.fiko.net" in settings.GOOGLE_OAUTH2_REDIRECT_URI else "http://localhost:8000"
+        base_url = "https://api.pilito.com" if "api.pilito.com" in settings.GOOGLE_OAUTH2_REDIRECT_URI else "http://localhost:8000"
         self.stdout.write(f"  Auth URL: {base_url}/api/v1/usr/google/auth-url")
         self.stdout.write(f"  Test endpoint: {base_url}/api/v1/usr/google/test")
         self.stdout.write(f"  Callback URL: {settings.GOOGLE_OAUTH2_REDIRECT_URI}")

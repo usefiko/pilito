@@ -83,7 +83,7 @@ class PaymentVerify(APIView):
         id = self.kwargs.get("id")
 
         if not authority or status != "OK":
-            return redirect('https://fiko.net/panel/callback?success=notok')
+            return redirect('https://pilito.com/panel/callback?success=notok')
             #return HttpResponse("payment faild...", content_type='text/plain')
 
         try:
@@ -115,7 +115,7 @@ class PaymentVerify(APIView):
                 plan.days += purchase.price # todo - update plan filds
                 plan.save()
 
-                return redirect(f'https://fiko.net/panel/callback?success=ok&payment_id={response["RefID"]}')
+                return redirect(f'https://pilito.com/panel/callback?success=ok&payment_id={response["RefID"]}')
                 #return HttpResponse("payment done, RefID={}".format(response['RefID']), content_type='text/plain')
             else:
                 return SuccessResponse(data={'status': False, 'details': 'purchase already paid' })

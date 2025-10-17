@@ -131,7 +131,7 @@ class Command(BaseCommand):
         self.stdout.write("   docker logs -f <container> | grep -i 'google\\|oauth'")
         
         self.stdout.write("\n4. Test OAuth endpoint externally:")
-        self.stdout.write("   curl https://api.fiko.net/api/v1/usr/google/test")
+        self.stdout.write("   curl https://api.pilito.com/api/v1/usr/google/test")
         
         self.stdout.write("\n📊 If OAuth isn't working:")
         self.stdout.write("1. Google can't reach your server (most common)")

@@ -3,7 +3,7 @@
 **Date**: 2024-01-19  
 **Analyzed**: Fiko Marketing Dashboard + Backend Implementation  
 **URLs**: 
-- Dashboard: https://app.fiko.net/dashboard/marketing
+- Dashboard: https://app.pilito.com/dashboard/marketing
 - Figma: https://www.figma.com/design/GuEDje9u8SBXhIYBA89qYh/WorkFlow
 
 ---
@@ -114,7 +114,7 @@ python test_workflow_api.py
 ### Priority 3: Check Workflow Execution
 ```bash
 # Verify if workflows can be executed:
-curl -X POST https://app.fiko.net/api/v1/workflow/api/node-workflows/{id}/execute_with_nodes/ \
+curl -X POST https://app.pilito.com/api/v1/workflow/api/node-workflows/{id}/execute_with_nodes/ \
   -H "Authorization: Bearer TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"context": {"event": {"type": "MESSAGE_RECEIVED"}}}'

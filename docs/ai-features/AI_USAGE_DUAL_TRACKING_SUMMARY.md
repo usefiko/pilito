@@ -214,7 +214,7 @@ def generate_response(self, prompt, conversation=None):
 
 #### Detailed Logs
 ```
-https://api.fiko.net/admin/AI_model/aiusagelog/
+https://api.pilito.com/admin/AI_model/aiusagelog/
 ```
 - Color-coded sections
 - Success/failure badges
@@ -224,7 +224,7 @@ https://api.fiko.net/admin/AI_model/aiusagelog/
 
 #### Daily Aggregates
 ```
-https://api.fiko.net/admin/AI_model/aiusagetracking/
+https://api.pilito.com/admin/AI_model/aiusagetracking/
 ```
 - Daily totals per user
 - Success rates
@@ -234,19 +234,19 @@ https://api.fiko.net/admin/AI_model/aiusagetracking/
 
 #### Get Detailed Logs
 ```bash
-curl "https://api.fiko.net/api/v1/ai/usage/logs/?section=chat&limit=50" \
+curl "https://api.pilito.com/api/v1/ai/usage/logs/?section=chat&limit=50" \
   -H "Authorization: Bearer TOKEN"
 ```
 
 #### Get Statistics
 ```bash
-curl "https://api.fiko.net/api/v1/ai/usage/logs/stats/?days=30" \
+curl "https://api.pilito.com/api/v1/ai/usage/logs/stats/?days=30" \
   -H "Authorization: Bearer TOKEN"
 ```
 
 #### Get Global Stats (Admin)
 ```bash
-curl "https://api.fiko.net/api/v1/ai/usage/logs/global/?days=30" \
+curl "https://api.pilito.com/api/v1/ai/usage/logs/global/?days=30" \
   -H "Authorization: Bearer TOKEN"
 ```
 

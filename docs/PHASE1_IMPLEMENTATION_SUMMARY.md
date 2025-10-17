@@ -147,7 +147,7 @@ docker logs -f celery_worker --tail 100
 
 ### تست 2: Feedback API
 ```bash
-curl -X POST https://api.fiko.net/api/message/MESSAGE_ID/feedback/ \
+curl -X POST https://api.pilito.com/api/message/MESSAGE_ID/feedback/ \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"feedback": "positive", "comment": "Great!"}'

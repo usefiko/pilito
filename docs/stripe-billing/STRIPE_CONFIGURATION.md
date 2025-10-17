@@ -5,7 +5,7 @@
 ### 1. Webhook Configuration
 ```
 Endpoint ID: we_1SE7GfKkH1LI50QCXtiii36a
-Endpoint URL: https://api.fiko.net/api/v1/billing/stripe/webhook/
+Endpoint URL: https://api.pilito.com/api/v1/billing/stripe/webhook/
 Signing Secret: whsec_kYH0d9bTpjXpaaVMlVK78LDJqvLCkjz1
 ```
 
@@ -37,9 +37,9 @@ STRIPE_WEBHOOK_SECRET=whsec_kYH0d9bTpjXpaaVMlVK78LDJqvLCkjz1
 STRIPE_ENABLED=True
 STRIPE_TEST_MODE=True
 STRIPE_CURRENCY=usd
-STRIPE_SUCCESS_URL=https://app.fiko.net/billing/success?session_id={CHECKOUT_SESSION_ID}
-STRIPE_CANCEL_URL=https://app.fiko.net/billing/plans
-STRIPE_PORTAL_RETURN_URL=https://app.fiko.net/billing
+STRIPE_SUCCESS_URL=https://app.pilito.com/billing/success?session_id={CHECKOUT_SESSION_ID}
+STRIPE_CANCEL_URL=https://app.pilito.com/billing/plans
+STRIPE_PORTAL_RETURN_URL=https://app.pilito.com/billing
 ```
 
 ### Step 2: Restart Your Server

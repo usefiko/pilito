@@ -48,7 +48,7 @@ def send_email_confirmation(user):
     - If you didn't create an account, please ignore this email
     
     This is an automated message from Fiko.
-    If you need help, contact us at support@fiko.net
+    If you need help, contact us at support@pilito.com
     """
     
     try:
@@ -56,7 +56,7 @@ def send_email_confirmation(user):
         result = send_mail(
             subject=subject,
             message=plain_message,
-            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL_DISPLAY', 'Fiko <noreply@fiko.net>'),
+            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL_DISPLAY', 'Fiko <noreply@pilito.com>'),
             recipient_list=[user.email],
             html_message=html_message,
             fail_silently=False,

@@ -164,7 +164,7 @@ EOF
 TOKEN="your-auth-token-here"
 
 # Create test log
-curl -X POST https://api.fiko.net/api/v1/ai/usage/logs/ \
+curl -X POST https://api.pilito.com/api/v1/ai/usage/logs/ \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -177,11 +177,11 @@ curl -X POST https://api.fiko.net/api/v1/ai/usage/logs/ \
   }'
 
 # Get logs
-curl "https://api.fiko.net/api/v1/ai/usage/logs/?limit=5" \
+curl "https://api.pilito.com/api/v1/ai/usage/logs/?limit=5" \
   -H "Authorization: Bearer $TOKEN"
 
 # Get statistics
-curl "https://api.fiko.net/api/v1/ai/usage/logs/stats/?days=7" \
+curl "https://api.pilito.com/api/v1/ai/usage/logs/stats/?days=7" \
   -H "Authorization: Bearer $TOKEN"
 ```
 

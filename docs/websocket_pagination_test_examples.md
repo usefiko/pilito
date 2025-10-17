@@ -10,7 +10,7 @@
 
 ### Method 1: Query String Parameters (Your Current Method) ✅
 ```
-URL: ws://api.fiko.net/ws/customers/?token=your-token&page_size=2&page=2
+URL: ws://api.pilito.com/ws/customers/?token=your-token&page_size=2&page=2
 
 Message Body:
 {
@@ -20,7 +20,7 @@ Message Body:
 
 ### Method 2: Message Body Parameters ✅
 ```
-URL: ws://api.fiko.net/ws/customers/?token=your-token
+URL: ws://api.pilito.com/ws/customers/?token=your-token
 
 Message Body:
 {
@@ -34,7 +34,7 @@ Message Body:
 
 ### Method 3: Combined (Message Body Takes Priority) ✅
 ```
-URL: ws://api.fiko.net/ws/customers/?token=your-token&page_size=10&page=1
+URL: ws://api.pilito.com/ws/customers/?token=your-token&page_size=10&page=1
 
 Message Body:
 {

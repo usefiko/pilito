@@ -43,9 +43,9 @@ STRIPE_TEST_MODE=True
 STRIPE_CURRENCY=usd
 
 # Frontend URLs (adjust to match your frontend)
-STRIPE_SUCCESS_URL=https://app.fiko.net/billing/success?session_id={CHECKOUT_SESSION_ID}
-STRIPE_CANCEL_URL=https://app.fiko.net/billing/plans
-STRIPE_PORTAL_RETURN_URL=https://app.fiko.net/billing
+STRIPE_SUCCESS_URL=https://app.pilito.com/billing/success?session_id={CHECKOUT_SESSION_ID}
+STRIPE_CANCEL_URL=https://app.pilito.com/billing/plans
+STRIPE_PORTAL_RETURN_URL=https://app.pilito.com/billing
 ```
 
 **Save and exit**: Press `Ctrl+X`, then `Y`, then `Enter`
@@ -99,9 +99,9 @@ STRIPE_WEBHOOK_SECRET=whsec_YOUR_WEBHOOK_SECRET
 STRIPE_ENABLED=True
 STRIPE_TEST_MODE=True
 STRIPE_CURRENCY=usd
-STRIPE_SUCCESS_URL=https://app.fiko.net/billing/success?session_id={CHECKOUT_SESSION_ID}
-STRIPE_CANCEL_URL=https://app.fiko.net/billing/plans
-STRIPE_PORTAL_RETURN_URL=https://app.fiko.net/billing
+STRIPE_SUCCESS_URL=https://app.pilito.com/billing/success?session_id={CHECKOUT_SESSION_ID}
+STRIPE_CANCEL_URL=https://app.pilito.com/billing/plans
+STRIPE_PORTAL_RETURN_URL=https://app.pilito.com/billing
 ```
 
 ---

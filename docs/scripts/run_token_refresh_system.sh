@@ -92,7 +92,7 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 if not User.objects.filter(is_superuser=True).exists():
     print('No superuser found. Creating one...')
-    User.objects.create_superuser('admin', 'admin@fiko.net', 'admin123')
+    User.objects.create_superuser('admin', 'admin@pilito.com', 'admin123')
     print('Superuser created: admin/admin123')
 else:
     print('Superuser already exists')

@@ -35,7 +35,7 @@
 ### نحوه احراز هویت:
 ```javascript
 const token = localStorage.getItem('access_token');
-const wsUrl = `ws://api.fiko.net/ws/conversations/?token=${token}`;
+const wsUrl = `ws://api.pilito.com/ws/conversations/?token=${token}`;
 ```
 
 ### مدیریت توکن:
@@ -49,7 +49,7 @@ const wsUrl = `ws://api.fiko.net/ws/conversations/?token=${token}`;
 
 ### Base URL:
 ```
-Production: wss://api.fiko.net
+Production: wss://api.pilito.com
 Development: ws://localhost:8000
 ```
 
@@ -57,7 +57,7 @@ Development: ws://localhost:8000
 
 #### 1. Conversation List
 ```
-ws://api.fiko.net/ws/conversations/?token={JWT_TOKEN}
+ws://api.pilito.com/ws/conversations/?token={JWT_TOKEN}
 ```
 - مدیریت لیست گفتگوها
 - دریافت notification های جدید
@@ -65,7 +65,7 @@ ws://api.fiko.net/ws/conversations/?token={JWT_TOKEN}
 
 #### 2. Specific Chat
 ```
-ws://api.fiko.net/ws/chat/{conversation_id}/?token={JWT_TOKEN}
+ws://api.pilito.com/ws/chat/{conversation_id}/?token={JWT_TOKEN}
 ```
 - گفتگوی خاص با مشتری
 - ارسال و دریافت پیام
@@ -267,7 +267,7 @@ class FikoWebSocket {
 
   // اتصال به لیست گفتگوها
   connectToConversations() {
-    const wsUrl = `wss://api.fiko.net/ws/conversations/?token=${this.token}`;
+    const wsUrl = `wss://api.pilito.com/ws/conversations/?token=${this.token}`;
     
     this.conversationsSocket = new WebSocket(wsUrl);
     
@@ -298,7 +298,7 @@ class FikoWebSocket {
     }
     
     this.currentConversationId = conversationId;
-    const wsUrl = `wss://api.fiko.net/ws/chat/${conversationId}/?token=${this.token}`;
+    const wsUrl = `wss://api.pilito.com/ws/chat/${conversationId}/?token=${this.token}`;
     
     this.chatSocket = new WebSocket(wsUrl);
     
@@ -711,7 +711,7 @@ Frontend                    Backend                     External APIs
 - **Backend Team**: [تیم بک‌اند]
 - **Documentation**: این فایل
 - **Test Environment**: `ws://localhost:8000`
-- **Production Environment**: `wss://api.fiko.net`
+- **Production Environment**: `wss://api.pilito.com`
 
 ---
 

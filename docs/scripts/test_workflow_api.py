@@ -9,7 +9,7 @@ import json
 from urllib.parse import urljoin
 
 # Base URL for your Fiko API
-BASE_URL = "https://app.fiko.net/api/v1/workflow/api/"
+BASE_URL = "https://app.pilito.com/api/v1/workflow/api/"
 
 # Test endpoints
 ENDPOINTS_TO_TEST = [

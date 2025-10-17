@@ -466,18 +466,18 @@ When you use the unified tracker, **both** models are updated:
 
 ### Via Admin Interface
 ```
-https://api.fiko.net/admin/AI_model/aiusagelog/
-https://api.fiko.net/admin/AI_model/aiusagetracking/
+https://api.pilito.com/admin/AI_model/aiusagelog/
+https://api.pilito.com/admin/AI_model/aiusagetracking/
 ```
 
 ### Via API
 ```bash
 # Get detailed logs
-curl "https://api.fiko.net/api/v1/ai/usage/logs/" \
+curl "https://api.pilito.com/api/v1/ai/usage/logs/" \
   -H "Authorization: Bearer TOKEN"
 
 # Get statistics
-curl "https://api.fiko.net/api/v1/ai/usage/logs/stats/" \
+curl "https://api.pilito.com/api/v1/ai/usage/logs/stats/" \
   -H "Authorization: Bearer TOKEN"
 ```
 

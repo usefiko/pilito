@@ -60,7 +60,7 @@ def test_node_delete_after_fix():
     print("🎯 Method 1: Direct Node Delete")
     delete_command = f'''curl -X DELETE \\
   -H "Authorization: Bearer your-jwt-token" \\
-  "https://api.fiko.net/api/v1/workflow/api/nodes/{NODE_ID}/"'''
+  "https://api.pilito.com/api/v1/workflow/api/nodes/{NODE_ID}/"'''
     
     print("Command:")
     print(delete_command)
@@ -82,12 +82,12 @@ def test_node_delete_after_fix():
     print("\n🔍 Method 2: Safe Delete (Check First)")
     check_command = f'''# Step 1: Check if node exists
 curl -H "Authorization: Bearer your-jwt-token" \\
-  "https://api.fiko.net/api/v1/workflow/api/nodes/{NODE_ID}/"
+  "https://api.pilito.com/api/v1/workflow/api/nodes/{NODE_ID}/"
 
 # Step 2: Delete if exists
 curl -X DELETE \\
   -H "Authorization: Bearer your-jwt-token" \\
-  "https://api.fiko.net/api/v1/workflow/api/nodes/{NODE_ID}/"'''
+  "https://api.pilito.com/api/v1/workflow/api/nodes/{NODE_ID}/"'''
     
     print("Commands:")
     print(check_command)
@@ -278,11 +278,11 @@ def verification_steps():
     test_commands = [
         f"# Test the fixed delete endpoint",
         f"curl -X DELETE -H \"Authorization: Bearer your-token\" \\",
-        f"  \"https://api.fiko.net/api/v1/workflow/api/nodes/{NODE_ID}/\"",
+        f"  \"https://api.pilito.com/api/v1/workflow/api/nodes/{NODE_ID}/\"",
         f"",
         f"# Verify node is gone",
         f"curl -H \"Authorization: Bearer your-token\" \\",
-        f"  \"https://api.fiko.net/api/v1/workflow/api/nodes/{NODE_ID}/\"",
+        f"  \"https://api.pilito.com/api/v1/workflow/api/nodes/{NODE_ID}/\"",
         f"# Should return 404 Not Found"
     ]
     

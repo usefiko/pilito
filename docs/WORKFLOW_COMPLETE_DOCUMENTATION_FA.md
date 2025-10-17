@@ -1350,7 +1350,7 @@ LOGGING = {
 - [Postman Collection](https://documenter.getpostman.com/view/...)
 
 ### 3. Community
-- [Fiko Developers Forum](https://forum.fiko.net/)
+- [Fiko Developers Forum](https://forum.pilito.com/)
 - [Telegram Channel](https://t.me/fiko_developers)
 
 ---

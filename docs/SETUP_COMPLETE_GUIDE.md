@@ -28,9 +28,9 @@ STRIPE_WEBHOOK_SECRET=whsec_kYH0d9bTpjXpaaVMlVK78LDJqvLCkjz1
 STRIPE_ENABLED=True
 STRIPE_TEST_MODE=True
 STRIPE_CURRENCY=usd
-STRIPE_SUCCESS_URL=https://app.fiko.net/billing/success?session_id={CHECKOUT_SESSION_ID}
-STRIPE_CANCEL_URL=https://app.fiko.net/billing/plans
-STRIPE_PORTAL_RETURN_URL=https://app.fiko.net/billing
+STRIPE_SUCCESS_URL=https://app.pilito.com/billing/success?session_id={CHECKOUT_SESSION_ID}
+STRIPE_CANCEL_URL=https://app.pilito.com/billing/plans
+STRIPE_PORTAL_RETURN_URL=https://app.pilito.com/billing
 ```
 
 Save and exit (`Ctrl+X`, then `Y`, then `Enter`)
@@ -49,7 +49,7 @@ This adds `stripe_product_id` and `stripe_price_id` fields to your plans.
 
 **Option A: Using Django Admin (Easiest)**
 
-1. Go to: http://api.fiko.net/admin/billing/fullplan/
+1. Go to: http://api.pilito.com/admin/billing/fullplan/
 2. Edit your Monthly plan:
    - Set `stripe_price_id` = `price_1S0dwrKkH1LI50QC2GhtfzN4`
 3. Edit your Yearly plan:
@@ -104,11 +104,11 @@ docker-compose restart web
 
 ```bash
 # Get your plans
-curl -X GET http://api.fiko.net/api/v1/billing/plans/full/ \
+curl -X GET http://api.pilito.com/api/v1/billing/plans/full/ \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 
 # Create checkout session
-curl -X POST http://api.fiko.net/api/v1/billing/stripe/checkout-session/ \
+curl -X POST http://api.pilito.com/api/v1/billing/stripe/checkout-session/ \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -150,8 +150,8 @@ POST /api/v1/billing/stripe/checkout-session/
 ### 3. Complete Payment
 
 After payment:
-- Stripe redirects to: `https://app.fiko.net/billing/success?session_id=cs_test_...`
-- Stripe sends webhook to: `https://api.fiko.net/api/v1/billing/stripe/webhook/`
+- Stripe redirects to: `https://app.pilito.com/billing/success?session_id=cs_test_...`
+- Stripe sends webhook to: `https://api.pilito.com/api/v1/billing/stripe/webhook/`
 - Your backend processes the webhook
 - Subscription activated ✅
 - Tokens added to user account ✅
@@ -301,7 +301,7 @@ python src/manage.py shell
 sudo systemctl restart gunicorn
 
 # Test checkout
-curl -X POST http://api.fiko.net/api/v1/billing/stripe/checkout-session/ \
+curl -X POST http://api.pilito.com/api/v1/billing/stripe/checkout-session/ \
   -H "Authorization: Bearer TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"plan_type": "full", "plan_id": 1}'

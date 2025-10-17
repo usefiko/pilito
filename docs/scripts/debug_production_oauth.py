@@ -13,7 +13,7 @@ from urllib.parse import urlparse
 def test_production_oauth():
     """Test Google OAuth endpoints in production"""
     
-    base_url = "https://api.fiko.net"
+    base_url = "https://api.pilito.com"
     
     print("🔍 Testing Production Google OAuth Configuration...")
     print(f"🌐 Base URL: {base_url}")
@@ -47,11 +47,11 @@ def test_production_oauth():
             print(f"   - URL: {auth_url[:100]}...")
             
             # Verify the redirect URI in the auth URL
-            if "redirect_uri=https%3A//api.fiko.net" in auth_url:
+            if "redirect_uri=https%3A//api.pilito.com" in auth_url:
                 print("✅ Correct redirect URI in auth URL")
             else:
                 print("❌ Incorrect redirect URI in auth URL")
-                print("   Expected: https://api.fiko.net/api/v1/usr/google/callback")
+                print("   Expected: https://api.pilito.com/api/v1/usr/google/callback")
         else:
             print(f"❌ Auth URL generation failed: {response.status_code}")
             return False
@@ -96,7 +96,7 @@ def test_production_oauth():
     print("2. Navigate to: APIs & Services → Credentials")
     print("3. Edit your OAuth 2.0 Client ID")
     print("4. Ensure 'Authorized redirect URIs' contains:")
-    print("   https://api.fiko.net/api/v1/usr/google/callback")
+    print("   https://api.pilito.com/api/v1/usr/google/callback")
     print("5. Save the changes")
     print()
     print("📋 DEBUGGING STEPS:")
@@ -116,14 +116,14 @@ def test_production_oauth():
 
 
 def check_dns_resolution():
-    """Check if api.fiko.net resolves correctly"""
+    """Check if api.pilito.com resolves correctly"""
     print("\n🌐 DNS Resolution Check:")
     print("="*30)
     
     import socket
     try:
-        ip = socket.gethostbyname('api.fiko.net')
-        print(f"✅ api.fiko.net resolves to: {ip}")
+        ip = socket.gethostbyname('api.pilito.com')
+        print(f"✅ api.pilito.com resolves to: {ip}")
         
         # Try to connect to port 443
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -138,7 +138,7 @@ def check_dns_resolution():
             return False
             
     except socket.gaierror:
-        print("❌ api.fiko.net does not resolve")
+        print("❌ api.pilito.com does not resolve")
         return False
     
     return True

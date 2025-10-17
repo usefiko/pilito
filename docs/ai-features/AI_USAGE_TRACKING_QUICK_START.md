@@ -104,7 +104,7 @@ GET /api/v1/ai/usage/logs/global/?days=30
 
 Access the admin interface at:
 ```
-https://api.fiko.net/admin/AI_model/aiusagelog/
+https://api.pilito.com/admin/AI_model/aiusagelog/
 ```
 
 **Features:**
@@ -179,11 +179,11 @@ total_tokens = AIUsageLog.objects.filter(
 ### API (cURL)
 ```bash
 # Get last 7 days of chat logs
-curl "https://api.fiko.net/api/v1/ai/usage/logs/?section=chat&start_date=2025-10-04" \
+curl "https://api.pilito.com/api/v1/ai/usage/logs/?section=chat&start_date=2025-10-04" \
   -H "Authorization: Bearer YOUR_TOKEN"
 
 # Get statistics
-curl "https://api.fiko.net/api/v1/ai/usage/logs/stats/?days=30" \
+curl "https://api.pilito.com/api/v1/ai/usage/logs/stats/?days=30" \
   -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
@@ -264,7 +264,7 @@ import requests
 
 def get_my_usage_stats(days=30):
     response = requests.get(
-        'https://api.fiko.net/api/v1/ai/usage/logs/stats/',
+        'https://api.pilito.com/api/v1/ai/usage/logs/stats/',
         params={'days': days},
         headers={'Authorization': f'Bearer {token}'}
     )

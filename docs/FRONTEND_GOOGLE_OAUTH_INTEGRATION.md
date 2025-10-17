@@ -32,13 +32,13 @@ sequenceDiagram
 
 Your frontend needs a route to handle the OAuth callback:
 
-**URL:** `https://app.fiko.net/auth/success`
+**URL:** `https://app.pilito.com/auth/success`
 
 ### 2. Handle Callback Data
 
 After successful OAuth, users are redirected to:
 ```
-https://app.fiko.net/auth/success?success=true&data=<base64_encoded_data>
+https://app.pilito.com/auth/success?success=true&data=<base64_encoded_data>
 ```
 
 ### 3. React Implementation Example
@@ -136,7 +136,7 @@ function AuthSuccess() {
     const testAuthentication = async () => {
         try {
             // Test if authentication is working
-            const response = await fetch('https://api.fiko.net/api/v1/usr/auth/status', {
+            const response = await fetch('https://api.pilito.com/api/v1/usr/auth/status', {
                 credentials: 'include', // Include HTTP-only cookies
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
@@ -192,7 +192,7 @@ Create a helper for authenticated API requests:
 // utils/api.js
 class ApiClient {
     constructor() {
-        this.baseURL = 'https://api.fiko.net/api/v1';
+        this.baseURL = 'https://api.pilito.com/api/v1';
     }
 
     async request(endpoint, options = {}) {
@@ -333,7 +333,7 @@ function GoogleLoginButton() {
             setLoading(true);
             
             // Get Google auth URL from backend
-            const response = await fetch('https://api.fiko.net/api/v1/usr/google/auth-url');
+            const response = await fetch('https://api.pilito.com/api/v1/usr/google/auth-url');
             const data = await response.json();
             
             if (data.auth_url) {
@@ -413,14 +413,14 @@ The backend sets these cookies automatically:
 
 1. **Get auth URL:**
 ```bash
-curl https://api.fiko.net/api/v1/usr/google/auth-url
+curl https://api.pilito.com/api/v1/usr/google/auth-url
 ```
 
 2. **Complete OAuth in browser**
 
 3. **Check authentication status:**
 ```bash
-curl https://api.fiko.net/api/v1/usr/auth/status
+curl https://api.pilito.com/api/v1/usr/auth/status
 ```
 
 ### Debug in Browser Console
@@ -441,7 +441,7 @@ console.log('All Cookies:', document.cookie);
 console.log('User Info Cookie:', getCookie('USER_INFO'));
 
 // Test authentication
-fetch('https://api.fiko.net/api/v1/usr/auth/status', {
+fetch('https://api.pilito.com/api/v1/usr/auth/status', {
     credentials: 'include'
 }).then(r => r.json()).then(console.log);
 ```
@@ -518,7 +518,7 @@ console.log('Cookies:', document.cookie);
 
 3. **Test API authentication:**
 ```javascript
-fetch('https://api.fiko.net/api/v1/usr/profile', {
+fetch('https://api.pilito.com/api/v1/usr/profile', {
     headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` },
     credentials: 'include'
 });

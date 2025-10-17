@@ -52,7 +52,7 @@ TELEGRAM_BOT_TOKEN=your_bot_token_here
 N8N_WEBHOOK_URL=https://your-n8n-instance.com/webhook/instagram
 
 # Optional: For email sending
-DEFAULT_FROM_EMAIL=noreply@fiko.net
+DEFAULT_FROM_EMAIL=noreply@pilito.com
 ```
 
 ## 🏗️ Architecture

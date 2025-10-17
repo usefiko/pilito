@@ -247,7 +247,7 @@ def remove_user_tag(user_instance, tag_name: str) -> bool:
 INTEGRATION_SETTINGS = {
     'TELEGRAM_BOT_TOKEN': getattr(settings, 'TELEGRAM_BOT_TOKEN', None),
     'N8N_WEBHOOK_URL': getattr(settings, 'N8N_WEBHOOK_URL', None),
-    'DEFAULT_FROM_EMAIL': getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@fiko.net'),
+    'DEFAULT_FROM_EMAIL': getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@pilito.com'),
 }
 
 

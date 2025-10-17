@@ -186,7 +186,7 @@ User: عالیه، ممنون
 **راه حل:**
 ```bash
 # Check در Admin Panel:
-https://api.fiko.net/admin/settings/generalsettings/
+https://api.pilito.com/admin/settings/generalsettings/
 
 # مطمئن شو که Gemini API Key پر شده
 ```

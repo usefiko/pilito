@@ -40,7 +40,7 @@ class ForgetPasswordAPIView(APIView):
                 reset_token = PasswordResetToken.objects.create(user=user)
                 
                 # Generate reset link (you'll need to configure your frontend URL)
-                frontend_url = getattr(settings, 'FRONTEND_URL', 'https://app.fiko.net')
+                frontend_url = getattr(settings, 'FRONTEND_URL', 'https://app.pilito.com')
                 reset_link = f"{frontend_url}/auth/reset-password?token={reset_token.token}"
                 
                 # Send email
@@ -67,14 +67,14 @@ Important:
 - If you didn't request this, please ignore this email
 
 This is an automated message from Fiko.
-If you need help, contact us at support@fiko.net
+If you need help, contact us at support@pilito.com
                 """
                 
                 try:
                     send_mail(
                         subject=subject,
                         message=plain_message,
-                        from_email=getattr(settings, 'DEFAULT_FROM_EMAIL_DISPLAY', 'Fiko <noreply@fiko.net>'),
+                        from_email=getattr(settings, 'DEFAULT_FROM_EMAIL_DISPLAY', 'Fiko <noreply@pilito.com>'),
                         recipient_list=[email],
                         html_message=html_message,
                         fail_silently=False,

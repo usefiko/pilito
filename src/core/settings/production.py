@@ -97,9 +97,9 @@ CORS_ALLOW_CREDENTIALS = True
 
 # WebSocket CORS Settings - حل مشکل 403
 CORS_ALLOWED_ORIGINS = [
-    "https://app.pilito.net",
-    "https://pilito.net",
-    "https://api.pilito.net",
+    "https://app.pilito.com",
+    "https://pilito.com",
+    "https://api.pilito.com",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://0.0.0.0:8000",
@@ -114,9 +114,9 @@ CORS_ALLOWED_ORIGINS = [
 
 # CSRF settings برای WebSocket
 CSRF_TRUSTED_ORIGINS = [
-    'https://app.pilito.net',
-    'https://api.pilito.net',
-    'https://pilito.net',
+    'https://app.pilito.com',
+    'https://api.pilito.com',
+    'https://pilito.com',
     'http://localhost:8000',
     'http://localhost:3000',
     'http://127.0.0.1:8000',
@@ -265,4 +265,7 @@ LOGGING = {
         },
     },
 }
-
+# ✅ Security settings for HTTPS only
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
+SECURE_SSL_REDIRECT = True

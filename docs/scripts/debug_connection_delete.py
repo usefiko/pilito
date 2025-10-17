@@ -12,7 +12,7 @@ def debug_connection_delete():
     print("=" * 50)
     
     TOKEN = "your-jwt-token"
-    BASE_URL = "https://api.fiko.net/api/v1/workflow/api"
+    BASE_URL = "https://api.pilito.com/api/v1/workflow/api"
     CONNECTION_ID = "0c172da6-6946-44d2-bea5-797aa72b6c94"
     
     print(f"❌ Failed Connection ID: {CONNECTION_ID}")

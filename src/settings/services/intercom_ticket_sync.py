@@ -87,7 +87,7 @@ class IntercomTicketSyncService:
             # If it's a relative URL, make it absolute
             if file_url.startswith('/'):
                 # Use MEDIA_URL from settings or construct it
-                base_url = getattr(django_settings, 'BASE_URL', 'https://api.fiko.net')
+                base_url = getattr(django_settings, 'BASE_URL', 'https://api.pilito.com')
                 file_url = f"{base_url}{file_url}"
             
             logger.info(f"📎 Generated public URL for {attachment_obj.original_filename}: {file_url}")

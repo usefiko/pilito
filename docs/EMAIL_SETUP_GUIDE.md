@@ -16,8 +16,8 @@ The AWS SES SMTP credentials are invalid or the sender email domain is not verif
 ### Step 1: Check AWS SES Console
 1. Go to AWS SES Console → `us-east-1` region
 2. **Verify Identities:**
-   - Domain: `fiko.net` should be verified ✅
-   - Email: `noreply@fiko.net` or `support@fiko.net` should be verified ✅
+   - Domain: `pilito.com` should be verified ✅
+   - Email: `noreply@pilito.com` or `support@pilito.com` should be verified ✅
 3. **Check Sandbox Mode:**
    - If in sandbox, you can only send to verified emails
    - Request production access if needed
@@ -35,7 +35,7 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'YOUR_NEW_SMTP_USERNAME'
 EMAIL_HOST_PASSWORD = 'YOUR_NEW_SMTP_PASSWORD'
-DEFAULT_FROM_EMAIL = 'noreply@fiko.net'  # Must be verified
+DEFAULT_FROM_EMAIL = 'noreply@pilito.com'  # Must be verified
 ```
 
 ---
@@ -70,14 +70,14 @@ Move credentials to environment variables:
 ```bash
 SMTP_USERNAME=AKIARTLO5HLCKHLZ7KWR
 SMTP_PASSWORD=BLrFuGxymqJxlgcGdrWLJXFfX4+pMc33Dqi43J/av31h
-SMTP_FROM_EMAIL=noreply@fiko.net
+SMTP_FROM_EMAIL=noreply@pilito.com
 ```
 
 ### Step 2: Update settings
 ```python
 EMAIL_HOST_USER = environ.get('SMTP_USERNAME')
 EMAIL_HOST_PASSWORD = environ.get('SMTP_PASSWORD')
-DEFAULT_FROM_EMAIL = environ.get('SMTP_FROM_EMAIL', 'noreply@fiko.net')
+DEFAULT_FROM_EMAIL = environ.get('SMTP_FROM_EMAIL', 'noreply@pilito.com')
 ```
 
 ---
@@ -116,7 +116,7 @@ import django, os
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 from django.core.mail import send_mail
-result = send_mail('Test', 'Test message', 'noreply@fiko.net', ['test@example.com'])
+result = send_mail('Test', 'Test message', 'noreply@pilito.com', ['test@example.com'])
 print(f'Result: {result}')
 "
 ```

@@ -116,9 +116,9 @@ class Command(BaseCommand):
             self.stdout.write("\n📋 Check these items:")
             self.stdout.write("1. Google OAuth Console configuration:")
             self.stdout.write("   - Authorized redirect URIs must include:")
-            self.stdout.write("     https://api.fiko.net/api/v1/usr/google/callback")
+            self.stdout.write("     https://api.pilito.com/api/v1/usr/google/callback")
             self.stdout.write("2. DNS resolution:")
-            self.stdout.write("   - Ensure api.fiko.net points to your server")
+            self.stdout.write("   - Ensure api.pilito.com points to your server")
             self.stdout.write("3. SSL certificate:")
             self.stdout.write("   - Ensure HTTPS is working properly")
             self.stdout.write("4. Server accessibility:")
@@ -137,7 +137,7 @@ class Command(BaseCommand):
         
         self.stdout.write("\n🔧 Debugging commands:")
         self.stdout.write("- Monitor logs: docker logs -f <container> | grep -i google")
-        self.stdout.write("- Test endpoint: curl https://api.fiko.net/api/v1/usr/google/test")
-        self.stdout.write("- Check auth URL: curl https://api.fiko.net/api/v1/usr/google/auth-url")
+        self.stdout.write("- Test endpoint: curl https://api.pilito.com/api/v1/usr/google/test")
+        self.stdout.write("- Check auth URL: curl https://api.pilito.com/api/v1/usr/google/auth-url")
         
         self.stdout.write(f"\n📊 Production OAuth Status: {'✅ Working' if google_users_exist else '❌ Not Working'}")

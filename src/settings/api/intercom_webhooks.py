@@ -79,7 +79,7 @@ def intercom_webhook_handler(request):
     - ticket.closed: Ticket was closed → update status in Fiko
     
     Endpoint URL to configure in Intercom:
-    https://api.fiko.net/api/webhooks/intercom/
+    https://api.pilito.com/api/webhooks/intercom/
     
     Args:
         request: Django POST request with webhook data

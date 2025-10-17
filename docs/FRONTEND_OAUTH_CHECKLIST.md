@@ -10,7 +10,7 @@
 - [ ] Redirect to dashboard after success
 
 ### 2. Update Google Login Button
-- [ ] Call `GET https://api.fiko.net/api/v1/usr/google/auth-url`
+- [ ] Call `GET https://api.pilito.com/api/v1/usr/google/auth-url`
 - [ ] Redirect user to returned `auth_url`
 - [ ] Remove any existing OAuth redirect logic
 

@@ -42,7 +42,7 @@ class WebsiteCrawler:
         # Session for connection reuse
         self.session = requests.Session()
         self.session.headers.update({
-            'User-Agent': 'Fiko WebKnowledge Bot 1.0 (Contact: info@fiko.net)',
+            'User-Agent': 'Fiko WebKnowledge Bot 1.0 (Contact: info@pilito.com)',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             'Accept-Language': 'en-US,en;q=0.5',
             'Accept-Encoding': 'gzip, deflate',

@@ -277,7 +277,7 @@ export default function Success() {
 2. Click **+ Add endpoint**
 3. Enter your webhook URL:
    ```
-   https://api.fiko.net/billing/stripe/webhook/
+   https://api.pilito.com/billing/stripe/webhook/
    ```
 4. Select events to listen to:
    - ✅ `checkout.session.completed`
@@ -385,9 +385,9 @@ tail -f src/logs/django.log | grep -i stripe
 
 Update your environment variables with production URLs:
 ```bash
-STRIPE_SUCCESS_URL=https://app.fiko.net/billing/success?session_id={CHECKOUT_SESSION_ID}
-STRIPE_CANCEL_URL=https://app.fiko.net/billing/plans
-STRIPE_PORTAL_RETURN_URL=https://app.fiko.net/billing
+STRIPE_SUCCESS_URL=https://app.pilito.com/billing/success?session_id={CHECKOUT_SESSION_ID}
+STRIPE_CANCEL_URL=https://app.pilito.com/billing/plans
+STRIPE_PORTAL_RETURN_URL=https://app.pilito.com/billing
 ```
 
 ### 3. Configure Production Webhook
@@ -395,7 +395,7 @@ STRIPE_PORTAL_RETURN_URL=https://app.fiko.net/billing
 1. Go to [Stripe Dashboard - Webhooks](https://dashboard.stripe.com/webhooks) (Live mode)
 2. Add your production webhook URL:
    ```
-   https://api.fiko.net/billing/stripe/webhook/
+   https://api.pilito.com/billing/stripe/webhook/
    ```
 3. Select the same events as before
 4. Copy the signing secret and add to production environment:

@@ -195,7 +195,7 @@ curl -X GET "http://localhost:8000/api/v1/usr/google/test"
   "configured": true,
   "client_id_configured": true,
   "client_secret_configured": true,
-  "redirect_uri": "https://app.fiko.net/auth/google/callback"
+  "redirect_uri": "https://app.pilito.com/auth/google/callback"
 }
 ```
 

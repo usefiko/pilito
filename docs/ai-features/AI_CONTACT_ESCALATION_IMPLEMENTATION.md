@@ -428,13 +428,13 @@ satisfied_customers = Message.objects.filter(
 شماره من 09123456789 هست
 
 # Test 2: English email
-My email is test@fiko.net
+My email is test@pilito.com
 
 # Test 3: Arabic escalation
 أريد التحدث مع الدعم
 
 # Test 4: Turkish both
-E-postam test@fiko.net ve numaram 09123456789
+E-postam test@pilito.com ve numaram 09123456789
 
 # Test 5: Persian escalation
 میخام با پشتیبانیتون صحبت کنم

@@ -223,7 +223,7 @@ docker-compose logs -f --tail=50 backend
 
 ```bash
 # چک کردن redirect destinations
-curl -X GET "https://api.fiko.net/api/workflow/action-nodes/redirect_destinations/" \
+curl -X GET "https://api.pilito.com/api/workflow/action-nodes/redirect_destinations/" \
      -H "Authorization: Bearer YOUR_TOKEN"
 
 # باید 'ai' رو در لیست ببینی:

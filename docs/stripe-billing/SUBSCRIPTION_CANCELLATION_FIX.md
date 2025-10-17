@@ -240,7 +240,7 @@ docker compose exec web python manage.py sync_stripe_subscriptions --all
 ### **Step 4: Configure Webhook in Stripe**
 
 1. Go to **Stripe Dashboard** → **Developers** → **Webhooks**
-2. Find your webhook endpoint: `https://api.fiko.net/api/v1/billing/stripe/webhook/`
+2. Find your webhook endpoint: `https://api.pilito.com/api/v1/billing/stripe/webhook/`
 3. Ensure it's listening for:
    - ✅ `customer.subscription.updated`
    - ✅ `customer.subscription.deleted`

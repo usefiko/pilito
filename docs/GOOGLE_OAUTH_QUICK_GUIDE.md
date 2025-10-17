@@ -4,7 +4,7 @@
 
 After Google OAuth, users are redirected to:
 ```
-https://app.fiko.net/auth/success?success=true&data=<base64_data>
+https://app.pilito.com/auth/success?success=true&data=<base64_data>
 ```
 
 **You need to create this route and handle the callback!**
@@ -68,7 +68,7 @@ fetch('/api/endpoint', {
 
 ```jsx
 const handleGoogleLogin = async () => {
-    const response = await fetch('https://api.fiko.net/api/v1/usr/google/auth-url');
+    const response = await fetch('https://api.pilito.com/api/v1/usr/google/auth-url');
     const { auth_url } = await response.json();
     window.location.href = auth_url;
 };

@@ -40,13 +40,13 @@ class ProductionOriginValidator:
 
 # Production allowed origins
 PRODUCTION_ALLOWED_ORIGINS = [
-    "https://app.fiko.net",
-    "https://fiko.net", 
-    "https://api.fiko.net",
+    "https://app.pilito.com",
+    "https://pilito.com", 
+    "https://api.pilito.com",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "ws://localhost:8000",
-    "wss://api.fiko.net",
+    "wss://api.pilito.com",
 ]
 
 # Choose middleware stack based on environment

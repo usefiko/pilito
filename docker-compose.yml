@@ -27,10 +27,10 @@ services:
       - EMAIL_HOST_USER=AKIARTLO5HLCKHLZ7KWR
       - EMAIL_HOST_PASSWORD=BLrFuGxymqJxlgcGdrWLJXFfX4+pMc33Dqi43J/av31h
       - EMAIL_TIMEOUT=30
-      - DEFAULT_FROM_EMAIL=noreply@fiko.net
+      - DEFAULT_FROM_EMAIL=noreply@pilito.com
       # Google OAuth Configuration (Production)
-      - GOOGLE_OAUTH2_REDIRECT_URI=https://api.fiko.net/api/v1/usr/google/callback
-      - GOOGLE_OAUTH2_FRONTEND_REDIRECT=https://app.fiko.net/auth/success
+      - GOOGLE_OAUTH2_REDIRECT_URI=https://api.pilito.com/api/v1/usr/google/callback
+      - GOOGLE_OAUTH2_FRONTEND_REDIRECT=https://app.pilito.com/auth/success
     depends_on:
       - db
       - redis

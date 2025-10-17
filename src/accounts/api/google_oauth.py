@@ -176,8 +176,8 @@ class GoogleOAuthCodeAPIView(APIView):
                 response = redirect(redirect_url)
                 
                 # Determine if we're in production based on the redirect URI
-                is_production = 'fiko.net' in settings.GOOGLE_OAUTH2_FRONTEND_REDIRECT
-                cookie_domain = '.fiko.net' if is_production else None
+                is_production = 'pilito.com' in settings.GOOGLE_OAUTH2_FRONTEND_REDIRECT
+                cookie_domain = '.pilito.com' if is_production else None
                 cookie_secure = is_production  # Only secure in production (HTTPS)
                 
                 # Set HTTP-only cookies for security and persistence

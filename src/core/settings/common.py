@@ -247,9 +247,9 @@ CORS_ALLOW_CREDENTIALS = True
 
 # WebSocket CORS Settings - حل مشکل 403
 CORS_ALLOWED_ORIGINS = [
-    "https://app.fiko.net",
-    "https://fiko.net",
-    "https://api.fiko.net",
+    "https://app.pilito.com",
+    "https://pilito.com",
+    "https://api.pilito.com",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://0.0.0.0:8000",
@@ -265,9 +265,9 @@ CORS_ALLOWED_ORIGINS = [
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:8000',
     'http://localhost:3000',
-    'https://app.fiko.net',
-    'https://api.fiko.net',
-    'https://fiko.net',
+    'https://app.pilito.com',
+    'https://api.pilito.com',
+    'https://pilito.com',
     'http://127.0.0.1:8000',
     'http://127.0.0.1:3000',
     "http://0.0.0.0:8000",
@@ -285,9 +285,9 @@ CSRF_TRUSTED_ORIGINS = [
 # GOOGLE OAUTH CONFIGURATION
 GOOGLE_OAUTH2_CLIENT_ID = "474127607425-nspfkpns0k5r5nou0fmbvtatj2fak6rd.apps.googleusercontent.com"
 GOOGLE_OAUTH2_CLIENT_SECRET = "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"
-GOOGLE_OAUTH2_REDIRECT_URI = environ.get("GOOGLE_OAUTH2_REDIRECT_URI", "https://api.fiko.net/api/v1/usr/google/callback")
+GOOGLE_OAUTH2_REDIRECT_URI = environ.get("GOOGLE_OAUTH2_REDIRECT_URI", "https://api.pilito.com/api/v1/usr/google/callback")
 # Frontend redirect URL after successful authentication
-GOOGLE_OAUTH2_FRONTEND_REDIRECT = environ.get("GOOGLE_OAUTH2_FRONTEND_REDIRECT", "https://app.fiko.net/auth/success")
+GOOGLE_OAUTH2_FRONTEND_REDIRECT = environ.get("GOOGLE_OAUTH2_FRONTEND_REDIRECT", "https://app.pilito.com/auth/success")
 # END GOOGLE OAUTH CONFIGURATION
 
 
@@ -310,7 +310,7 @@ INTERCOM_API_VERSION = '2.14'  # Intercom API version (latest)
 # ============================================================================
 # BASE URL CONFIGURATION (for generating absolute URLs)
 # ============================================================================
-BASE_URL = environ.get('BASE_URL', 'https://api.fiko.net')
+BASE_URL = environ.get('BASE_URL', 'https://api.pilito.com')
 
 
 # STRIPE PAYMENT CONFIGURATION
@@ -321,9 +321,9 @@ STRIPE_ENABLED = environ.get('STRIPE_ENABLED', 'True').lower() == 'true'
 STRIPE_TEST_MODE = environ.get('STRIPE_TEST_MODE', 'True').lower() == 'true'
 STRIPE_CURRENCY = environ.get('STRIPE_CURRENCY', 'usd')
 STRIPE_API_VERSION = '2023-10-16'
-STRIPE_SUCCESS_URL = environ.get('STRIPE_SUCCESS_URL', 'https://app.fiko.net/dashboard/profile?payment=success&session_id={CHECKOUT_SESSION_ID}#billing')
-STRIPE_CANCEL_URL = environ.get('STRIPE_CANCEL_URL', 'https://app.fiko.net/dashboard/profile?payment=cancelled#billing')
-STRIPE_PORTAL_RETURN_URL = environ.get('STRIPE_PORTAL_RETURN_URL', 'https://app.fiko.net/dashboard/profile#billing')
+STRIPE_SUCCESS_URL = environ.get('STRIPE_SUCCESS_URL', 'https://app.pilito.com/dashboard/profile?payment=success&session_id={CHECKOUT_SESSION_ID}#billing')
+STRIPE_CANCEL_URL = environ.get('STRIPE_CANCEL_URL', 'https://app.pilito.com/dashboard/profile?payment=cancelled#billing')
+STRIPE_PORTAL_RETURN_URL = environ.get('STRIPE_PORTAL_RETURN_URL', 'https://app.pilito.com/dashboard/profile#billing')
 # END STRIPE PAYMENT CONFIGURATION
 
 
@@ -340,9 +340,9 @@ EMAIL_HOST_USER = environ.get('EMAIL_HOST_USER', 'AKIARTLO5HLCKHLZ7KWR')
 EMAIL_HOST_PASSWORD = environ.get('EMAIL_HOST_PASSWORD', 'BLrFuGxymqJxlgcGdrWLJXFfX4+pMc33Dqi43J/av31h')
 EMAIL_TIMEOUT = int(environ.get('EMAIL_TIMEOUT', '30'))
 
-DEFAULT_FROM_EMAIL = environ.get('DEFAULT_FROM_EMAIL', 'noreply@fiko.net')
+DEFAULT_FROM_EMAIL = environ.get('DEFAULT_FROM_EMAIL', 'noreply@pilito.com')
 # Email sender display name configuration
-DEFAULT_FROM_EMAIL_DISPLAY = 'Fiko <noreply@fiko.net>'
+DEFAULT_FROM_EMAIL_DISPLAY = 'Fiko <noreply@pilito.com>'
 # END EMAIL CONFIGURATION
 
 

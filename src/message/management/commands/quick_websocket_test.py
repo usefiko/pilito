@@ -15,7 +15,7 @@ class Command(BaseCommand):
             '--host',
             type=str,
             default='localhost:8000',
-            help='Host to test (e.g., api.fiko.net)'
+            help='Host to test (e.g., api.pilito.com)'
         )
         parser.add_argument(
             '--user-email',

@@ -52,7 +52,7 @@ docker compose restart web celery_worker celery_beat
 
 ### قدم 6: اضافه کردن OpenAI API Key
 ```
-1. برو به Django Admin: https://api.fiko.net/admin/
+1. برو به Django Admin: https://api.pilito.com/admin/
 2. وارد بخش "⚙️ General Settings" شو
 3. فیلد "OpenAI API Key" رو پر کن:
    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

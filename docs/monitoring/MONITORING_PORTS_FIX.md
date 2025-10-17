@@ -109,9 +109,9 @@ For enterprise environments:
 
 ```python
 ALLOWED_HOSTS = [
-    'api.fiko.net',
-    'fiko.net', 
-    'app.fiko.net',
+    'api.pilito.com',
+    'pilito.com', 
+    'app.pilito.com',
     'localhost',
     '127.0.0.1',
     '0.0.0.0',

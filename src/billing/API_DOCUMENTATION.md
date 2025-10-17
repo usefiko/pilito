@@ -264,8 +264,8 @@ Response:
 ```json
 { "url": "https://checkout.stripe.com/c/pay/cs_test_..." }
 ```
-- Success URL: `http://app.fiko.net/dashboard/payment/success?status=success&transaction_id={CHECKOUT_SESSION_ID}&amount=29.99&plan_name=Pro Plan`
-- Cancel/Failure URL: `http://app.fiko.net/dashboard/payment/failure?status=cancelled&error_code=USER_CANCELLED&error_message=Payment was cancelled by user`
+- Success URL: `http://app.pilito.com/dashboard/payment/success?status=success&transaction_id={CHECKOUT_SESSION_ID}&amount=29.99&plan_name=Pro Plan`
+- Cancel/Failure URL: `http://app.pilito.com/dashboard/payment/failure?status=cancelled&error_code=USER_CANCELLED&error_message=Payment was cancelled by user`
 - `client_reference_id` is set to the authenticated user id.
 - Frontend receives all payment details in URL query parameters
 
@@ -275,7 +275,7 @@ POST `/stripe/customer-portal/`
 { "url": "https://billing.stripe.com/session/ABC..." }
 ```
 - Requires `stripe_customer_id` on the user subscription.
-- Return URL: `settings.STRIPE_PORTAL_RETURN_URL` (default `https://app.fiko.net/account`).
+- Return URL: `settings.STRIPE_PORTAL_RETURN_URL` (default `https://app.pilito.com/account`).
 
 ### Webhook
 POST `/stripe/webhook/` (no auth)
@@ -296,7 +296,7 @@ STRIPE_WEBHOOK_SECRET = 'whsec_...'
 STRIPE_CURRENCY = 'usd'
 # Success/Cancel URLs are auto-generated with payment details
 # Custom URLs can be passed to checkout-session API
-STRIPE_PORTAL_RETURN_URL = 'https://app.fiko.net/account'
+STRIPE_PORTAL_RETURN_URL = 'https://app.pilito.com/account'
 ```
 
 ## Trials & User Overview

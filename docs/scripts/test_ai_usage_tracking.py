@@ -208,6 +208,6 @@ print("\n" + "=" * 80)
 print("To see detailed logs, check:")
 print("  - Docker logs: docker logs <container_id> | grep 'ai_usage_tracker'")
 print("  - Application logs: Check your Django log files")
-print("  - Admin interface: https://api.fiko.net/admin/AI_model/aiusagelog/")
+print("  - Admin interface: https://api.pilito.com/admin/AI_model/aiusagelog/")
 print("=" * 80)
 

@@ -44,7 +44,7 @@ sudo systemctl restart gunicorn
 ## 🧪 Test It
 
 ```bash
-curl -X POST https://api.fiko.net/api/v1/billing/stripe/checkout-session/ \
+curl -X POST https://api.pilito.com/api/v1/billing/stripe/checkout-session/ \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"plan_type": "full", "plan_id": 2}'

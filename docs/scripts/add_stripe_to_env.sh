@@ -69,9 +69,9 @@ fi
 echo "STRIPE_ENABLED=True" >> .env
 echo "STRIPE_TEST_MODE=True" >> .env
 echo "STRIPE_CURRENCY=usd" >> .env
-echo "STRIPE_SUCCESS_URL=https://app.fiko.net/billing/success?session_id={CHECKOUT_SESSION_ID}" >> .env
-echo "STRIPE_CANCEL_URL=https://app.fiko.net/billing/plans" >> .env
-echo "STRIPE_PORTAL_RETURN_URL=https://app.fiko.net/billing" >> .env
+echo "STRIPE_SUCCESS_URL=https://app.pilito.com/billing/success?session_id={CHECKOUT_SESSION_ID}" >> .env
+echo "STRIPE_CANCEL_URL=https://app.pilito.com/billing/plans" >> .env
+echo "STRIPE_PORTAL_RETURN_URL=https://app.pilito.com/billing" >> .env
 
 echo ""
 echo "✅ Stripe configuration added to .env!"

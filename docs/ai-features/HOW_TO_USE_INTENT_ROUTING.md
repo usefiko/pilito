@@ -163,7 +163,7 @@ print("\n🎉 Import completed!")
 
 **برای 5 Intent تنظیم:**
 
-1. برو به: `https://api.fiko.net/admin/AI_model/intentrouting/add/`
+1. برو به: `https://api.pilito.com/admin/AI_model/intentrouting/add/`
 
 ---
 
@@ -288,7 +288,7 @@ print(f"Primary: {result['primary_source']}")
 
 ### مرحله 5️⃣: بررسی در Admin
 
-برو به: `https://api.fiko.net/admin/AI_model/intentrouting/`
+برو به: `https://api.pilito.com/admin/AI_model/intentrouting/`
 
 باید **5 رکورد** ببینی:
 

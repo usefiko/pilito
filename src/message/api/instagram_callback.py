@@ -73,7 +73,7 @@ class InstagramCallbackAPIView(APIView):
     # Instagram API configuration
     CLIENT_ID = '1426281428401641'
     CLIENT_SECRET = '071f08aea723183951494234746982e4'
-    REDIRECT_URI = 'https://api.fiko.net/api/v1/message/instagram-callback/'
+    REDIRECT_URI = 'https://api.pilito.com/api/v1/message/instagram-callback/'
     
     def get(self, request):
         code = request.GET.get('code')
@@ -85,24 +85,24 @@ class InstagramCallbackAPIView(APIView):
         
         if error:
             logger.error(f"Instagram OAuth error: {error}")
-            error_redirect = 'https://app.fiko.net/dashboard?status=error&message=oauth_error' if is_wizard_flow else 'https://app.fiko.net/dashboard/settings#channels?status=error&message=oauth_error'
+            error_redirect = 'https://app.pilito.com/dashboard?status=error&message=oauth_error' if is_wizard_flow else 'https://app.pilito.com/dashboard/settings#channels?status=error&message=oauth_error'
             return redirect(error_redirect)
         
         if not code:
             logger.error("No authorization code received from Instagram")
-            error_redirect = 'https://app.fiko.net/dashboard?status=error&message=no_code' if is_wizard_flow else 'https://app.fiko.net/dashboard/settings#channels?status=error&message=no_code'
+            error_redirect = 'https://app.pilito.com/dashboard?status=error&message=no_code' if is_wizard_flow else 'https://app.pilito.com/dashboard/settings#channels?status=error&message=no_code'
             return redirect(error_redirect)
         
         if not state:
             logger.error("No state parameter received")
-            return redirect('https://app.fiko.net/dashboard/settings#channels?status=error&message=no_state')
+            return redirect('https://app.pilito.com/dashboard/settings#channels?status=error&message=no_state')
         
         try:
             # Step 1: Get the requesting user from state parameter and determine flow type
             user, is_wizard_flow = self._get_user_from_state(state)
             if not user:
                 logger.error(f"User not found from state: {state}")
-                error_redirect = 'https://app.fiko.net/dashboard?status=error&message=user_not_found' if is_wizard_flow else 'https://app.fiko.net/dashboard/settings#channels?status=error&message=user_not_found'
+                error_redirect = 'https://app.pilito.com/dashboard?status=error&message=user_not_found' if is_wizard_flow else 'https://app.pilito.com/dashboard/settings#channels?status=error&message=user_not_found'
                 return redirect(error_redirect)
             
             logger.info(f"Processing Instagram callback for user: {user.email} (ID: {user.id}) - Flow: {'wizard' if is_wizard_flow else 'settings'}")
@@ -111,7 +111,7 @@ class InstagramCallbackAPIView(APIView):
             access_token, instagram_user_id = self._get_access_token(code)
             if not access_token:
                 logger.error("Failed to get access token")
-                error_redirect = 'https://app.fiko.net/dashboard?status=error&message=token_exchange_failed' if is_wizard_flow else 'https://app.fiko.net/dashboard/settings#channels?status=error&message=token_exchange_failed'
+                error_redirect = 'https://app.pilito.com/dashboard?status=error&message=token_exchange_failed' if is_wizard_flow else 'https://app.pilito.com/dashboard/settings#channels?status=error&message=token_exchange_failed'
                 return redirect(error_redirect)
             
             logger.info(f"Short-lived access token received, Instagram user ID: {instagram_user_id}")
@@ -136,7 +136,7 @@ class InstagramCallbackAPIView(APIView):
             channel = self._create_instagram_channel(user, access_token, user_info, expires_in)
             if not channel:
                 logger.error("Failed to create Instagram channel")
-                error_redirect = 'https://app.fiko.net/dashboard?status=error&message=channel_creation_failed' if is_wizard_flow else 'https://app.fiko.net/dashboard/settings#channels?status=error&message=channel_creation_failed'
+                error_redirect = 'https://app.pilito.com/dashboard?status=error&message=channel_creation_failed' if is_wizard_flow else 'https://app.pilito.com/dashboard/settings#channels?status=error&message=channel_creation_failed'
                 return redirect(error_redirect)
             
             # Step 5: Setup Instagram webhook (similar to Telegram implementation)
@@ -145,19 +145,19 @@ class InstagramCallbackAPIView(APIView):
                 channel.is_connect = True
                 channel.save()
                 logger.info(f"Instagram channel and webhook created successfully for user: {user.email}")
-                success_redirect = 'https://app.fiko.net/dashboard?status=success' if is_wizard_flow else 'https://app.fiko.net/dashboard/settings#channels?status=success'
+                success_redirect = 'https://app.pilito.com/dashboard?status=success' if is_wizard_flow else 'https://app.pilito.com/dashboard/settings#channels?status=success'
                 return redirect(success_redirect)
             else:
                 logger.warning(f"Instagram channel created but webhook setup failed for user: {user.email}")
                 # Still redirect to success since channel was created, webhook setup can be retried
-                success_redirect = 'https://app.fiko.net/dashboard?status=success&message=webhook_setup_failed' if is_wizard_flow else 'https://app.fiko.net/dashboard/settings#channels?status=success&message=webhook_setup_failed'
+                success_redirect = 'https://app.pilito.com/dashboard?status=success&message=webhook_setup_failed' if is_wizard_flow else 'https://app.pilito.com/dashboard/settings#channels?status=success&message=webhook_setup_failed'
                 return redirect(success_redirect)
                 
         except Exception as e:
             logger.error(f"Error in Instagram callback: {str(e)}", exc_info=True)
             # Determine if this was a wizard flow for error redirect
             is_wizard = state and state.startswith('wizard_')
-            error_redirect = 'https://app.fiko.net/dashboard?status=error&message=internal_error' if is_wizard else 'https://app.fiko.net/dashboard/settings#channels?status=error&message=internal_error'
+            error_redirect = 'https://app.pilito.com/dashboard?status=error&message=internal_error' if is_wizard else 'https://app.pilito.com/dashboard/settings#channels?status=error&message=internal_error'
             return redirect(error_redirect)
 
     def _get_user_from_state(self, state):
@@ -488,7 +488,7 @@ class InstagramCallbackAPIView(APIView):
         """
         Build the Instagram webhook URL similar to Telegram's _build_webhook_url
         """
-        webhook_target = "https://api.fiko.net/api/v1/message/insta-webhook/"
+        webhook_target = "https://api.pilito.com/api/v1/message/insta-webhook/"
         return webhook_target
 
     @staticmethod
@@ -499,7 +499,7 @@ class InstagramCallbackAPIView(APIView):
         base_url = "https://www.instagram.com/oauth/authorize"
         params = {
             'client_id': '1426281428401641',
-            'redirect_uri': 'https://api.fiko.net/api/v1/message/instagram-callback/',
+            'redirect_uri': 'https://api.pilito.com/api/v1/message/instagram-callback/',
             'response_type': 'code',
             'scope': 'instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_content_publish,instagram_business_manage_insights',
             'state': str(user_id),  # Pass user_id in state parameter
@@ -516,7 +516,7 @@ class InstagramCallbackAPIView(APIView):
         base_url = "https://www.instagram.com/oauth/authorize"
         params = {
             'client_id': '1426281428401641',
-            'redirect_uri': 'https://api.fiko.net/api/v1/message/instagram-callback/',
+            'redirect_uri': 'https://api.pilito.com/api/v1/message/instagram-callback/',
             'response_type': 'code',
             'scope': 'instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_content_publish,instagram_business_manage_insights',
             'state': f"wizard_{user_id}",  # Add wizard prefix to identify wizard flow
@@ -572,7 +572,7 @@ class InstagramDataDeletionAPIView(APIView):
                 logger.info(f"Data deletion completed for Instagram user_id: {user_id}")
                 
                 return Response({
-                    'url': f'https://api.fiko.net/api/v1/message/instagram/deletion-status/{confirmation_code}/',
+                    'url': f'https://api.pilito.com/api/v1/message/instagram/deletion-status/{confirmation_code}/',
                     'confirmation_code': confirmation_code
                 }, status=status.HTTP_200_OK)
             

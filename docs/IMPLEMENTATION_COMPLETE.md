@@ -278,7 +278,7 @@ stripe listen --forward-to localhost:8000/billing/stripe/webhook/
 ### For Production
 1. Go to https://dashboard.stripe.com/webhooks
 2. Click **+ Add endpoint**
-3. Enter URL: `https://api.fiko.net/billing/stripe/webhook/`
+3. Enter URL: `https://api.pilito.com/billing/stripe/webhook/`
 4. Select events:
    - checkout.session.completed
    - customer.subscription.created

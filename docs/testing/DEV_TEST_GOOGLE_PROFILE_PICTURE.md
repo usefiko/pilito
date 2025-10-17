@@ -27,7 +27,7 @@ curl http://localhost:8000/api/v1/usr/google/test
     "configured": true,
     "client_id_configured": true,
     "client_secret_configured": true,
-    "redirect_uri": "https://api.fiko.net/api/v1/usr/google/callback"
+    "redirect_uri": "https://api.pilito.com/api/v1/usr/google/callback"
 }
 ```
 
@@ -227,7 +227,7 @@ All endpoints will now automatically download and save Google profile pictures f
 ✅ **Google OAuth Configuration:**
 - Client ID: Configured
 - Client Secret: Configured
-- Redirect URI: https://api.fiko.net/api/v1/usr/google/callback
+- Redirect URI: https://api.pilito.com/api/v1/usr/google/callback
 
 ✅ **Profile Picture Feature:**
 - Implementation complete

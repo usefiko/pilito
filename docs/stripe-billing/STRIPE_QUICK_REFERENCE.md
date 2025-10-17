@@ -76,7 +76,7 @@ window.location.href = url;  // Redirect to Stripe
 ## 🪝 Webhook Configuration
 
 1. Go to: https://dashboard.stripe.com/webhooks
-2. Add endpoint: `https://api.fiko.net/billing/stripe/webhook/`
+2. Add endpoint: `https://api.pilito.com/billing/stripe/webhook/`
 3. Select events:
    - ✅ checkout.session.completed
    - ✅ customer.subscription.created

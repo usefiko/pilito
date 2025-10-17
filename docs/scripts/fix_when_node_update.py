@@ -182,7 +182,7 @@ def curl_examples():
     "position_y": 260,
     "is_active": true
   }}' \\
-  "https://api.fiko.net/api/v1/workflow/api/nodes/{NODE_ID}/"'''
+  "https://api.pilito.com/api/v1/workflow/api/nodes/{NODE_ID}/"'''
     
     print(put_command)
     
@@ -198,7 +198,7 @@ def curl_examples():
     "position_x": 280,
     "position_y": 260
   }}' \\
-  "https://api.fiko.net/api/v1/workflow/api/nodes/{NODE_ID}/"'''
+  "https://api.pilito.com/api/v1/workflow/api/nodes/{NODE_ID}/"'''
     
     print(patch_command)
 

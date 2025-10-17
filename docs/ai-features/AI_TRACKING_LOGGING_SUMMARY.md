@@ -184,8 +184,8 @@ GROUP BY section;
 ### Method 4: Check Admin Interface
 
 Visit:
-- **Detailed Logs:** `https://api.fiko.net/admin/AI_model/aiusagelog/`
-- **Daily Tracking:** `https://api.fiko.net/admin/AI_model/aiusagetracking/`
+- **Detailed Logs:** `https://api.pilito.com/admin/AI_model/aiusagelog/`
+- **Daily Tracking:** `https://api.pilito.com/admin/AI_model/aiusagetracking/`
 
 **If empty:** Tracking is not working!
 
@@ -195,7 +195,7 @@ Visit:
 
 ```bash
 # Test retrieval
-curl "https://api.fiko.net/api/v1/ai/usage/logs/" \
+curl "https://api.pilito.com/api/v1/ai/usage/logs/" \
   -H "Authorization: Bearer YOUR_TOKEN"
 
 # Should return: {"count": X, "results": [...]}
@@ -310,7 +310,7 @@ docker logs -f <container_id> | grep '\[TRACK_'
 
 ### 5. Check Admin Interface
 
-Visit: `https://api.fiko.net/admin/AI_model/aiusagelog/`
+Visit: `https://api.pilito.com/admin/AI_model/aiusagelog/`
 
 **Should see:** New entries appearing when AI is used
 

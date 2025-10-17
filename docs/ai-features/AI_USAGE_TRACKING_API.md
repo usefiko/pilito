@@ -366,7 +366,7 @@ The admin interface displays real-time statistics:
 
 ### Access
 
-Navigate to: `https://api.fiko.net/admin/AI_model/aiusagelog/`
+Navigate to: `https://api.pilito.com/admin/AI_model/aiusagelog/`
 
 ---
 
@@ -421,7 +421,7 @@ import requests
 
 # Get last 7 days of chat logs
 response = requests.get(
-    'https://api.fiko.net/api/v1/ai/usage/logs/',
+    'https://api.pilito.com/api/v1/ai/usage/logs/',
     params={
         'section': 'chat',
         'start_date': '2025-10-04',
@@ -441,7 +441,7 @@ import requests
 
 # Get statistics for prompt generation
 response = requests.get(
-    'https://api.fiko.net/api/v1/ai/usage/logs/stats/',
+    'https://api.pilito.com/api/v1/ai/usage/logs/stats/',
     params={
         'days': 30,
         'section': 'prompt_generation'
@@ -555,7 +555,7 @@ CREATE INDEX ai_usage_l_success_9f6d3b_idx ON ai_usage_log(success);
 
 ```bash
 # Log AI usage
-curl -X POST https://api.fiko.net/api/v1/ai/usage/logs/ \
+curl -X POST https://api.pilito.com/api/v1/ai/usage/logs/ \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -567,11 +567,11 @@ curl -X POST https://api.fiko.net/api/v1/ai/usage/logs/ \
   }'
 
 # Get usage logs
-curl -X GET "https://api.fiko.net/api/v1/ai/usage/logs/?section=chat&limit=10" \
+curl -X GET "https://api.pilito.com/api/v1/ai/usage/logs/?section=chat&limit=10" \
   -H "Authorization: Bearer YOUR_TOKEN"
 
 # Get statistics
-curl -X GET "https://api.fiko.net/api/v1/ai/usage/logs/stats/?days=7" \
+curl -X GET "https://api.pilito.com/api/v1/ai/usage/logs/stats/?days=7" \
   -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
@@ -580,7 +580,7 @@ curl -X GET "https://api.fiko.net/api/v1/ai/usage/logs/stats/?days=7" \
 ```python
 import requests
 
-BASE_URL = 'https://api.fiko.net/api/v1/ai/usage/logs/'
+BASE_URL = 'https://api.pilito.com/api/v1/ai/usage/logs/'
 HEADERS = {'Authorization': f'Bearer {YOUR_TOKEN}'}
 
 # Log usage

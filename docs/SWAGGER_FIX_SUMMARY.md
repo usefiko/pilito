@@ -1,7 +1,7 @@
 # Swagger API Documentation Fix
 
 ## Problem
-The API documentation at `https://api.fiko.net/docs/` was failing with the following error:
+The API documentation at `https://api.pilito.com/docs/` was failing with the following error:
 
 ```
 drf_yasg.errors.SwaggerGenerationError: FileField is supported only in a formData Parameter or response Schema
@@ -110,7 +110,7 @@ Added swagger documentation improvements:
 ## Testing
 
 To verify the fix:
-1. Navigate to `https://api.fiko.net/docs/`
+1. Navigate to `https://api.pilito.com/docs/`
 2. The Swagger UI should load without errors
 3. The affected endpoints should show proper documentation:
    - `POST /api/support/tickets/` - Create support ticket

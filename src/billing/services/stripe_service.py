@@ -417,7 +417,7 @@ class StripeService:
                 # Build success URL with payment details
                 # Note: Stripe replaces {CHECKOUT_SESSION_ID} automatically
                 success_url = (
-                    f"http://app.fiko.net/dashboard/payment/success?"
+                    f"http://app.pilito.com/dashboard/payment/success?"
                     f"status=success&"
                     f"transaction_id={{CHECKOUT_SESSION_ID}}&"
                     f"amount={amount}&"
@@ -427,7 +427,7 @@ class StripeService:
             if not cancel_url:
                 # Build cancel/failure URL
                 cancel_url = (
-                    f"http://app.fiko.net/dashboard/payment/failure?"
+                    f"http://app.pilito.com/dashboard/payment/failure?"
                     f"status=cancelled&"
                     f"error_code=USER_CANCELLED&"
                     f"error_message=Payment was cancelled by user"
@@ -493,7 +493,7 @@ class StripeService:
             if not customer_id:
                 return None
             
-            return_url = return_url or getattr(settings, 'STRIPE_PORTAL_RETURN_URL', 'https://app.fiko.net/dashboard/profile#billing')
+            return_url = return_url or getattr(settings, 'STRIPE_PORTAL_RETURN_URL', 'https://app.pilito.com/dashboard/profile#billing')
             
             portal_session = stripe.billing_portal.Session.create(
                 customer=customer_id,

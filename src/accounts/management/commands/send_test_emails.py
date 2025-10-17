@@ -87,13 +87,13 @@ Important:
 - If you didn't create an account, please ignore this email
 
 This is an automated message from Fiko.
-If you need help, contact us at support@fiko.net
+If you need help, contact us at support@pilito.com
             """
             
             result = send_mail(
                 subject='Email Confirmation - Fiko (TEST)',
                 message=plain_message,
-                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL_DISPLAY', 'Fiko <noreply@fiko.net>'),
+                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL_DISPLAY', 'Fiko <noreply@pilito.com>'),
                 recipient_list=[email],
                 html_message=html_message,
                 fail_silently=False,
@@ -122,7 +122,7 @@ If you need help, contact us at support@fiko.net
         self.stdout.write('🧪 Testing Password Reset Template...')
         
         user_name = "Test User"
-        reset_link = "https://app.fiko.net/auth/reset-password?token=test-token-123456"
+        reset_link = "https://app.pilito.com/auth/reset-password?token=test-token-123456"
         
         try:
             # Render HTML template
@@ -146,13 +146,13 @@ Important:
 - If you didn't request this, please ignore this email
 
 This is an automated message from Fiko.
-If you need help, contact us at support@fiko.net
+If you need help, contact us at support@pilito.com
             """
             
             result = send_mail(
                 subject='Password Reset Request - Fiko (TEST)',
                 message=plain_message,
-                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL_DISPLAY', 'Fiko <noreply@fiko.net>'),
+                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL_DISPLAY', 'Fiko <noreply@pilito.com>'),
                 recipient_list=[email],
                 html_message=html_message,
                 fail_silently=False,

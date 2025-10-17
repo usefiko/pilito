@@ -84,7 +84,7 @@ https://dashboard.stripe.com/webhooks
 
 2. Enter your webhook URL:
    ```
-   https://api.fiko.net/billing/stripe/webhook/
+   https://api.pilito.com/billing/stripe/webhook/
    ```
    
    **Important**: Must be HTTPS in production!
@@ -136,7 +136,7 @@ Dashboard → Webhooks → [Your Endpoint] → Signing secret
 **For Production Server:**
 ```bash
 # SSH into your production server
-ssh user@api.fiko.net
+ssh user@api.pilito.com
 
 # Edit your environment file
 nano /path/to/your/.env
@@ -167,7 +167,7 @@ stripe trigger invoice.paid
 
 1. Create a checkout session:
    ```bash
-   curl -X POST http://api.fiko.net/api/v1/billing/stripe/checkout-session/ \
+   curl -X POST http://api.pilito.com/api/v1/billing/stripe/checkout-session/ \
      -H "Authorization: Bearer YOUR_JWT_TOKEN" \
      -H "Content-Type: application/json" \
      -d '{"plan_type": "full", "plan_id": 1}'
@@ -223,7 +223,7 @@ After a successful test payment:
 
 ```bash
 # Check if subscription was created
-curl -X GET http://api.fiko.net/api/v1/billing/subscription/ \
+curl -X GET http://api.pilito.com/api/v1/billing/subscription/ \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 
 # Should show active subscription with tokens
@@ -305,7 +305,7 @@ stripe trigger checkout.session.completed
 
 ### Production Setup:
 - [ ] Go to Stripe Dashboard → Webhooks
-- [ ] Add endpoint: `https://api.fiko.net/billing/stripe/webhook/`
+- [ ] Add endpoint: `https://api.pilito.com/billing/stripe/webhook/`
 - [ ] Select events (or "receive all events")
 - [ ] Copy signing secret
 - [ ] Add to production `.env`: `STRIPE_WEBHOOK_SECRET=whsec_...`

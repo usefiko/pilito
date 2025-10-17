@@ -27,7 +27,7 @@ schema_view = get_schema_view(
         default_version='v1',
         description="API documentation",
         terms_of_service="https://www.google.com/policies/terms/",
-        contact=openapi.Contact(email="contact@fiko.net"),
+        contact=openapi.Contact(email="contact@pilito.com"),
         license=openapi.License(name="Fiko License"),
     ),
     public=True,

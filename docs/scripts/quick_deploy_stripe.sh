@@ -59,7 +59,7 @@ echo "   >>> FullPlan.objects.filter(is_yearly=True).update(stripe_price_id='pri
 echo "   >>> exit()"
 echo ""
 echo "5. Test checkout:"
-echo "   curl -X POST https://api.fiko.net/api/v1/billing/stripe/checkout-session/ \\"
+echo "   curl -X POST https://api.pilito.com/api/v1/billing/stripe/checkout-session/ \\"
 echo "     -H 'Authorization: Bearer TOKEN' \\"
 echo "     -H 'Content-Type: application/json' \\"
 echo "     -d '{\"plan_type\": \"full\", \"plan_id\": 2}'"

@@ -185,7 +185,7 @@ ORDER BY total_requests DESC;
 
 ### Test Logging Endpoint
 ```bash
-curl -X POST https://api.fiko.net/api/v1/ai/usage/logs/ \
+curl -X POST https://api.pilito.com/api/v1/ai/usage/logs/ \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -203,7 +203,7 @@ curl -X POST https://api.fiko.net/api/v1/ai/usage/logs/ \
 
 ### Test Retrieval Endpoint
 ```bash
-curl "https://api.fiko.net/api/v1/ai/usage/logs/?limit=10" \
+curl "https://api.pilito.com/api/v1/ai/usage/logs/?limit=10" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -v
 ```
@@ -212,7 +212,7 @@ curl "https://api.fiko.net/api/v1/ai/usage/logs/?limit=10" \
 
 ### Test Statistics Endpoint
 ```bash
-curl "https://api.fiko.net/api/v1/ai/usage/logs/stats/?days=7" \
+curl "https://api.pilito.com/api/v1/ai/usage/logs/stats/?days=7" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -v
 ```
@@ -401,21 +401,21 @@ Create alerts for:
 **Daily:**
 ```bash
 # Check today's total usage
-curl "https://api.fiko.net/api/v1/ai/usage/logs/stats/?days=1" \
+curl "https://api.pilito.com/api/v1/ai/usage/logs/stats/?days=1" \
   -H "Authorization: Bearer ADMIN_TOKEN"
 ```
 
 **Weekly:**
 ```bash
 # Check section breakdown
-curl "https://api.fiko.net/api/v1/ai/usage/logs/stats/?days=7" \
+curl "https://api.pilito.com/api/v1/ai/usage/logs/stats/?days=7" \
   -H "Authorization: Bearer ADMIN_TOKEN"
 ```
 
 **Monthly:**
 ```bash
 # Check global usage
-curl "https://api.fiko.net/api/v1/ai/usage/logs/global/?days=30" \
+curl "https://api.pilito.com/api/v1/ai/usage/logs/global/?days=30" \
   -H "Authorization: Bearer ADMIN_TOKEN"
 ```
 

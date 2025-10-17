@@ -275,14 +275,14 @@ python src/manage.py shell
 ### 3. Test API Endpoints
 ```bash
 # Test logging (replace with actual token)
-curl -X POST https://api.fiko.net/api/v1/ai/usage/logs/ \
+curl -X POST https://api.pilito.com/api/v1/ai/usage/logs/ \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"section": "chat", "prompt_tokens": 10, "completion_tokens": 5}'
 ```
 
 ### 4. Access Admin Interface
-Navigate to: `https://api.fiko.net/admin/AI_model/aiusagelog/`
+Navigate to: `https://api.pilito.com/admin/AI_model/aiusagelog/`
 
 ### 5. Start Integration
 Begin integrating logging into AI modules using the quick start guide.

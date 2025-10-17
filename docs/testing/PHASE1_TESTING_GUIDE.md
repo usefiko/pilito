@@ -134,13 +134,13 @@ Look for:
 #### A) Test via API (Postman/cURL):
 ```bash
 # 1. Get your JWT token
-curl -X POST https://api.fiko.net/api/accounts/login/ \
+curl -X POST https://api.pilito.com/api/accounts/login/ \
   -H "Content-Type: application/json" \
   -d '{"username": "your_username", "password": "your_password"}'
 
 # 2. Get a message ID (from your conversations)
 # 3. Submit positive feedback
-curl -X POST https://api.fiko.net/api/message/MESSAGE_ID/feedback/ \
+curl -X POST https://api.pilito.com/api/message/MESSAGE_ID/feedback/ \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -161,7 +161,7 @@ curl -X POST https://api.fiko.net/api/message/MESSAGE_ID/feedback/ \
 }
 
 # 4. Try negative feedback
-curl -X POST https://api.fiko.net/api/message/MESSAGE_ID/feedback/ \
+curl -X POST https://api.pilito.com/api/message/MESSAGE_ID/feedback/ \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{

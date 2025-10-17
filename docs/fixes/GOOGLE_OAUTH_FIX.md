@@ -32,7 +32,7 @@ After step 4, your frontend is **not handling the redirect properly**. The `code
 ## 🛠 **Frontend Fix Required**
 
 ### **Current Google OAuth Settings:**
-- **Redirect URI**: `https://app.fiko.net/auth/google/callback`
+- **Redirect URI**: `https://app.pilito.com/auth/google/callback`
 - **Backend Endpoint**: `POST /api/v1/accounts/google/callback`
 
 ### **Frontend Implementation Needed:**
@@ -154,10 +154,10 @@ const initiateGoogleLogin = async () => {
 Test the callback endpoint directly:
 ```bash
 # Get authorization URL
-curl -X GET "https://api.fiko.net/api/v1/accounts/google/auth-url"
+curl -X GET "https://api.pilito.com/api/v1/accounts/google/auth-url"
 
 # Test callback (after getting real code from Google)
-curl -X POST "https://api.fiko.net/api/v1/accounts/google/callback" \
+curl -X POST "https://api.pilito.com/api/v1/accounts/google/callback" \
   -H "Content-Type: application/json" \
   -d '{"code": "REAL_AUTHORIZATION_CODE_FROM_GOOGLE"}'
 ```

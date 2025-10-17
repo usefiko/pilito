@@ -189,7 +189,7 @@ class ConnectTeleAPIView(APIView):
         Builds the full Telegram API webhook URL for setting the bot's webhook.
         """
         base_url = f"https://api.telegram.org/bot{bot_token}/setWebhook"
-        webhook_target = f"https://api.fiko.net/api/v1/message/webhook/{bot_username}/"
+        webhook_target = f"https://api.pilito.com/api/v1/message/webhook/{bot_username}/"
         return f"{base_url}?url={webhook_target}"
 
 
