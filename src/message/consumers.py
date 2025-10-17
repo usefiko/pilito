@@ -33,7 +33,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             logger.debug(f"User {self.user.id} connecting to conversation {self.conversation_id}")
         else:
             # Try to get user from token if middleware didn't authenticate
-            user = await self.get_user_from_token()
+            user, error_message = await self.get_user_from_token()
             if user:
                 self.user = user
                 logger.debug(f"User {self.user.id} authenticated via token for conversation {self.conversation_id}")
@@ -46,11 +46,23 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         logger.debug(f"Development mode: Using default user {self.user.id} for conversation {self.conversation_id}")
                     else:
                         logger.warning("WebSocket connection rejected: No user available")
-                        await self.close(code=1008)
+                        await self.send(text_data=json.dumps({
+                            'type': 'authentication_error',
+                            'message': 'Authentication required',
+                            'error_code': 'NO_USER_AVAILABLE',
+                            'timestamp': timezone.now().isoformat()
+                        }))
+                        await self.close(code=4001)  # Custom close code for auth error
                         return
                 else:
-                    logger.warning("WebSocket connection rejected: Authentication required")
-                    await self.close(code=1008)
+                    logger.warning(f"WebSocket connection rejected: {error_message}")
+                    await self.send(text_data=json.dumps({
+                        'type': 'authentication_error',
+                        'message': error_message or 'Authentication required',
+                        'error_code': 'AUTH_REQUIRED',
+                        'timestamp': timezone.now().isoformat()
+                    }))
+                    await self.close(code=4001)  # Custom close code for auth error
                     return
         
         # Check conversation access
@@ -80,6 +92,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
         
         await self.accept()
         logger.debug(f"User {self.user.id} connected to conversation {self.conversation_id}")
+        
+        # ✅ Send connection established confirmation
+        await self.send(text_data=json.dumps({
+            'type': 'connection_established',
+            'message': '✅ Chat WebSocket connected successfully',
+            'conversation_id': self.conversation_id,
+            'timestamp': timezone.now().isoformat()
+        }))
         
         # Send recent messages when user connects with timeout
         try:
@@ -436,6 +456,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def get_user_from_token(self):
+        """
+        Get user from JWT token with proper error handling
+        Returns: (user, error_message) tuple
+        """
         try:
             # Get token from query string
             query_string = self.scope.get('query_string', b'').decode()
@@ -447,21 +471,29 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     break
             
             if not token:
-                return None
+                logger.debug("No token provided in query string")
+                return None, "No authentication token provided"
                 
             # Validate JWT token
             if not validate_token(token):
-                return None
+                logger.warning("Invalid or expired JWT token")
+                return None, "Invalid or expired authentication token"
                 
             payload = claim_token(token)
             user_id = payload.get('user_id')
             if not user_id:
-                return None
+                logger.warning("JWT token missing user_id")
+                return None, "Invalid token payload"
                 
-            return User.objects.get(id=user_id)
+            user = User.objects.get(id=user_id)
+            return user, None
             
-        except Exception:
-            return None
+        except User.DoesNotExist:
+            logger.warning(f"User not found for id: {user_id}")
+            return None, "User not found"
+        except Exception as e:
+            logger.error(f"Error validating token: {e}")
+            return None, "Authentication error"
 
     @database_sync_to_async
     def get_default_user(self):
@@ -750,7 +782,7 @@ class ConversationListConsumer(AsyncWebsocketConsumer):
             logger.debug(f"User {self.user.id} connecting to conversation list")
         else:
             # Try to get user from token if middleware didn't authenticate
-            user = await self.get_user_from_token()
+            user, error_message = await self.get_user_from_token()
             if user:
                 self.user = user
                 logger.debug(f"User {self.user.id} authenticated via token for conversation list")
@@ -763,11 +795,23 @@ class ConversationListConsumer(AsyncWebsocketConsumer):
                         logger.debug(f"Development mode: Using default user {self.user.id} for conversation list")
                     else:
                         logger.warning("ConversationList WebSocket connection rejected: No user available")
-                        await self.close(code=1008)
+                        await self.send(text_data=json.dumps({
+                            'type': 'authentication_error',
+                            'message': 'Authentication required',
+                            'error_code': 'NO_USER_AVAILABLE',
+                            'timestamp': timezone.now().isoformat()
+                        }))
+                        await self.close(code=4001)
                         return
                 else:
-                    logger.warning("ConversationList WebSocket connection rejected: Authentication required")
-                    await self.close(code=1008)
+                    logger.warning(f"ConversationList WebSocket connection rejected: {error_message}")
+                    await self.send(text_data=json.dumps({
+                        'type': 'authentication_error',
+                        'message': error_message or 'Authentication required',
+                        'error_code': 'AUTH_REQUIRED',
+                        'timestamp': timezone.now().isoformat()
+                    }))
+                    await self.close(code=4001)
                     return
         
         self.user_group_name = f'user_{self.user.id}_conversations'
@@ -793,6 +837,13 @@ class ConversationListConsumer(AsyncWebsocketConsumer):
         
         await self.accept()
         logger.debug(f"User {self.user.id} connected to conversation list")
+        
+        # ✅ Send connection established confirmation
+        await self.send(text_data=json.dumps({
+            'type': 'connection_established',
+            'message': '✅ Conversation List WebSocket connected successfully',
+            'timestamp': timezone.now().isoformat()
+        }))
         
         # Send current conversations with timeout
         try:
@@ -946,6 +997,10 @@ class ConversationListConsumer(AsyncWebsocketConsumer):
     # Database operations
     @database_sync_to_async
     def get_user_from_token(self):
+        """
+        Get user from JWT token with proper error handling
+        Returns: (user, error_message) tuple
+        """
         try:
             # Get token from query string
             query_string = self.scope.get('query_string', b'').decode()
@@ -957,21 +1012,29 @@ class ConversationListConsumer(AsyncWebsocketConsumer):
                     break
             
             if not token:
-                return None
+                logger.debug("No token provided in query string")
+                return None, "No authentication token provided"
                 
             # Validate JWT token
             if not validate_token(token):
-                return None
+                logger.warning("Invalid or expired JWT token")
+                return None, "Invalid or expired authentication token"
                 
             payload = claim_token(token)
             user_id = payload.get('user_id')
             if not user_id:
-                return None
+                logger.warning("JWT token missing user_id")
+                return None, "Invalid token payload"
                 
-            return User.objects.get(id=user_id)
+            user = User.objects.get(id=user_id)
+            return user, None
             
-        except Exception:
-            return None
+        except User.DoesNotExist:
+            logger.warning(f"User not found for id: {user_id}")
+            return None, "User not found"
+        except Exception as e:
+            logger.error(f"Error validating token: {e}")
+            return None, "Authentication error"
 
     @database_sync_to_async
     def get_default_user(self):
@@ -1316,7 +1379,7 @@ class CustomerListConsumer(AsyncWebsocketConsumer):
             logger.debug(f"User {self.user.id} connecting to customer list")
         else:
             # Try to get user from token if middleware didn't authenticate
-            user = await self.get_user_from_token()
+            user, error_message = await self.get_user_from_token()
             if user:
                 self.user = user
                 logger.debug(f"User {self.user.id} authenticated via token for customer list")
@@ -1329,11 +1392,23 @@ class CustomerListConsumer(AsyncWebsocketConsumer):
                         logger.debug(f"Development mode: Using default user {self.user.id} for customer list")
                     else:
                         logger.warning("CustomerList WebSocket connection rejected: No user available")
-                        await self.close(code=1008)
+                        await self.send(text_data=json.dumps({
+                            'type': 'authentication_error',
+                            'message': 'Authentication required',
+                            'error_code': 'NO_USER_AVAILABLE',
+                            'timestamp': timezone.now().isoformat()
+                        }))
+                        await self.close(code=4001)
                         return
                 else:
-                    logger.warning("CustomerList WebSocket connection rejected: Authentication required")
-                    await self.close(code=1008)
+                    logger.warning(f"CustomerList WebSocket connection rejected: {error_message}")
+                    await self.send(text_data=json.dumps({
+                        'type': 'authentication_error',
+                        'message': error_message or 'Authentication required',
+                        'error_code': 'AUTH_REQUIRED',
+                        'timestamp': timezone.now().isoformat()
+                    }))
+                    await self.close(code=4001)
                     return
         
         self.user_group_name = f'user_{self.user.id}_customers'
@@ -1359,6 +1434,13 @@ class CustomerListConsumer(AsyncWebsocketConsumer):
         
         await self.accept()
         logger.debug(f"User {self.user.id} connected to customer list")
+        
+        # ✅ Send connection established confirmation
+        await self.send(text_data=json.dumps({
+            'type': 'connection_established',
+            'message': '✅ Customer List WebSocket connected successfully',
+            'timestamp': timezone.now().isoformat()
+        }))
         
         # Send current customers with timeout
         try:
@@ -1491,6 +1573,10 @@ class CustomerListConsumer(AsyncWebsocketConsumer):
     # Database operations
     @database_sync_to_async
     def get_user_from_token(self):
+        """
+        Get user from JWT token with proper error handling
+        Returns: (user, error_message) tuple
+        """
         try:
             # Get token from query string
             query_string = self.scope.get('query_string', b'').decode()
@@ -1502,21 +1588,29 @@ class CustomerListConsumer(AsyncWebsocketConsumer):
                     break
             
             if not token:
-                return None
+                logger.debug("No token provided in query string")
+                return None, "No authentication token provided"
                 
             # Validate JWT token
             if not validate_token(token):
-                return None
+                logger.warning("Invalid or expired JWT token")
+                return None, "Invalid or expired authentication token"
                 
             payload = claim_token(token)
             user_id = payload.get('user_id')
             if not user_id:
-                return None
+                logger.warning("JWT token missing user_id")
+                return None, "Invalid token payload"
                 
-            return User.objects.get(id=user_id)
+            user = User.objects.get(id=user_id)
+            return user, None
             
-        except Exception:
-            return None
+        except User.DoesNotExist:
+            logger.warning(f"User not found for id: {user_id}")
+            return None, "User not found"
+        except Exception as e:
+            logger.error(f"Error validating token: {e}")
+            return None, "Authentication error"
 
     @database_sync_to_async
     def get_default_user(self):
