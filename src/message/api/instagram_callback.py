@@ -307,7 +307,7 @@ class InstagramCallbackAPIView(APIView):
                 
                 logger.info(f"Trying Instagram API: {url} with fields: {field_subset}")
                 # ✅ استفاده از پروکسی برای دریافت اطلاعات از Instagram API
-            response = requests.get(url, params=params, proxies=get_active_proxy(), timeout=30)
+                response = requests.get(url, params=params, proxies=get_active_proxy(), timeout=30)
                 logger.info(f"Instagram API response status: {response.status_code}")
                 
                 if response.status_code == 200:
