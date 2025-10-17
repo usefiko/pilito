@@ -145,17 +145,24 @@ USE_TZ = True
 SITE_ID = 1
 
 
-# --- S3 storages ---
-AWS_ACCESS_KEY_ID = environ.get("AWS_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = environ.get("AWS_SECRET_ACCESS_KEY")
-AWS_STORAGE_BUCKET_NAME = environ.get("AWS_STORAGE_BUCKET_NAME")
-AWS_S3_REGION_NAME = environ.get("AWS_S3_REGION_NAME")
-AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
+# --- Arvan Cloud Object Storage (S3-Compatible) ---
+# Configuration for Arvan Cloud Storage instead of AWS S3
+AWS_ACCESS_KEY_ID = environ.get("AWS_ACCESS_KEY_ID")  # از پنل ArvanCloud دریافت کنید
+AWS_SECRET_ACCESS_KEY = environ.get("AWS_SECRET_ACCESS_KEY")  # از پنل ArvanCloud دریافت کنید
+AWS_STORAGE_BUCKET_NAME = environ.get("AWS_STORAGE_BUCKET_NAME")  # نام bucket در ArvanCloud
+AWS_S3_REGION_NAME = environ.get("AWS_S3_REGION_NAME", "ir-thr-at1")  # منطقه تهران یا تبریز
+
+# ✅ Arvan Cloud Endpoint Configuration
+# Tehran: s3.ir-thr-at1.arvanstorage.ir
+# Tabriz: s3.ir-tbz-sh1.arvanstorage.ir
+AWS_S3_ENDPOINT_URL = environ.get("AWS_S3_ENDPOINT_URL", "https://s3.ir-thr-at1.arvanstorage.ir")
+AWS_S3_CUSTOM_DOMAIN = environ.get("AWS_S3_CUSTOM_DOMAIN", f'{AWS_STORAGE_BUCKET_NAME}.s3.ir-thr-at1.arvanstorage.ir')
+
 AWS_S3_FILE_OVERWRITE = False
 AWS_DEFAULT_ACL = 'public-read'
 AWS_S3_SIGNATURE_VERSION = "s3v4"
 
-# Additional S3 settings to fix Access Denied issues
+# Additional S3-compatible settings for Arvan Cloud
 AWS_S3_OBJECT_PARAMETERS = {
     'CacheControl': 'max-age=86400',
 }
@@ -166,9 +173,11 @@ AWS_S3_USE_SSL = True
 # Force django-storages to use the new ACL format
 AWS_S3_OBJECT_ACL = 'public-read'
 
-# Optimize S3 performance
+# Optimize storage performance
 AWS_PRELOAD_METADATA = False  # Disable preloading to avoid 404 errors
 AWS_IS_GZIPPED = True  # Enable gzip compression
+
+# ⚠️ Important: Arvan Cloud uses S3-compatible API, no changes needed to boto3 or django-storages
 
 STATICFILES_STORAGE = 'core.settings.storage_backends.StaticStorage'
 # Use MediaStoragePresigned if ACL issues persist
