@@ -3,6 +3,7 @@ import logging
 from typing import Optional, Dict, Any
 from settings.models import InstagramChannel
 from message.models import Message, Conversation, Customer
+from core.utils import get_active_proxy, get_fallback_proxy
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +48,8 @@ class InstagramService:
         }
         
         try:
-            response = requests.post(url, json=payload, headers=headers, timeout=30)
+            # ✅ استفاده از پروکسی برای اتصال به Instagram API
+            response = requests.post(url, json=payload, headers=headers, proxies=get_active_proxy(), timeout=30)
             
             # Log the response for debugging
             logger.info(f"Instagram API response status: {response.status_code}")
@@ -75,7 +77,22 @@ class InstagramService:
                 }
                 
         except requests.exceptions.Timeout:
-            logger.error(f"Timeout sending message to Instagram user {recipient_id}")
+            logger.error(f"Timeout sending message to Instagram user {recipient_id}, trying fallback proxy")
+            try:
+                # 🔄 تلاش مجدد با fallback proxy
+                response = requests.post(url, json=payload, headers=headers, proxies=get_fallback_proxy(), timeout=30)
+                response.raise_for_status()
+                result = response.json()
+                if 'message_id' in result or 'recipient_id' in result:
+                    logger.info(f"✅ Message sent via fallback proxy to Instagram user {recipient_id}")
+                    return {
+                        'success': True,
+                        'message_id': result.get('message_id'),
+                        'recipient_id': result.get('recipient_id'),
+                        'data': result
+                    }
+            except Exception as fallback_error:
+                logger.error(f"Fallback proxy also failed: {fallback_error}")
             return {'success': False, 'error': 'Request timeout'}
             
         except requests.exceptions.HTTPError as e:
@@ -190,7 +207,8 @@ class InstagramService:
         }
         
         try:
-            response = requests.get(url, params=params, headers=headers, timeout=10)
+            # ✅ استفاده از پروکسی برای دریافت اطلاعات کاربر Instagram
+            response = requests.get(url, params=params, headers=headers, proxies=get_active_proxy(), timeout=10)
             response.raise_for_status()
             result = response.json()
             
@@ -294,7 +312,8 @@ class InstagramService:
                 'access_token': short_lived_token
             }
             
-            response = requests.get(url, params=params, timeout=30)
+            # ✅ استفاده از پروکسی برای token exchange
+            response = requests.get(url, params=params, proxies=get_active_proxy(), timeout=30)
             
             if response.status_code == 200:
                 data = response.json()
@@ -321,7 +340,8 @@ class InstagramService:
                 'access_token': current_token
             }
             
-            response = requests.get(url, params=params, timeout=10)
+            # ✅ استفاده از پروکسی برای token refresh
+            response = requests.get(url, params=params, proxies=get_active_proxy(), timeout=10)
             
             if response.status_code == 200:
                 data = response.json()

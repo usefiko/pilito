@@ -12,6 +12,7 @@ import hashlib
 from settings.models import InstagramChannel
 from message.models import Customer, Conversation, Message
 from django.contrib.auth import get_user_model
+from core.utils import get_active_proxy
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -193,7 +194,8 @@ class InstagramCallbackAPIView(APIView):
         }
         
         try:
-            response = requests.post(url, data=data, timeout=30)
+            # ✅ استفاده از پروکسی برای دریافت access token از Instagram
+            response = requests.post(url, data=data, proxies=get_active_proxy(), timeout=30)
             logger.info(f"Instagram token exchange response status: {response.status_code}")
             
             if response.status_code == 200:
@@ -235,7 +237,8 @@ class InstagramCallbackAPIView(APIView):
             }
             
             logger.info("Converting short-lived token to long-lived token...")
-            response = requests.get(url, params=params, timeout=30)
+            # ✅ استفاده از پروکسی برای دریافت اطلاعات از Instagram API
+            response = requests.get(url, params=params, proxies=get_active_proxy(), timeout=30)
             logger.info(f"Long-lived token exchange response status: {response.status_code}")
             
             if response.status_code == 200:
@@ -303,7 +306,8 @@ class InstagramCallbackAPIView(APIView):
                 }
                 
                 logger.info(f"Trying Instagram API: {url} with fields: {field_subset}")
-                response = requests.get(url, params=params, timeout=30)
+                # ✅ استفاده از پروکسی برای دریافت اطلاعات از Instagram API
+            response = requests.get(url, params=params, proxies=get_active_proxy(), timeout=30)
                 logger.info(f"Instagram API response status: {response.status_code}")
                 
                 if response.status_code == 200:
@@ -446,7 +450,8 @@ class InstagramCallbackAPIView(APIView):
             
             logger.info(f"Setting up Instagram webhook: {webhook_url}")
             
-            response = requests.post(url, data=data, timeout=30)
+            # ✅ استفاده از پروکسی برای دریافت access token از Instagram
+            response = requests.post(url, data=data, proxies=get_active_proxy(), timeout=30)
             logger.info(f"Instagram webhook setup response: {response.status_code}")
             
             if response.status_code == 200:

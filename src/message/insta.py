@@ -12,6 +12,7 @@ from settings.models import InstagramChannel
 from settings.serializers import InstagramChannelSerializer
 from message.models import Customer, Conversation, Message
 from message.websocket_utils import notify_new_customer_message
+from core.utils import get_active_proxy, get_fallback_proxy
 
 logger = logging.getLogger(__name__)
 VERIFY_TOKEN = '123456'
@@ -113,7 +114,8 @@ class InstaWebhook(APIView):
                 'access_token': access_token
             }
             
-            response = requests.get(url, params=params, timeout=10)
+            # ✅ استفاده از پروکسی برای دریافت اطلاعات کاربر از Instagram Graph API
+            response = requests.get(url, params=params, proxies=get_active_proxy(), timeout=10)
             
             if response.status_code == 200:
                 user_data = response.json()
@@ -157,7 +159,7 @@ class InstaWebhook(APIView):
                 return None
                 
             logger.info(f"📸 Downloading Instagram profile picture for user {user_id} from: {picture_url}")
-            response = requests.get(picture_url, timeout=15)
+            response = requests.get(picture_url, proxies=get_active_proxy(), timeout=15)
             response.raise_for_status()
             
             if response.status_code == 200:
@@ -232,7 +234,8 @@ class InstaWebhook(APIView):
                 'access_token': short_lived_token
             }
             
-            response = requests.get(url, params=params, timeout=10)
+            # ✅ استفاده از پروکسی برای token exchange
+            response = requests.get(url, params=params, proxies=get_active_proxy(), timeout=10)
             
             if response.status_code == 200:
                 data = response.json()
@@ -267,7 +270,8 @@ class InstaWebhook(APIView):
                 'access_token': current_token
             }
             
-            response = requests.get(url, params=params, timeout=10)
+            # ✅ استفاده از پروکسی برای refresh token
+            response = requests.get(url, params=params, proxies=get_active_proxy(), timeout=10)
             
             if response.status_code == 200:
                 data = response.json()
@@ -335,7 +339,7 @@ class InstaWebhook(APIView):
                 return None
                 
             logger.info(f"📸 Downloading Instagram profile picture for user {user_id} from: {picture_url}")
-            response = requests.get(picture_url, timeout=15)
+            response = requests.get(picture_url, proxies=get_active_proxy(), timeout=15)
             response.raise_for_status()
             
             if response.status_code == 200:
@@ -428,7 +432,8 @@ class InstaWebhook(APIView):
                                     'fields': 'id,username',
                                     'access_token': candidate.access_token
                                 }
-                                resp = requests.get(url, params=params, timeout=10)
+                                # ✅ استفاده از پروکسی برای auto-match channel
+                                resp = requests.get(url, params=params, proxies=get_active_proxy(), timeout=10)
                                 if resp.status_code != 200:
                                     continue
                                 data = resp.json() if resp.content else {}
@@ -839,7 +844,8 @@ class InstaChannelAutoFixIDsAPIView(APIView):
                         'fields': 'id,username',
                         'access_token': channel.access_token
                     }
-                    resp = requests.get(url, params=params, timeout=15)
+                    # ✅ استفاده از پروکسی برای auto-fix IDs
+                    resp = requests.get(url, params=params, proxies=get_active_proxy(), timeout=15)
                     if resp.status_code != 200:
                         return {
                             'id': channel.id,

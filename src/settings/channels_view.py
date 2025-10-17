@@ -9,6 +9,7 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 import os
 from urllib.parse import urlparse
+from core.utils import get_active_proxy
 
 
 class TeleBotAPIView(APIView):
@@ -80,7 +81,8 @@ class ConnectTeleAPIView(APIView):
         webhook_url = self._build_webhook_url(bot_token, bot_username)
 
         try:
-            response = requests.post(webhook_url)
+            # ✅ استفاده از پروکسی برای ست کردن webhook در Telegram
+            response = requests.post(webhook_url, proxies=get_active_proxy())
             if response.status_code == 200:
                 channel.is_connect = True
                 channel.save()
@@ -100,7 +102,8 @@ class ConnectTeleAPIView(APIView):
         Gets bot information from Telegram API using the getMe method.
         """
         url = f"https://api.telegram.org/bot{bot_token}/getMe"
-        response = requests.get(url)
+        # ✅ استفاده از پروکسی برای دریافت اطلاعات bot از Telegram
+        response = requests.get(url, proxies=get_active_proxy())
         
         if response.status_code != 200:
             raise Exception(f"Telegram API error: {response.status_code} - {response.text}")

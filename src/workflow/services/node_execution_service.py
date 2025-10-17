@@ -1134,6 +1134,7 @@ class NodeBasedWorkflowExecutionService:
     def _send_telegram_message(self, chat_id: str, message: str):
         """Send message via Telegram Bot API"""
         import requests
+        from core.utils import get_active_proxy
         
         token = INTEGRATION_SETTINGS.get('TELEGRAM_BOT_TOKEN')
         if not token:
@@ -1146,7 +1147,8 @@ class NodeBasedWorkflowExecutionService:
             'parse_mode': 'HTML'
         }
         
-        response = requests.post(url, json=data, timeout=10)
+        # ✅ استفاده از پروکسی برای ارسال پیام به Telegram در Workflow
+        response = requests.post(url, json=data, proxies=get_active_proxy(), timeout=10)
         response.raise_for_status()
     
     def _send_instagram_message(self, user_id: str, message: str):

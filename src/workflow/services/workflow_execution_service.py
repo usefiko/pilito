@@ -10,6 +10,7 @@ import logging
 import requests
 from typing import Dict, List, Any, Optional, Union
 from datetime import datetime, timedelta
+from core.utils import get_active_proxy
 
 from django.utils import timezone
 from django.db import transaction
@@ -503,7 +504,8 @@ class WorkflowExecutionService:
             'parse_mode': 'HTML'
         }
         
-        response = requests.post(url, json=data, timeout=10)
+        # ✅ استفاده از پروکسی برای ارسال پیام به Telegram
+        response = requests.post(url, json=data, proxies=get_active_proxy(), timeout=10)
         response.raise_for_status()
     
     def _send_instagram_message(self, user_id: str, message: str):
