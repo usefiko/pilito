@@ -269,3 +269,29 @@ LOGGING = {
 CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_SECURE = True
 SECURE_SSL_REDIRECT = False
+
+# --------------------------
+# ✅ STATIC & MEDIA via Arvan CDN
+# --------------------------
+STATIC_URL = "https://pilito.s3.ir-thr-at1.arvanstorage.ir/static/"
+MEDIA_URL = "https://pilito.s3.ir-thr-at1.arvanstorage.ir/media/"
+
+# اگه از WhiteNoise استفاده نمی‌کنی و فایل‌های استاتیک رو روی Arvan نگه می‌داری
+STATICFILES_STORAGE = "django.contrib.staticfiles.storage.StaticFilesStorage"
+
+# --------------------------
+# ✅ Content Security Policy (CSP) - Fix for Arvan Cloud Static Files
+# --------------------------
+# Allow inline scripts and styles for Django Admin
+CSP_DEFAULT_SRC = ("'self'", "https://pilito.s3.ir-thr-at1.arvanstorage.ir")
+CSP_SCRIPT_SRC = ("'self'", "'unsafe-inline'", "'unsafe-eval'", "https://pilito.s3.ir-thr-at1.arvanstorage.ir")
+CSP_STYLE_SRC = ("'self'", "'unsafe-inline'", "https://pilito.s3.ir-thr-at1.arvanstorage.ir")
+CSP_IMG_SRC = ("'self'", "data:", "https:", "https://pilito.s3.ir-thr-at1.arvanstorage.ir")
+CSP_FONT_SRC = ("'self'", "data:", "https://pilito.s3.ir-thr-at1.arvanstorage.ir")
+CSP_CONNECT_SRC = ("'self'", "https://pilito.s3.ir-thr-at1.arvanstorage.ir")
+
+# Disable CSP for now to allow Django Admin to work properly
+# بعداً می‌تونی فعالش کنی و تنظیمات دقیق‌تری بذاری
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_BROWSER_XSS_FILTER = True
+X_FRAME_OPTIONS = 'SAMEORIGIN'
