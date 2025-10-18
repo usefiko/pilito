@@ -27,15 +27,15 @@ class InstaWebhook(APIView):
         token = self.request.query_params.get('hub.verify_token')
         challenge = self.request.query_params.get('hub.challenge')
         
-        logger.info(f"Instagram webhook verification - mode: {mode}, token: {token}")
+        logger.info(f"Instagram webhook verification - mode: {mode}, token: {token}, challenge: {challenge}")
         
         if mode == 'subscribe' and token == VERIFY_TOKEN:
-            logger.info("Instagram webhook verification successful")
-            # Instagram expects the challenge as plain text response
-            return Response(challenge or '', content_type='text/plain')
+            logger.info("✅ Instagram webhook verification successful")
+            # Instagram expects the challenge as PLAIN TEXT (no JSON, no quotes)
+            return HttpResponse(challenge or '', content_type='text/plain')
         
-        logger.warning("Invalid Instagram webhook verification token")
-        return Response('Invalid verification token', status=403)
+        logger.warning("❌ Invalid Instagram webhook verification token")
+        return HttpResponse('Invalid verification token', status=403, content_type='text/plain')
     
     def post(self, *args, **kwargs):
         """Instagram webhook message handler"""
