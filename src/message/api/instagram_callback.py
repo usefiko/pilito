@@ -72,8 +72,8 @@ class InstagramCallbackAPIView(APIView):
     permission_classes = [AllowAny]  # External callback from Instagram
     
     # Instagram API configuration
-    CLIENT_ID = '1426281428401641'
-    CLIENT_SECRET = '071f08aea723183951494234746982e4'
+    CLIENT_ID = '2615016495557907'  # pilito-IG app
+    CLIENT_SECRET = '21d43285012551c1a1e8abc761b586b7'
     REDIRECT_URI = 'https://api.pilito.com/api/v1/message/instagram-callback/'
     
     def get(self, request):
@@ -503,7 +503,7 @@ class InstagramCallbackAPIView(APIView):
         
         base_url = "https://www.instagram.com/oauth/authorize"
         params = {
-            'client_id': '1426281428401641',
+            'client_id': '2615016495557907',  # pilito-IG app
             'redirect_uri': 'https://api.pilito.com/api/v1/message/instagram-callback/',
             'response_type': 'code',
             'scope': 'instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_content_publish,instagram_business_manage_insights',
@@ -520,7 +520,7 @@ class InstagramCallbackAPIView(APIView):
         
         base_url = "https://www.instagram.com/oauth/authorize"
         params = {
-            'client_id': '1426281428401641',
+            'client_id': '2615016495557907',  # pilito-IG app
             'redirect_uri': 'https://api.pilito.com/api/v1/message/instagram-callback/',
             'response_type': 'code',
             'scope': 'instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_content_publish,instagram_business_manage_insights',

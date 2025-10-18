@@ -81,7 +81,7 @@ class Command(BaseCommand):
         """Generate Instagram OAuth URL with user_id in state parameter"""
         base_url = "https://www.instagram.com/oauth/authorize"
         params = {
-            'client_id': '1426281428401641',
+            'client_id': '2615016495557907',  # pilito-IG app
             'redirect_uri': 'https://api.pilito.com/api/v1/message/instagram-callback/',
             'response_type': 'code',
             'scope': 'instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_content_publish,instagram_business_manage_insights',
