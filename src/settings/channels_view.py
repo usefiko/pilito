@@ -32,12 +32,19 @@ class ConnectTeleAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
+        import logging
+        logger = logging.getLogger(__name__)
+        
         bot_token = request.data.get("bot_token")
+        logger.info(f"🔍 Telegram connection attempt - bot_token present: {bool(bot_token)}")
+        
         if not bot_token:
+            logger.warning("❌ No bot_token provided")
             return Response({"error": "bot_token is required"}, status=status.HTTP_400_BAD_REQUEST)
 
         # Get bot information from Telegram API
         try:
+            logger.info(f"📡 Fetching bot info from Telegram API...")
             bot_info = self._get_bot_info(bot_token)
             bot_username = bot_info.get("username")
             if not bot_username:
@@ -47,13 +54,20 @@ class ConnectTeleAPIView(APIView):
                 )
         
             # Get bot profile picture
+            logger.info(f"📷 Fetching bot profile picture...")
             profile_picture_file = self._get_bot_profile_picture(bot_token, bot_username)
         except requests.exceptions.RequestException as e:
+            logger.error(f"❌ Telegram API connection failed: {str(e)}")
+            logger.error(f"🔍 Exception type: {type(e).__name__}")
             return Response(
                 {"error": f"Failed to connect to Telegram API: {str(e)}"}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
         except Exception as e:
+            logger.error(f"❌ Unexpected error: {str(e)}")
+            logger.error(f"🔍 Exception type: {type(e).__name__}")
+            import traceback
+            logger.error(f"📋 Traceback: {traceback.format_exc()}")
             return Response(
                 {"error": f"Invalid bot token or API error: {str(e)}"}, 
                 status=status.HTTP_400_BAD_REQUEST
@@ -101,17 +115,31 @@ class ConnectTeleAPIView(APIView):
         """
         Gets bot information from Telegram API using the getMe method.
         """
+        import logging
+        logger = logging.getLogger(__name__)
+        
         url = f"https://api.telegram.org/bot{bot_token}/getMe"
+        proxy_config = get_active_proxy()
+        logger.info(f"🔒 Using proxy: {proxy_config}")
+        logger.info(f"📡 Calling Telegram API: {url[:50]}...")
+        
         # ✅ استفاده از پروکسی برای دریافت اطلاعات bot از Telegram
-        response = requests.get(url, proxies=get_active_proxy())
+        response = requests.get(url, proxies=proxy_config, timeout=10)
+        
+        logger.info(f"📥 Response status: {response.status_code}")
         
         if response.status_code != 200:
+            logger.error(f"❌ Telegram API error: {response.status_code} - {response.text}")
             raise Exception(f"Telegram API error: {response.status_code} - {response.text}")
         
         data = response.json()
+        logger.info(f"📦 Response data: {data}")
+        
         if not data.get("ok"):
+            logger.error(f"❌ Telegram API returned error: {data.get('description', 'Unknown error')}")
             raise Exception(f"Telegram API returned error: {data.get('description', 'Unknown error')}")
         
+        logger.info(f"✅ Bot info retrieved successfully: {data.get('result', {}).get('username')}")
         return data.get("result")
 
     def _get_bot_profile_picture(self, bot_token, bot_username):
