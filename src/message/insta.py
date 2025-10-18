@@ -114,8 +114,8 @@ class InstaWebhook(APIView):
                 'access_token': access_token
             }
             
-            # ✅ Instagram Graph API with automatic fallback proxy
-            response = make_request_with_proxy('get', url, params=params, timeout=10)
+            # ✅ Instagram Graph API with automatic fallback proxy (shorter timeout for speed)
+            response = make_request_with_proxy('get', url, params=params, timeout=5)
             
             if response.status_code == 200:
                 user_data = response.json()
@@ -159,7 +159,7 @@ class InstaWebhook(APIView):
                 return None
                 
             logger.info(f"📸 Downloading Instagram profile picture for user {user_id} from: {picture_url}")
-            response = make_request_with_proxy('get', picture_url, timeout=15)
+            response = make_request_with_proxy('get', picture_url, timeout=5)
             response.raise_for_status()
             
             if response.status_code == 200:
@@ -339,7 +339,7 @@ class InstaWebhook(APIView):
                 return None
                 
             logger.info(f"📸 Downloading Instagram profile picture for user {user_id} from: {picture_url}")
-            response = make_request_with_proxy('get', picture_url, timeout=15)
+            response = make_request_with_proxy('get', picture_url, timeout=5)
             response.raise_for_status()
             
             if response.status_code == 200:
@@ -475,12 +475,22 @@ class InstaWebhook(APIView):
                 }
             
             # Fetch detailed user information from Instagram Graph API
+            # ⚡ Make this non-blocking: use basic info first, enrich profile later via Celery task
             user_details = {}
-            if channel.access_token:
-                logger.info(f"🔍 Fetching detailed user info for sender {sender_id}")
-                user_details = self._get_instagram_user_details(sender_id, channel.access_token)
-            else:
-                logger.warning(f"⚠️ No access token available for channel {channel.username}, using basic info")
+            profile_pic_url = None
+            
+            try:
+                if channel.access_token:
+                    logger.info(f"🔍 Attempting to fetch detailed user info for sender {sender_id}")
+                    user_details = self._get_instagram_user_details(sender_id, channel.access_token)
+                    if user_details:
+                        logger.info(f"✅ Successfully fetched user details")
+                    else:
+                        logger.info(f"⚠️ User details fetch returned empty, will use basic info")
+                else:
+                    logger.warning(f"⚠️ No access token available for channel {channel.username}, using basic info")
+            except Exception as fetch_error:
+                logger.warning(f"⚠️ Non-blocking profile fetch failed (will use defaults): {fetch_error}")
             
             # Extract user information - use API data if available, fallback to webhook data
             if user_details:
@@ -527,22 +537,22 @@ class InstaWebhook(APIView):
                 logger.info(f"📋 Using webhook data - First: {first_name}, Last: {last_name}")
             
             # Prepare potential profile image
+            # ⚡ Non-blocking: try to fetch profile picture, but don't fail if it times out
             customer_profile_image = None
             
-            # Download and save profile picture if available
             if profile_pic_url:
-                logger.info(f"🔍 Downloading Instagram profile picture for user {sender_id}")
                 try:
+                    logger.info(f"🔍 Attempting quick download of profile picture for user {sender_id}")
                     profile_image = self._download_profile_picture(profile_pic_url, sender_id)
                     if profile_image:
                         customer_profile_image = profile_image
-                        logger.info(f"✅ Instagram profile picture downloaded for user {sender_id}")
+                        logger.info(f"✅ Profile picture downloaded successfully")
                     else:
-                        logger.info(f"📷 Failed to download Instagram profile picture for user {sender_id}")
+                        logger.info(f"⚠️ Profile picture download returned None (will use default)")
                 except Exception as e:
-                    logger.error(f"❌ Error downloading Instagram profile picture for {sender_id}: {e}")
+                    logger.warning(f"⚠️ Non-blocking profile picture download failed (will use default): {e}")
             else:
-                logger.info(f"📷 No Instagram profile picture available for user {sender_id}")
+                logger.info(f"📷 No profile picture URL available (will use default avatar)")
 
             # Create or update Customer but PRESERVE manual edits
             customer, created = Customer.objects.get_or_create(
