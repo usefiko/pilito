@@ -1,5 +1,6 @@
 import json
 import logging
+import requests
 from io import BytesIO
 from django.core.files.base import ContentFile
 from rest_framework import status
