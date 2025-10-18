@@ -194,8 +194,8 @@ class InstagramCallbackAPIView(APIView):
         }
         
         try:
-            # ⚠️ OAuth callback باید بدون پروکسی باشه (Instagram خودش redirect می‌کنه)
-            response = requests.post(url, data=data, timeout=30)
+            # ✅ Token exchange needs proxy (server in Iran can't reach Instagram API directly)
+            response = requests.post(url, data=data, proxies=get_active_proxy(), timeout=30)
             logger.info(f"Instagram token exchange response status: {response.status_code}")
             
             if response.status_code == 200:
@@ -237,8 +237,8 @@ class InstagramCallbackAPIView(APIView):
             }
             
             logger.info("Converting short-lived token to long-lived token...")
-            # ⚠️ Token exchange باید بدون پروکسی باشه
-            response = requests.get(url, params=params, timeout=30)
+            # ✅ Token exchange needs proxy (server in Iran)
+            response = requests.get(url, params=params, proxies=get_active_proxy(), timeout=30)
             logger.info(f"Long-lived token exchange response status: {response.status_code}")
             
             if response.status_code == 200:
