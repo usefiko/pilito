@@ -5,7 +5,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: django_app
-    command: daphne -b 0.0.0.0 -p 8000 core.asgi:application
+    command: gunicorn core.asgi:application -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000 --workers 2 --threads 4 --timeout 120
     working_dir: /app
     volumes:
       - ./src:/app

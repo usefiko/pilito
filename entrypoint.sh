@@ -28,11 +28,11 @@ else
     echo "Running Celery Beat migrations..."
     python manage.py migrate django_celery_beat
 
-    # Collect static files to S3 (suppress verbose output)
-    echo "Collecting static files to S3..."
+    # Collect static files (suppress verbose output)
+    echo "Collecting static files..."
     python manage.py collectstatic --noinput --verbosity=1 || echo "⚠️ Warning: collectstatic failed, but continuing..."
 
-    # Use Daphne instead of runserver for WebSocket support
-    echo "Starting Daphne server for WebSocket support..."
-    daphne -b 0.0.0.0 -p 8000 core.asgi:application
+    # Use Gunicorn with Uvicorn workers for WebSocket support (more stable on older CPUs)
+    echo "Starting Gunicorn server with Uvicorn workers..."
+    exec "$@"
 fi
