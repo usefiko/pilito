@@ -186,25 +186,29 @@ STATICFILES_STORAGE = 'core.settings.storage_backends.StaticStorage'
 # DEFAULT_FILE_STORAGE = 'core.settings.storage_backends.MediaStoragePresigned'  # Commented out as STORAGES is used instead
 
 
-# Django 4.2+ STORAGES setting (replaces DEFAULT_FILE_STORAGE)
+# Django 4.2+ STORAGES setting
+# ✅ استراتژی جدید:
+# - STATIC files → VPS محلی (سریع‌تر، بدون مشکل CORS)
+# - MEDIA files → Arvan Cloud (فضای نامحدود)
 STORAGES = {
     "default": {
-        "BACKEND": "core.settings.storage_backends.MediaStoragePresigned",
+        "BACKEND": "core.settings.storage_backends.MediaStorage",  # فایل‌های کاربران روی Arvan
     },
     "staticfiles": {
-        "BACKEND": "core.settings.storage_backends.StaticStorage",
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",  # استاتیک روی VPS
     },
 }
 
-STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/static/'
-MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
-
+# ✅ STATIC files → سرو محلی از VPS
+STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-# Ensure project-level static assets (like email images) are collected
 STATICFILES_DIRS = [
     BASE_DIR / 'static',
 ]
-MEDIA_ROOT = 'media'
+
+# ✅ MEDIA files → Arvan Cloud
+MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
+MEDIA_ROOT = 'media'  # Not used when S3 storage is active
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
