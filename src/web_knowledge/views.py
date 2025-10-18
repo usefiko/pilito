@@ -1906,6 +1906,10 @@ class GeneratePromptAPIView(APIView):
             
             # Use AI to rewrite and improve the manual_prompt based on business_type.prompt
             try:
+                # ✅ Setup proxy BEFORE importing Gemini (required for Iran servers)
+                from core.utils import setup_ai_proxy
+                setup_ai_proxy()
+                
                 import google.generativeai as genai
                 from AI_model.services.gemini_service import get_gemini_api_key
                 from AI_model.models import AIGlobalConfig

@@ -8,6 +8,11 @@ import json
 import re
 from typing import List, Dict, Optional, Tuple
 from django.conf import settings
+
+# ✅ Setup proxy BEFORE importing Gemini (required for Iran servers)
+from core.utils import setup_ai_proxy
+setup_ai_proxy()
+
 import google.generativeai as genai
 
 logger = logging.getLogger(__name__)

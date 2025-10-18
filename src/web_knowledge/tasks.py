@@ -1041,6 +1041,10 @@ def generate_prompt_async_task(self, user_id: int, manual_prompt: str) -> Dict[s
         
         # Generate with AI
         try:
+            # ✅ Setup proxy BEFORE importing Gemini (required for Iran servers)
+            from core.utils import setup_ai_proxy
+            setup_ai_proxy()
+            
             import google.generativeai as genai
             from AI_model.services.gemini_service import get_gemini_api_key
             

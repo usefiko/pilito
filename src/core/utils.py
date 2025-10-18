@@ -8,6 +8,27 @@ from typing import Dict, Optional
 logger = logging.getLogger(__name__)
 
 
+def setup_ai_proxy():
+    """
+    Setup proxy for AI services (Gemini, OpenAI)
+    MUST be called BEFORE importing google.generativeai or openai
+    
+    Usage:
+        from core.utils import setup_ai_proxy
+        setup_ai_proxy()  # Call this FIRST
+        import google.generativeai as genai  # Then import AI libraries
+    """
+    import os
+    proxy_config = get_active_proxy()
+    if proxy_config and proxy_config.get('http'):
+        os.environ['HTTP_PROXY'] = proxy_config['http']
+        os.environ['HTTPS_PROXY'] = proxy_config['https']
+        os.environ['http_proxy'] = proxy_config['http']
+        os.environ['https_proxy'] = proxy_config['https']
+        return True
+    return False
+
+
 def get_active_proxy() -> Dict[str, str]:
     """
     برگرداندن پروکسی فعال برای استفاده در requests

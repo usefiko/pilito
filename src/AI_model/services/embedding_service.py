@@ -51,6 +51,16 @@ class EmbeddingService:
     def _initialize_openai(self):
         """Initialize OpenAI embedding API"""
         try:
+            # ✅ Set proxy BEFORE importing OpenAI (required for Iran servers)
+            import os
+            from core.utils import get_active_proxy
+            proxy_config = get_active_proxy()
+            if proxy_config and proxy_config.get('http'):
+                os.environ['HTTP_PROXY'] = proxy_config['http']
+                os.environ['HTTPS_PROXY'] = proxy_config['https']
+                os.environ['http_proxy'] = proxy_config['http']
+                os.environ['https_proxy'] = proxy_config['https']
+            
             from openai import OpenAI
             from settings.models import GeneralSettings
             
@@ -62,7 +72,7 @@ class EmbeddingService:
                 logger.debug("OpenAI API key not configured")
                 return
             
-            # Initialize OpenAI client
+            # Initialize OpenAI client (proxy from environment variables)
             self.openai_client = OpenAI(api_key=api_key)
             self.openai_configured = True
             

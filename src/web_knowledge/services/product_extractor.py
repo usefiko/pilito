@@ -46,6 +46,10 @@ class ProductExtractor:
     def _init_gemini(self):
         """Initialize Gemini 1.5 Pro model for maximum accuracy"""
         try:
+            # ✅ Setup proxy BEFORE importing Gemini (required for Iran servers)
+            from core.utils import setup_ai_proxy
+            setup_ai_proxy()
+            
             import google.generativeai as genai
             from settings.models import GeneralSettings
             

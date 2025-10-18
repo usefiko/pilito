@@ -385,6 +385,10 @@ class ContentExtractor:
         
         # Try AI-powered summarization with Gemini Pro
         try:
+            # ✅ Setup proxy BEFORE importing Gemini (required for Iran servers)
+            from core.utils import setup_ai_proxy
+            setup_ai_proxy()
+            
             from settings.models import GeneralSettings
             import google.generativeai as genai
             
