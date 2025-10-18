@@ -138,24 +138,29 @@ def make_request_with_proxy(
         return response
         
     except Exception as primary_error:
-        logger.warning(f"⚠️ Primary proxy failed for {method.upper()} {url}: {primary_error}")
+        logger.warning(f"⚠️ Primary proxy failed for {method.upper()} {url[:80]}...")
+        logger.warning(f"    Error type: {type(primary_error).__name__}")
+        logger.warning(f"    Error message: {str(primary_error)[:200]}")
         
         # اگر fallback فعال باشه، با fallback proxy امتحان کن
         if use_fallback:
             try:
                 fallback_proxies = get_fallback_proxy()
+                logger.info(f"🔍 Fallback proxies retrieved: {bool(fallback_proxies)}")
                 if fallback_proxies:
+                    logger.info(f"🔄 Retrying {method.upper()} {url[:80]}... with fallback proxy")
                     kwargs['proxies'] = fallback_proxies
-                    logger.info(f"🔄 Retrying {method.upper()} {url} with fallback proxy...")
                     
                     response = requests.request(method, url, **kwargs)
                     response.raise_for_status()
+                    logger.info(f"✅ Fallback proxy SUCCESS for {method.upper()} {url[:80]}...")
                     return response
                 else:
-                    logger.debug("No fallback proxy configured, raising original error")
+                    logger.warning("⚠️ No fallback proxy configured, raising original error")
                     
             except Exception as fallback_error:
-                logger.error(f"❌ Fallback proxy also failed for {method.upper()} {url}: {fallback_error}")
+                logger.error(f"❌ Fallback proxy FAILED for {method.upper()} {url[:80]}...")
+                logger.error(f"    Fallback error: {type(fallback_error).__name__}: {str(fallback_error)[:200]}")
         
         # اگر fallback هم fail شد یا غیرفعال بود، error اصلی رو raise کن
         raise primary_error
