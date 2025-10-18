@@ -25,7 +25,7 @@ def get_active_proxy() -> Dict[str, str]:
         proxy = ProxySetting.objects.filter(is_active=True).first()
         if proxy:
             logger.debug(f"🔒 Using proxy: {proxy.name}")
-            # ✅ Fix: تبدیل به lowercase برای سازگاری با requests library
+            # ✅ Fixتبدیل به lowercase برای سازگاری با requests library
             http_proxy = proxy.http_proxy.lower() if proxy.http_proxy.startswith(('HTTP://', 'HTTPS://')) else proxy.http_proxy
             https_proxy = proxy.https_proxy.lower() if proxy.https_proxy.startswith(('HTTP://', 'HTTPS://')) else proxy.https_proxy
             
