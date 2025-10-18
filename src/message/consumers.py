@@ -72,6 +72,27 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.close(code=1008)
             return
         
+        # 🔒 Check if user already has an active connection to this conversation
+        # If yes, close old connections to prevent duplicate messages
+        user_connection_key = f"ws_chat_{self.user.id}_{self.conversation_id}"
+        old_channel = cache.get(user_connection_key)
+        
+        if old_channel and old_channel != self.channel_name:
+            logger.info(f"User {self.user.id} reconnecting to conversation {self.conversation_id}, closing old connection")
+            try:
+                await self.channel_layer.send(
+                    old_channel,
+                    {
+                        'type': 'close_connection',
+                        'reason': 'duplicate_connection'
+                    }
+                )
+            except Exception as e:
+                logger.warning(f"Could not close old connection: {e}")
+        
+        # Store this channel as the active one (expires after 1 hour)
+        cache.set(user_connection_key, self.channel_name, timeout=3600)
+        
         # Join conversation group with timeout
         try:
             import asyncio
@@ -116,6 +137,17 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def disconnect(self, close_code):
         logger.debug(f"User {getattr(self, 'user', 'Unknown').id if hasattr(self, 'user') else 'Unknown'} disconnecting from conversation {getattr(self, 'conversation_id', 'Unknown')}")
+        
+        try:
+            # Clear user connection cache if this is the active connection
+            if hasattr(self, 'user') and hasattr(self, 'conversation_id'):
+                user_connection_key = f"ws_chat_{self.user.id}_{self.conversation_id}"
+                cached_channel = cache.get(user_connection_key)
+                if cached_channel == self.channel_name:
+                    cache.delete(user_connection_key)
+                    logger.debug(f"Cleared connection cache for user {self.user.id}, conversation {self.conversation_id}")
+        except Exception as e:
+            logger.warning(f"Error clearing connection cache: {e}")
         
         try:
             # Set user as offline with timeout
@@ -369,6 +401,20 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'type': 'messages_read',
             'user_id': event['user_id']
         }))
+
+    async def close_connection(self, event):
+        """Handle duplicate connection - close this old connection gracefully"""
+        reason = event.get('reason', 'unknown')
+        logger.info(f"Closing connection {self.channel_name} due to: {reason}")
+        
+        await self.send(text_data=json.dumps({
+            'type': 'connection_closed',
+            'reason': reason,
+            'message': 'Replaced by newer connection',
+            'timestamp': timezone.now().isoformat()
+        }))
+        
+        await self.close(code=1000)  # Normal closure
 
     async def ai_message(self, event):
         """Handle AI message broadcasts to chat room"""
