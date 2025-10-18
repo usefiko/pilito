@@ -122,4 +122,4 @@ CRON
           docker ps | grep postgres_db > /dev/null && echo "  ✅ PostgreSQL" || echo "  ❌ PostgreSQL"
           docker ps | grep redis_cache > /dev/null && echo "  ✅ Redis" || echo "  ❌ Redis"
           
-        EOF
+EOF
