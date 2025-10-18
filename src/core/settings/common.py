@@ -297,8 +297,8 @@ CSRF_TRUSTED_ORIGINS = [
 
 
 # GOOGLE OAUTH CONFIGURATION
-GOOGLE_OAUTH2_CLIENT_ID = "474127607425-nspfkpns0k5r5nou0fmbvtatj2fak6rd.apps.googleusercontent.com"
-GOOGLE_OAUTH2_CLIENT_SECRET = "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"
+GOOGLE_OAUTH2_CLIENT_ID = "474127607425-nrcjlsqein387o57t07gq7ktqb0irmdb.apps.googleusercontent.com"
+GOOGLE_OAUTH2_CLIENT_SECRET = "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"
 GOOGLE_OAUTH2_REDIRECT_URI = environ.get("GOOGLE_OAUTH2_REDIRECT_URI", "https://api.pilito.com/api/v1/usr/google/callback")
 # Frontend redirect URL after successful authentication
 GOOGLE_OAUTH2_FRONTEND_REDIRECT = environ.get("GOOGLE_OAUTH2_FRONTEND_REDIRECT", "https://app.pilito.com/auth/success")
