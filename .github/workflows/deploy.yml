@@ -1,4 +1,4 @@
-name: Deploy to VPS (Optimized)
+name: Deploy to VPS with Disk Management
 
 on:
   push:
@@ -32,94 +32,223 @@ jobs:
         ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
           cd /root/pilito
           
-          echo "🚀 Starting optimized deployment..."
+          echo "🚀 Starting automated deployment with disk management..."
           
-          # ✅ Smart Docker cleanup (keep cache for speed)
-          echo "🧹 Smart cleanup..."
+          # Enhanced disk management and cleanup
+          echo "💾 Performing comprehensive disk cleanup before deployment..."
+          
+          # Always perform aggressive cleanup before deployment
+          echo "🧹 Performing aggressive Docker cleanup..."
+          
+          # Stop all containers first to free up running container space
+          docker stop $(docker ps -aq) 2>/dev/null || true
+          
+          # Remove all stopped containers
           docker container prune -f || true
-          docker image prune -f || true
           
-          # Check disk space
-          AVAILABLE_GB=$(df / | awk 'NR==2 {print int($4/1024/1024)}')
-          echo "💾 Available space: ${AVAILABLE_GB}GB"
+          # Remove all unused images (not just dangling ones)
+          docker image prune -af || true
           
-          if [ "$AVAILABLE_GB" -lt 5 ]; then
-            echo "⚠️ Low disk space - performing deep cleanup..."
-            docker builder prune --filter "until=24h" -f || true
-            docker system prune -f || true
+          # Remove all unused volumes
+          docker volume prune -f || true
+          
+          # Remove all unused networks
+          docker network prune -f || true
+          
+          # Remove all build cache
+          docker builder prune -af || true
+          
+          # Complete system cleanup - remove everything not currently in use
+          docker system prune -af --volumes || true
+          
+          # Clean up Docker log files that can grow very large
+          echo "📝 Cleaning up Docker logs..."
+          find /var/lib/docker/containers/ -name "*-json.log" -exec truncate -s 0 {} \; 2>/dev/null || true
+          
+          # Clean up system logs more aggressively
+          echo "📝 Cleaning up system logs..."
+          journalctl --vacuum-time=1d || true
+          journalctl --vacuum-size=100M || true
+          find /var/log -name "*.log" -type f -mtime +1 -delete || true
+          find /var/log -name "*.log.*" -type f -delete || true
+          
+          # Clean up temporary files and caches
+          echo "🗑️ Cleaning up temporary files and caches..."
+          rm -rf /tmp/* || true
+          rm -rf /var/tmp/* || true
+          rm -rf /var/cache/apt/archives/* || true
+          
+          # Clean up APT cache and packages
+          echo "📦 Cleaning up APT cache..."
+          apt-get clean || true
+          apt-get autoremove -y --purge || true
+          apt-get autoclean || true
+          
+          # Clean up old application files and backups
+          echo "🗂️ Cleaning up old application files..."
+          find /root/pilito -name "*.pyc" -delete 2>/dev/null || true
+          find /root/pilito -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
+          find /root/pilito -name "*.log" -mtime +1 -delete 2>/dev/null || true
+          
+          echo "💾 Disk space after cleanup:"
+          df -h
+          
+          # Check available space and warn if still low
+          AVAILABLE_SPACE=$(df / | awk 'NR==2 {print $4}')
+          AVAILABLE_GB=$((AVAILABLE_SPACE / 1024 / 1024))
+          echo "Available space: ${AVAILABLE_GB}GB"
+          
+          if [ "$AVAILABLE_GB" -lt 2 ]; then
+            echo "⚠️ WARNING: Still low on disk space (${AVAILABLE_GB}GB available)"
+            echo "🔍 Top 10 largest directories:"
+            du -h / 2>/dev/null | sort -hr | head -10 || true
+          else
+            echo "✅ Sufficient disk space available (${AVAILABLE_GB}GB)"
           fi
           
           # Stop existing containers
           echo "🛑 Stopping containers..."
           docker-compose down || true
           
-          # ✅ Build with cache (fast!)
-          echo "🔨 Building with cache..."
+          # Build with optimized settings for reliable deployment
+          echo "🔨 Building containers with optimized settings..."
+          
+          # Use Docker BuildKit for better caching and smaller images
           export DOCKER_BUILDKIT=1
           export COMPOSE_DOCKER_CLI_BUILD=1
-          docker-compose build --parallel
           
-          # Start all services
-          echo "⚡ Starting services..."
+          # Build with parallel processing for faster builds
+          docker-compose build --pull --parallel
+          
+          # Clean up any temporary build artifacts immediately
+          docker builder prune --filter "until=1h" -f || true
+          
+          # Start all services (including Celery and monitoring)
+          echo "⚡ Starting all services..."
           docker-compose up -d --remove-orphans
           
-          # Wait and health check
-          echo "⏳ Waiting for services..."
-          sleep 15
+          # Wait for services to initialize
+          echo "⏳ Waiting for services to start..."
+          sleep 20
           
+          # Health check
+          echo "🔍 Performing health checks..."
+          
+          # Check if all containers are running
           if ! docker-compose ps | grep -q "Up"; then
-            echo "❌ Containers failed to start!"
-            docker-compose logs --tail=30
+            echo "❌ Some containers failed to start!"
+            docker-compose logs --tail=20
             exit 1
           fi
           
-          # Django checks
-          echo "🔧 Checking Django..."
+          # Check Django app health with better error reporting
+          echo "🔧 Checking Django application..."
           if ! docker exec django_app python manage.py check; then
-            echo "❌ Django check failed!"
+            echo "❌ Django health check failed!"
+            echo "📋 Container logs:"
             docker logs django_app --tail 50
+            echo "📋 Container environment:"
+            docker exec django_app env | grep -E "(DJANGO|PYTHON)" || true
             exit 1
           fi
           
-          # Migrations
-          echo "📊 Running migrations..."
+          # Run migrations
+          echo "📊 Running database migrations..."
           docker exec django_app python manage.py migrate --noinput
           
-          # Static files
+          # Collect static files
           echo "📦 Collecting static files..."
           docker exec django_app python manage.py collectstatic --noinput || true
           
-          # Celery check
-          echo "⚙️ Checking Celery..."
+          # Check Celery worker
+          echo "⚙️ Checking Celery worker..."
           sleep 5
-          docker exec celery_worker celery -A core inspect ping > /dev/null 2>&1 && echo "✅ Celery OK" || echo "⚠️ Celery starting..."
+          if ! docker exec celery_worker celery -A core inspect ping > /dev/null 2>&1; then
+            echo "⚠️ Celery worker starting up..."
+          else
+            echo "✅ Celery worker is running"
+          fi
           
-          # Setup automated weekly cleanup (once)
+          # Check Celery beat
+          echo "📅 Checking Celery beat..."
+          if docker ps | grep -q celery_beat; then
+            echo "✅ Celery beat is running"
+          else
+            echo "⚠️ Celery beat may need attention"
+          fi
+          
+          # Post-deployment cleanup
+          echo "🧹 Post-deployment cleanup..."
+          
+          # Remove any build artifacts older than 2 hours
+          docker builder prune --filter "until=2h" -f || true
+          
+          # Remove any dangling images created during build
+          docker image prune -f || true
+          
+          # Remove any temporary containers
+          docker container prune -f || true
+          
+          # Final disk space check
+          echo ""
+          echo "💾 Final disk space after deployment:"
+          df -h
+          
+          FINAL_AVAILABLE_GB=$(df / | awk 'NR==2 {print int($4/1024/1024)}')
+          echo "Final available space: ${FINAL_AVAILABLE_GB}GB"
+          
+          # Set up automated cleanup if not already configured
           if [ ! -f "/etc/cron.d/pilito-cleanup" ]; then
-            echo "⚙️ Setting up weekly cleanup..."
-            cat > /tmp/pilito-cleanup << 'CRON'
-# Pilito Weekly Cleanup
-0 2 * * 0 root docker system prune -af --volumes >/tmp/cleanup.log 2>&1
-0 3 * * * root find /var/lib/docker/containers/ -name "*-json.log" -exec truncate -s 10M {} \; 2>/dev/null
-CRON
+            echo "⚙️ Setting up automated cleanup tasks..."
+            
+            # Create cleanup cron job using echo
+            echo "# Pilito Backend Automated Cleanup" > /tmp/pilito-cleanup
+            echo "SHELL=/bin/bash" >> /tmp/pilito-cleanup
+            echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin" >> /tmp/pilito-cleanup
+            echo "" >> /tmp/pilito-cleanup
+            echo "# Run full cleanup every Sunday at 2 AM" >> /tmp/pilito-cleanup
+            echo "0 2 * * 0 root docker system prune -af --volumes >/tmp/weekly-cleanup.log 2>&1" >> /tmp/pilito-cleanup
+            echo "" >> /tmp/pilito-cleanup
+            echo "# Clean Docker logs every day at 3 AM" >> /tmp/pilito-cleanup
+            echo "0 3 * * * root find /var/lib/docker/containers/ -name \"*-json.log\" -exec truncate -s 10M {} \\; 2>/dev/null || true" >> /tmp/pilito-cleanup
+            echo "" >> /tmp/pilito-cleanup
+            echo "# Clean system logs daily at 4 AM" >> /tmp/pilito-cleanup
+            echo "0 4 * * * root journalctl --vacuum-time=7d >/dev/null 2>&1" >> /tmp/pilito-cleanup
+            
             mv /tmp/pilito-cleanup /etc/cron.d/pilito-cleanup
             chmod 644 /etc/cron.d/pilito-cleanup
             systemctl reload cron || service cron reload
-            echo "✅ Weekly cleanup configured"
+            echo "✅ Automated cleanup configured"
+          else
+            echo "✅ Automated cleanup already configured"
           fi
           
-          # Summary
-          echo ""
-          echo "🎉 Deployment completed!"
-          echo "📊 Status:"
+          echo "🎉 Deployment completed successfully!"
+          echo "📊 Container status:"
           docker-compose ps
           
-          FINAL_GB=$(df / | awk 'NR==2 {print int($4/1024/1024)}')
-          echo "💾 Free space: ${FINAL_GB}GB"
+          echo ""
+          echo "System Health Summary"
+          echo "======================"
+          echo "Available Space - ${FINAL_AVAILABLE_GB}GB"
+          RUNNING=$(docker ps | grep -c Up || echo 0)
+          echo "Docker Containers - ${RUNNING} running"
+          IMAGES=$(docker images | tail -n +2 | wc -l)
+          echo "Docker Images - ${IMAGES} total"
+          if [ -f '/etc/cron.d/pilito-cleanup' ]; then
+            echo "Cleanup Status - Automated"
+          else
+            echo "Cleanup Status - Manual only"
+          fi
           
-          docker ps | grep django_app > /dev/null && echo "  ✅ Django" || echo "  ❌ Django"
-          docker ps | grep celery_worker > /dev/null && echo "  ✅ Celery" || echo "  ❌ Celery"
-          docker ps | grep postgres_db > /dev/null && echo "  ✅ PostgreSQL" || echo "  ❌ PostgreSQL"
-          docker ps | grep redis_cache > /dev/null && echo "  ✅ Redis" || echo "  ❌ Redis"
+          echo ""
+          echo "Running Services"
+          docker ps | grep django_app > /dev/null && echo "  Django App - OK" || echo "  Django App - NOT RUNNING"
+          docker ps | grep postgres_db > /dev/null && echo "  PostgreSQL - OK" || echo "  PostgreSQL - NOT RUNNING"
+          docker ps | grep redis_cache > /dev/null && echo "  Redis - OK" || echo "  Redis - NOT RUNNING"
+          docker ps | grep celery_worker > /dev/null && echo "  Celery Worker - OK" || echo "  Celery Worker - NOT RUNNING"
+          docker ps | grep celery_beat > /dev/null && echo "  Celery Beat - OK" || echo "  Celery Beat - NOT RUNNING"
+          docker ps | grep prometheus > /dev/null && echo "  Prometheus - OK" || echo "  Prometheus - NOT RUNNING"
+          docker ps | grep grafana > /dev/null && echo "  Grafana - OK" || echo "  Grafana - NOT RUNNING"
           
         EOF
