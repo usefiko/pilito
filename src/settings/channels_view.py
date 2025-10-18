@@ -123,7 +123,8 @@ class ConnectTeleAPIView(APIView):
             # Get bot's user profile photos
             url = f"https://api.telegram.org/bot{bot_token}/getUserProfilePhotos"
             params = {"user_id": self._get_bot_user_id(bot_token), "limit": 1}
-            response = requests.get(url, params=params)
+            # ✅ استفاده از پروکسی برای دریافت عکس پروفایل bot
+            response = requests.get(url, params=params, proxies=get_active_proxy())
             
             if response.status_code != 200:
                 return None
@@ -151,7 +152,8 @@ class ConnectTeleAPIView(APIView):
             # Get file path
             file_url = f"https://api.telegram.org/bot{bot_token}/getFile"
             file_params = {"file_id": file_id}
-            file_response = requests.get(file_url, params=file_params)
+            # ✅ استفاده از پروکسی برای دریافت مسیر فایل
+            file_response = requests.get(file_url, params=file_params, proxies=get_active_proxy())
             
             if file_response.status_code != 200:
                 return None
@@ -166,7 +168,8 @@ class ConnectTeleAPIView(APIView):
             
             # Download the actual file
             download_url = f"https://api.telegram.org/file/bot{bot_token}/{file_path}"
-            download_response = requests.get(download_url)
+            # ✅ استفاده از پروکسی برای دانلود فایل عکس
+            download_response = requests.get(download_url, proxies=get_active_proxy())
             
             if download_response.status_code == 200:
                 return ContentFile(download_response.content, name=f"{bot_username}_profile.jpg")

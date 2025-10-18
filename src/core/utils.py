@@ -25,9 +25,13 @@ def get_active_proxy() -> Dict[str, str]:
         proxy = ProxySetting.objects.filter(is_active=True).first()
         if proxy:
             logger.debug(f"🔒 Using proxy: {proxy.name}")
+            # ✅ Fix: تبدیل به lowercase برای سازگاری با requests library
+            http_proxy = proxy.http_proxy.lower() if proxy.http_proxy.startswith(('HTTP://', 'HTTPS://')) else proxy.http_proxy
+            https_proxy = proxy.https_proxy.lower() if proxy.https_proxy.startswith(('HTTP://', 'HTTPS://')) else proxy.https_proxy
+            
             return {
-                "http": proxy.http_proxy,
-                "https": proxy.https_proxy
+                "http": http_proxy,
+                "https": https_proxy
             }
         
         logger.debug("⚠️ No active proxy found - direct connection will be used")
@@ -57,9 +61,13 @@ def get_fallback_proxy() -> Dict[str, str]:
         proxy = ProxySetting.objects.filter(is_active=True).first()
         if proxy and proxy.fallback_http_proxy:
             logger.info(f"🔄 Using fallback proxy: {proxy.name}")
+            # ✅ Fix: تبدیل به lowercase برای سازگاری با requests library
+            fallback_http = proxy.fallback_http_proxy.lower() if proxy.fallback_http_proxy.startswith(('HTTP://', 'HTTPS://')) else proxy.fallback_http_proxy
+            fallback_https = proxy.fallback_https_proxy.lower() if proxy.fallback_https_proxy and proxy.fallback_https_proxy.startswith(('HTTP://', 'HTTPS://')) else proxy.fallback_https_proxy
+            
             return {
-                "http": proxy.fallback_http_proxy,
-                "https": proxy.fallback_https_proxy
+                "http": fallback_http,
+                "https": fallback_https
             }
         
         logger.debug("⚠️ No fallback proxy configured")
