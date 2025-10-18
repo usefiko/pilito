@@ -46,8 +46,8 @@ jobs:
           # Remove all stopped containers
           docker container prune -f || true
           
-          # Remove all unused images (not just dangling ones)
-          docker image prune -af || true
+          # Remove only dangling images (keep cached layers for speed)
+          docker image prune -f || true
           
           # Remove all unused volumes
           docker volume prune -f || true
@@ -55,11 +55,9 @@ jobs:
           # Remove all unused networks
           docker network prune -f || true
           
-          # Remove all build cache
-          docker builder prune -af || true
-          
-          # Complete system cleanup - remove everything not currently in use
-          docker system prune -af --volumes || true
+          # Skip aggressive cleanup to preserve build cache
+          # docker builder prune -af || true
+          # docker system prune -af --volumes || true
           
           # Clean up Docker log files that can grow very large
           echo "📝 Cleaning up Docker logs..."
@@ -117,11 +115,11 @@ jobs:
           export DOCKER_BUILDKIT=1
           export COMPOSE_DOCKER_CLI_BUILD=1
           
-          # Build with parallel processing for faster builds
-          docker-compose build --pull --parallel
+          # Build with parallel processing for faster builds (removed --pull for caching)
+          docker-compose build --parallel
           
-          # Clean up any temporary build artifacts immediately
-          docker builder prune --filter "until=1h" -f || true
+          # Clean up old build cache only (keep recent for speed)
+          docker builder prune --filter "until=48h" -f || true
           
           # Start all services (including Celery and monitoring)
           echo "⚡ Starting all services..."

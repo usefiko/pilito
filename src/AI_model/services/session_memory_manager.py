@@ -191,9 +191,20 @@ class SessionMemoryManager:
         Target: ≤150 tokens
         """
         try:
+            import os
+            import json
+            
+            # ✅ Set proxy BEFORE importing Gemini (required for Iran servers)
+            from core.utils import get_active_proxy
+            proxy_config = get_active_proxy()
+            if proxy_config and proxy_config.get('http'):
+                os.environ['HTTP_PROXY'] = proxy_config['http']
+                os.environ['HTTPS_PROXY'] = proxy_config['https']
+                os.environ['http_proxy'] = proxy_config['http']
+                os.environ['https_proxy'] = proxy_config['https']
+            
             import google.generativeai as genai
             from settings.models import GeneralSettings
-            import json
             
             # Get API key from GeneralSettings
             settings = GeneralSettings.get_settings()

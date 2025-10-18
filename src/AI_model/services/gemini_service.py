@@ -1,9 +1,23 @@
 import logging
 import json
 import time
+import os
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 
+
+# ✅ Set proxy BEFORE importing Google library (required for Iran servers)
+try:
+    from core.utils import get_active_proxy
+    proxy_config = get_active_proxy()
+    if proxy_config and proxy_config.get('http'):
+        os.environ['HTTP_PROXY'] = proxy_config['http']
+        os.environ['HTTPS_PROXY'] = proxy_config['https']
+        os.environ['http_proxy'] = proxy_config['http']
+        os.environ['https_proxy'] = proxy_config['https']
+        logging.getLogger(__name__).info(f"🔒 Proxy configured for Gemini API")
+except Exception as e:
+    logging.getLogger(__name__).warning(f"⚠️ Could not set proxy for Gemini: {e}")
 
 # Import Gemini AI library
 try:
@@ -23,6 +37,25 @@ def get_gemini_api_key():
     except Exception as e:
         logger.error(f"Error getting Gemini API key from settings: {str(e)}")
         return None
+
+def set_gemini_proxy():
+    """
+    Set proxy environment variables for Gemini API
+    MUST be called BEFORE importing google.generativeai
+    """
+    try:
+        from core.utils import get_active_proxy
+        proxy_config = get_active_proxy()
+        if proxy_config and proxy_config.get('http'):
+            os.environ['HTTP_PROXY'] = proxy_config['http']
+            os.environ['HTTPS_PROXY'] = proxy_config['https']
+            os.environ['http_proxy'] = proxy_config['http']
+            os.environ['https_proxy'] = proxy_config['https']
+            return True
+        return False
+    except Exception as e:
+        logging.getLogger(__name__).warning(f"⚠️ Could not set proxy for Gemini: {e}")
+        return False
 
 logger = logging.getLogger(__name__)
 
