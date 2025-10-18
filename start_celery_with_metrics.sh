@@ -10,7 +10,9 @@ celery-exporter --broker-url=${REDIS_URL:-redis://redis:6379} --port=9808 &
 sleep 2
 
 # Start Celery worker with autoscaling
+# Listen to all queues: celery (default), ai_tasks, workflow_tasks, instagram_tokens
 exec celery -A core worker \
+    --queues=celery,ai_tasks,workflow_tasks,instagram_tokens \
     --loglevel=info \
     --max-tasks-per-child=1000 \
     --time-limit=300 \
