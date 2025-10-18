@@ -3,8 +3,7 @@ from celery import shared_task
 from django.utils import timezone
 from datetime import timedelta
 from settings.models import InstagramChannel
-import requests
-from core.utils import get_active_proxy
+from core.utils import make_request_with_proxy
 
 logger = logging.getLogger(__name__)
 
@@ -324,8 +323,8 @@ def _should_refresh_unknown_expiry_token(channel):
             'access_token': channel.access_token
         }
         
-        # ✅ استفاده از پروکسی برای Instagram API
-        response = requests.get(url, params=params, proxies=get_active_proxy(), timeout=10)
+        # ✅ Instagram API with automatic fallback proxy
+        response = make_request_with_proxy('get', url, params=params, timeout=10)
         
         if response.status_code == 200:
             # Token works, but we might want to refresh it proactively
@@ -387,8 +386,8 @@ def _exchange_for_long_lived_token(short_lived_token):
             'access_token': short_lived_token
         }
         
-        # ✅ استفاده از پروکسی برای Instagram token operations
-        response = requests.get(url, params=params, proxies=get_active_proxy(), timeout=30)
+        # ✅ Instagram token exchange with automatic fallback proxy
+        response = make_request_with_proxy('get', url, params=params, timeout=30)
         
         if response.status_code == 200:
             data = response.json()
@@ -409,8 +408,8 @@ def _refresh_long_lived_instagram_token(current_token):
             'access_token': current_token
         }
         
-        # ✅ استفاده از پروکسی برای Instagram API
-        response = requests.get(url, params=params, proxies=get_active_proxy(), timeout=10)
+        # ✅ Instagram token refresh with automatic fallback proxy
+        response = make_request_with_proxy('get', url, params=params, timeout=10)
         
         if response.status_code == 200:
             data = response.json()

@@ -1,11 +1,10 @@
-import requests
 import logging
 from typing import Optional, Dict, Any
 from io import BytesIO
 from django.core.files.base import ContentFile
 from settings.models import TelegramChannel
 from message.models import Message, Conversation, Customer
-from core.utils import get_active_proxy, get_fallback_proxy
+from core.utils import make_request_with_proxy
 
 logger = logging.getLogger(__name__)
 
@@ -40,8 +39,8 @@ class TelegramService:
         }
         
         try:
-            # ✅ استفاده از پروکسی برای ارسال پیام به Telegram
-            response = requests.post(url, json=payload, proxies=get_active_proxy(), timeout=30)
+            # ✅ Send Telegram message with automatic fallback proxy
+            response = make_request_with_proxy('post', url, json=payload, timeout=30)
             response.raise_for_status()
             
             result = response.json()
@@ -109,8 +108,8 @@ class TelegramService:
         }
         
         try:
-            # ✅ استفاده از پروکسی برای دریافت عکس‌های پروفایل از Telegram
-            response = requests.get(url, params=params, proxies=get_active_proxy(), timeout=10)
+            # ✅ Get Telegram profile photos with automatic fallback proxy
+            response = make_request_with_proxy('get', url, params=params, timeout=10)
             response.raise_for_status()
             result = response.json()
             
@@ -162,8 +161,8 @@ class TelegramService:
         params = {'file_id': file_id}
         
         try:
-            # ✅ استفاده از پروکسی برای دریافت لینک دانلود فایل از Telegram
-            response = requests.get(url, params=params, proxies=get_active_proxy(), timeout=10)
+            # ✅ Get file path with automatic fallback proxy
+            response = make_request_with_proxy('get', url, params=params, timeout=10)
             response.raise_for_status()
             result = response.json()
             
@@ -220,8 +219,8 @@ class TelegramService:
             
             # Download the image
             logger.info(f"📸 Downloading Telegram profile picture from: {download_url}")
-            # ✅ استفاده از پروکسی برای دانلود عکس پروفایل از Telegram
-            response = requests.get(download_url, proxies=get_active_proxy(), timeout=15)
+            # ✅ Download Telegram profile photo with automatic fallback proxy
+            response = make_request_with_proxy('get', download_url, timeout=15)
             response.raise_for_status()
             
             if response.status_code == 200:
@@ -274,8 +273,8 @@ class TelegramService:
         url = f"{self.base_url}/getMe"
         
         try:
-            # ✅ استفاده از پروکسی برای دریافت اطلاعات bot از Telegram
-            response = requests.get(url, proxies=get_active_proxy(), timeout=10)
+            # ✅ Get bot info with automatic fallback proxy
+            response = make_request_with_proxy('get', url, timeout=10)
             response.raise_for_status()
             result = response.json()
             

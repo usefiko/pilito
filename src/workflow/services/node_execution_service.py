@@ -1147,8 +1147,9 @@ class NodeBasedWorkflowExecutionService:
             'parse_mode': 'HTML'
         }
         
-        # ✅ استفاده از پروکسی برای ارسال پیام به Telegram در Workflow
-        response = requests.post(url, json=data, proxies=get_active_proxy(), timeout=10)
+        # ✅ Send Telegram message with automatic fallback proxy
+        from core.utils import make_request_with_proxy
+        response = make_request_with_proxy('post', url, json=data, timeout=10)
         response.raise_for_status()
     
     def _send_instagram_message(self, user_id: str, message: str):

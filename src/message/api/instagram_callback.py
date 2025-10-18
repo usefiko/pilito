@@ -1,4 +1,3 @@
-import requests
 from django.shortcuts import redirect
 from django.http import JsonResponse
 from rest_framework.views import APIView
@@ -12,7 +11,7 @@ import hashlib
 from settings.models import InstagramChannel
 from message.models import Customer, Conversation, Message
 from django.contrib.auth import get_user_model
-from core.utils import get_active_proxy
+from core.utils import make_request_with_proxy
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -194,8 +193,8 @@ class InstagramCallbackAPIView(APIView):
         }
         
         try:
-            # ✅ Token exchange needs proxy (server in Iran can't reach Instagram API directly)
-            response = requests.post(url, data=data, proxies=get_active_proxy(), timeout=30)
+            # ✅ Token exchange with automatic fallback proxy
+            response = make_request_with_proxy('post', url, data=data, timeout=30)
             logger.info(f"Instagram token exchange response status: {response.status_code}")
             
             if response.status_code == 200:
@@ -237,8 +236,8 @@ class InstagramCallbackAPIView(APIView):
             }
             
             logger.info("Converting short-lived token to long-lived token...")
-            # ✅ Token exchange needs proxy (server in Iran)
-            response = requests.get(url, params=params, proxies=get_active_proxy(), timeout=30)
+            # ✅ Token exchange with automatic fallback proxy
+            response = make_request_with_proxy('get', url, params=params, timeout=30)
             logger.info(f"Long-lived token exchange response status: {response.status_code}")
             
             if response.status_code == 200:
@@ -306,8 +305,8 @@ class InstagramCallbackAPIView(APIView):
                 }
                 
                 logger.info(f"Trying Instagram API: {url} with fields: {field_subset}")
-                # ✅ استفاده از پروکسی برای دریافت اطلاعات از Instagram API
-                response = requests.get(url, params=params, proxies=get_active_proxy(), timeout=30)
+                # ✅ Instagram API with automatic fallback proxy
+                response = make_request_with_proxy('get', url, params=params, timeout=30)
                 logger.info(f"Instagram API response status: {response.status_code}")
                 
                 if response.status_code == 200:
@@ -450,8 +449,8 @@ class InstagramCallbackAPIView(APIView):
             
             logger.info(f"Setting up Instagram webhook: {webhook_url}")
             
-            # ✅ استفاده از پروکسی برای دریافت access token از Instagram
-            response = requests.post(url, data=data, proxies=get_active_proxy(), timeout=30)
+            # ✅ Instagram webhook setup with automatic fallback proxy
+            response = make_request_with_proxy('post', url, data=data, timeout=30)
             logger.info(f"Instagram webhook setup response: {response.status_code}")
             
             if response.status_code == 200:

@@ -1,6 +1,5 @@
 import json
 import logging
-import requests
 from io import BytesIO
 from django.core.files.base import ContentFile
 from rest_framework import status
@@ -12,7 +11,7 @@ from settings.models import InstagramChannel
 from settings.serializers import InstagramChannelSerializer
 from message.models import Customer, Conversation, Message
 from message.websocket_utils import notify_new_customer_message
-from core.utils import get_active_proxy, get_fallback_proxy
+from core.utils import make_request_with_proxy
 
 logger = logging.getLogger(__name__)
 VERIFY_TOKEN = '123456'
@@ -114,8 +113,8 @@ class InstaWebhook(APIView):
                 'access_token': access_token
             }
             
-            # ✅ استفاده از پروکسی برای دریافت اطلاعات کاربر از Instagram Graph API
-            response = requests.get(url, params=params, proxies=get_active_proxy(), timeout=10)
+            # ✅ Instagram Graph API with automatic fallback proxy
+            response = make_request_with_proxy('get', url, params=params, timeout=10)
             
             if response.status_code == 200:
                 user_data = response.json()
@@ -159,7 +158,7 @@ class InstaWebhook(APIView):
                 return None
                 
             logger.info(f"📸 Downloading Instagram profile picture for user {user_id} from: {picture_url}")
-            response = requests.get(picture_url, proxies=get_active_proxy(), timeout=15)
+            response = make_request_with_proxy('get', picture_url, timeout=15)
             response.raise_for_status()
             
             if response.status_code == 200:
@@ -234,8 +233,8 @@ class InstaWebhook(APIView):
                 'access_token': short_lived_token
             }
             
-            # ✅ استفاده از پروکسی برای token exchange
-            response = requests.get(url, params=params, proxies=get_active_proxy(), timeout=10)
+            # ✅ Token exchange with automatic fallback proxy
+            response = make_request_with_proxy('get', url, params=params, timeout=10)
             
             if response.status_code == 200:
                 data = response.json()
@@ -270,8 +269,8 @@ class InstaWebhook(APIView):
                 'access_token': current_token
             }
             
-            # ✅ استفاده از پروکسی برای refresh token
-            response = requests.get(url, params=params, proxies=get_active_proxy(), timeout=10)
+            # ✅ Token refresh with automatic fallback proxy
+            response = make_request_with_proxy('get', url, params=params, timeout=10)
             
             if response.status_code == 200:
                 data = response.json()
@@ -339,7 +338,7 @@ class InstaWebhook(APIView):
                 return None
                 
             logger.info(f"📸 Downloading Instagram profile picture for user {user_id} from: {picture_url}")
-            response = requests.get(picture_url, proxies=get_active_proxy(), timeout=15)
+            response = make_request_with_proxy('get', picture_url, timeout=15)
             response.raise_for_status()
             
             if response.status_code == 200:
@@ -432,8 +431,8 @@ class InstaWebhook(APIView):
                                     'fields': 'id,username',
                                     'access_token': candidate.access_token
                                 }
-                                # ✅ استفاده از پروکسی برای auto-match channel
-                                resp = requests.get(url, params=params, proxies=get_active_proxy(), timeout=10)
+                                # ✅ Auto-match with automatic fallback proxy
+                                resp = make_request_with_proxy('get', url, params=params, timeout=10)
                                 if resp.status_code != 200:
                                     continue
                                 data = resp.json() if resp.content else {}
@@ -844,8 +843,8 @@ class InstaChannelAutoFixIDsAPIView(APIView):
                         'fields': 'id,username',
                         'access_token': channel.access_token
                     }
-                    # ✅ استفاده از پروکسی برای auto-fix IDs
-                    resp = requests.get(url, params=params, proxies=get_active_proxy(), timeout=15)
+                    # ✅ Auto-fix with automatic fallback proxy
+                    resp = make_request_with_proxy('get', url, params=params, timeout=15)
                     if resp.status_code != 200:
                         return {
                             'id': channel.id,

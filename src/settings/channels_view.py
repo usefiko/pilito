@@ -4,12 +4,11 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from settings.models import Settings,TelegramChannel
-import requests
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 import os
 from urllib.parse import urlparse
-from core.utils import get_active_proxy
+from core.utils import make_request_with_proxy
 
 
 class TeleBotAPIView(APIView):
@@ -95,8 +94,8 @@ class ConnectTeleAPIView(APIView):
         webhook_url = self._build_webhook_url(bot_token, bot_username)
 
         try:
-            # ✅ استفاده از پروکسی برای ست کردن webhook در Telegram
-            response = requests.post(webhook_url, proxies=get_active_proxy())
+            # ✅ Telegram webhook setup with automatic fallback proxy
+            response = make_request_with_proxy('post', webhook_url)
             if response.status_code == 200:
                 channel.is_connect = True
                 channel.save()
@@ -151,8 +150,8 @@ class ConnectTeleAPIView(APIView):
             # Get bot's user profile photos
             url = f"https://api.telegram.org/bot{bot_token}/getUserProfilePhotos"
             params = {"user_id": self._get_bot_user_id(bot_token), "limit": 1}
-            # ✅ استفاده از پروکسی برای دریافت عکس پروفایل bot
-            response = requests.get(url, params=params, proxies=get_active_proxy())
+            # ✅ Get Telegram bot profile with automatic fallback proxy
+            response = make_request_with_proxy('get', url, params=params)
             
             if response.status_code != 200:
                 return None
@@ -180,8 +179,8 @@ class ConnectTeleAPIView(APIView):
             # Get file path
             file_url = f"https://api.telegram.org/bot{bot_token}/getFile"
             file_params = {"file_id": file_id}
-            # ✅ استفاده از پروکسی برای دریافت مسیر فایل
-            file_response = requests.get(file_url, params=file_params, proxies=get_active_proxy())
+            # ✅ Get file path with automatic fallback proxy
+            file_response = make_request_with_proxy('get', file_url, params=file_params)
             
             if file_response.status_code != 200:
                 return None
@@ -196,8 +195,8 @@ class ConnectTeleAPIView(APIView):
             
             # Download the actual file
             download_url = f"https://api.telegram.org/file/bot{bot_token}/{file_path}"
-            # ✅ استفاده از پروکسی برای دانلود فایل عکس
-            download_response = requests.get(download_url, proxies=get_active_proxy())
+            # ✅ Download photo with automatic fallback proxy
+            download_response = make_request_with_proxy('get', download_url)
             
             if download_response.status_code == 200:
                 return ContentFile(download_response.content, name=f"{bot_username}_profile.jpg")
