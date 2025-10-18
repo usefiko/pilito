@@ -37,29 +37,17 @@ jobs:
           # Enhanced disk management and cleanup
           echo "💾 Performing comprehensive disk cleanup before deployment..."
           
-          # Always perform aggressive cleanup before deployment
-          echo "🧹 Performing aggressive Docker cleanup..."
+          # ✅ Optimized cleanup - keep cache for faster builds
+          echo "🧹 Performing smart Docker cleanup..."
           
-          # Stop all containers first to free up running container space
-          docker stop $(docker ps -aq) 2>/dev/null || true
-          
-          # Remove all stopped containers
+          # Remove only stopped containers
           docker container prune -f || true
           
-          # Remove all unused images (not just dangling ones)
-          docker image prune -af || true
+          # Remove only dangling images (keep cached layers)
+          docker image prune -f || true
           
-          # Remove all unused volumes
-          docker volume prune -f || true
-          
-          # Remove all unused networks
-          docker network prune -f || true
-          
-          # Remove all build cache
-          docker builder prune -af || true
-          
-          # Complete system cleanup - remove everything not currently in use
-          docker system prune -af --volumes || true
+          # Clean old build cache (keep recent cache)
+          docker builder prune --filter "until=48h" -f || true
           
           # Clean up Docker log files that can grow very large
           echo "📝 Cleaning up Docker logs..."
@@ -117,8 +105,8 @@ jobs:
           export DOCKER_BUILDKIT=1
           export COMPOSE_DOCKER_CLI_BUILD=1
           
-          # Build with parallel processing for faster builds
-          docker-compose build --pull --parallel
+          # ✅ Build with cache (removed --pull to use cached base images)
+          docker-compose build --parallel
           
           # Clean up any temporary build artifacts immediately
           docker builder prune --filter "until=1h" -f || true
