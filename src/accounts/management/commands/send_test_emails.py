@@ -93,7 +93,7 @@ If you need help, contact us at support@pilito.com
             result = send_mail(
                 subject='Email Confirmation - Fiko (TEST)',
                 message=plain_message,
-                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL_DISPLAY', 'Fiko <noreply@pilito.com>'),
+                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL_DISPLAY', 'Pilito <noreply@mail.pilito.com>'),
                 recipient_list=[email],
                 html_message=html_message,
                 fail_silently=False,
@@ -152,7 +152,7 @@ If you need help, contact us at support@pilito.com
             result = send_mail(
                 subject='Password Reset Request - Fiko (TEST)',
                 message=plain_message,
-                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL_DISPLAY', 'Fiko <noreply@pilito.com>'),
+                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL_DISPLAY', 'Pilito <noreply@mail.pilito.com>'),
                 recipient_list=[email],
                 html_message=html_message,
                 fail_silently=False,

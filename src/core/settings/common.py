@@ -354,9 +354,9 @@ EMAIL_HOST_USER = environ.get('EMAIL_HOST_USER', 'zen_torvalds_599nek')
 EMAIL_HOST_PASSWORD = environ.get('EMAIL_HOST_PASSWORD', '8d071fc6-a36c-43f1-9f09-b25bd408af87')
 EMAIL_TIMEOUT = int(environ.get('EMAIL_TIMEOUT', '30'))
 
-DEFAULT_FROM_EMAIL = environ.get('DEFAULT_FROM_EMAIL', 'noreply@pilito.com')
+DEFAULT_FROM_EMAIL = environ.get('DEFAULT_FROM_EMAIL', 'noreply@mail.pilito.com')
 # Email sender display name configuration
-DEFAULT_FROM_EMAIL_DISPLAY = 'Pilito <noreply@pilito.com>'
+DEFAULT_FROM_EMAIL_DISPLAY = 'Pilito <noreply@mail.pilito.com>'
 # END EMAIL CONFIGURATION
 
 

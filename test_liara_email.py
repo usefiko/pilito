@@ -33,7 +33,7 @@ def test_simple_email():
             subject='Test Email from Liara SMTP',
             message='This is a test email to verify Liara SMTP configuration.',
             from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=['test@example.com'],  # Change this to your email
+            recipient_list=['mamadbayat777@gmail.com'],  # Your test email
             fail_silently=False,
         )
         print(f"✅ Email sent successfully! Result: {result}")
@@ -65,8 +65,8 @@ def test_html_email():
         result = send_mail(
             subject='Test Password Reset Email',
             message='Plain text version: Click the link to reset your password.',
-            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL_DISPLAY', 'Pilito <noreply@pilito.com>'),
-            recipient_list=['test@example.com'],  # Change this to your email
+            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL_DISPLAY', 'Pilito <noreply@mail.pilito.com>'),
+            recipient_list=['mamadbayat777@gmail.com'],  # Your test email
             html_message=html_message,
             fail_silently=False,
         )
@@ -113,7 +113,7 @@ def test_smtp_connection():
         msg = MIMEText('Test message from Liara SMTP')
         msg['Subject'] = 'Test Email - Raw SMTP'
         msg['From'] = settings.DEFAULT_FROM_EMAIL
-        msg['To'] = 'test@example.com'
+        msg['To'] = 'mamadbayat777@gmail.com'
         
         print(f"\nSending test email...")
         server.send_message(msg)
