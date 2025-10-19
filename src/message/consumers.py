@@ -46,6 +46,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         logger.debug(f"Development mode: Using default user {self.user.id} for conversation {self.conversation_id}")
                     else:
                         logger.warning("WebSocket connection rejected: No user available")
+                        await self.accept()  # باید اول accept کنیم!
                         await self.send(text_data=json.dumps({
                             'type': 'authentication_error',
                             'message': 'Authentication required',
@@ -56,6 +57,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         return
                 else:
                     logger.warning(f"WebSocket connection rejected: {error_message}")
+                    await self.accept()  # باید اول accept کنیم!
                     await self.send(text_data=json.dumps({
                         'type': 'authentication_error',
                         'message': error_message or 'Authentication required',
@@ -69,6 +71,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
         has_access = await self.check_conversation_access()
         if not has_access:
             logger.warning(f"User {self.user.id} denied access to conversation {self.conversation_id}")
+            await self.accept()  # باید اول accept کنیم!
+            await self.send(text_data=json.dumps({
+                'type': 'access_denied',
+                'message': 'You do not have access to this conversation',
+                'timestamp': timezone.now().isoformat()
+            }))
             await self.close(code=1008)
             return
         
@@ -836,6 +844,7 @@ class ConversationListConsumer(AsyncWebsocketConsumer):
                         logger.debug(f"Development mode: Using default user {self.user.id} for conversation list")
                     else:
                         logger.warning("ConversationList WebSocket connection rejected: No user available")
+                        await self.accept()  # باید اول accept کنیم!
                         await self.send(text_data=json.dumps({
                             'type': 'authentication_error',
                             'message': 'Authentication required',
@@ -846,6 +855,7 @@ class ConversationListConsumer(AsyncWebsocketConsumer):
                         return
                 else:
                     logger.warning(f"ConversationList WebSocket connection rejected: {error_message}")
+                    await self.accept()  # باید اول accept کنیم!
                     await self.send(text_data=json.dumps({
                         'type': 'authentication_error',
                         'message': error_message or 'Authentication required',
@@ -1469,6 +1479,7 @@ class CustomerListConsumer(AsyncWebsocketConsumer):
                         logger.debug(f"Development mode: Using default user {self.user.id} for customer list")
                     else:
                         logger.warning("CustomerList WebSocket connection rejected: No user available")
+                        await self.accept()  # باید اول accept کنیم!
                         await self.send(text_data=json.dumps({
                             'type': 'authentication_error',
                             'message': 'Authentication required',
@@ -1479,6 +1490,7 @@ class CustomerListConsumer(AsyncWebsocketConsumer):
                         return
                 else:
                     logger.warning(f"CustomerList WebSocket connection rejected: {error_message}")
+                    await self.accept()  # باید اول accept کنیم!
                     await self.send(text_data=json.dumps({
                         'type': 'authentication_error',
                         'message': error_message or 'Authentication required',
