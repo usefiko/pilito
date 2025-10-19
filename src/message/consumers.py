@@ -856,7 +856,29 @@ class ConversationListConsumer(AsyncWebsocketConsumer):
                     return
         
         self.user_group_name = f'user_{self.user.id}_conversations'
-        logger.debug(f"User {self.user.id} connecting to conversation list (duplicate)")
+        logger.debug(f"User {self.user.id} connecting to conversation list")
+        
+        # 🔒 Check if user already has an active connection to conversation list
+        # If yes, close old connections to prevent duplicate refresh loops
+        from django.core.cache import cache
+        user_connection_key = f"ws_conversations_{self.user.id}"
+        old_channel = cache.get(user_connection_key)
+        
+        if old_channel and old_channel != self.channel_name:
+            logger.info(f"User {self.user.id} reconnecting to conversation list, closing old connection")
+            try:
+                await self.channel_layer.send(
+                    old_channel,
+                    {
+                        'type': 'close_connection',
+                        'reason': 'duplicate_connection'
+                    }
+                )
+            except Exception as e:
+                logger.warning(f"Could not close old conversation list connection: {e}")
+        
+        # Store this channel as the active one (expires after 1 hour)
+        cache.set(user_connection_key, self.channel_name, timeout=3600)
         
         # Join user's conversation list group with timeout
         try:
@@ -954,6 +976,14 @@ class ConversationListConsumer(AsyncWebsocketConsumer):
             await self.send(text_data=json.dumps({
                 'error': 'Invalid JSON format'
             }))
+
+    async def close_connection(self, event):
+        """Handle duplicate connection - close this old connection silently"""
+        reason = event.get('reason', 'unknown')
+        logger.info(f"Silently closing old conversation list connection {self.channel_name} due to: {reason}")
+        
+        # 🔇 Don't send message to frontend - close silently to prevent refresh loop
+        await self.close(code=1000)  # Normal closure
 
     # WebSocket message handlers
     async def conversation_updated(self, event):
@@ -1453,7 +1483,29 @@ class CustomerListConsumer(AsyncWebsocketConsumer):
                     return
         
         self.user_group_name = f'user_{self.user.id}_customers'
-        logger.debug(f"User {self.user.id} connecting to customer list (duplicate)")
+        logger.debug(f"User {self.user.id} connecting to customer list")
+        
+        # 🔒 Check if user already has an active connection to customer list
+        # If yes, close old connections to prevent duplicate refresh loops
+        from django.core.cache import cache
+        user_connection_key = f"ws_customers_{self.user.id}"
+        old_channel = cache.get(user_connection_key)
+        
+        if old_channel and old_channel != self.channel_name:
+            logger.info(f"User {self.user.id} reconnecting to customer list, closing old connection")
+            try:
+                await self.channel_layer.send(
+                    old_channel,
+                    {
+                        'type': 'close_connection',
+                        'reason': 'duplicate_connection'
+                    }
+                )
+            except Exception as e:
+                logger.warning(f"Could not close old customer list connection: {e}")
+        
+        # Store this channel as the active one (expires after 1 hour)
+        cache.set(user_connection_key, self.channel_name, timeout=3600)
         
         # Join user's customer list group with timeout
         try:
@@ -1553,6 +1605,14 @@ class CustomerListConsumer(AsyncWebsocketConsumer):
             }))
 
     # WebSocket message handlers
+    async def close_connection(self, event):
+        """Handle duplicate connection - close this old connection silently"""
+        reason = event.get('reason', 'unknown')
+        logger.info(f"Silently closing old customer list connection {self.channel_name} due to: {reason}")
+        
+        # 🔇 Don't send message to frontend - close silently to prevent refresh loop
+        await self.close(code=1000)  # Normal closure
+
     async def customer_updated(self, event):
         # When a customer is updated, send fresh customer list
         logger.debug(f"Customer updated for user {self.user.id}")
