@@ -83,10 +83,19 @@ class SessionMemoryManager:
             # 2. Recent messages (last N messages, unsummarized)
             recent_messages = messages[max(0, total_messages - cls.RECENT_MESSAGES_COUNT):]
             if recent_messages:
-                recent_str = "\n".join([
-                    f"{'User' if msg.type == 'customer' else 'Assistant'}: {msg.content}"
-                    for msg in recent_messages
-                ])
+                def format_message(msg):
+                    role = 'User' if msg.type == 'customer' else 'Assistant'
+                    
+                    # Add media context prefix if this is an image or voice message
+                    if msg.type == 'customer' and hasattr(msg, 'message_type'):
+                        if msg.message_type == 'image':
+                            return f"{role} [sent an image]: {msg.content}"
+                        elif msg.message_type == 'voice':
+                            return f"{role} [sent a voice message]: {msg.content}"
+                    
+                    return f"{role}: {msg.content}"
+                
+                recent_str = "\n".join([format_message(msg) for msg in recent_messages])
                 context_parts.append(f"Recent messages:\n{recent_str}")
             
             return "\n\n".join(context_parts)
@@ -101,9 +110,17 @@ class SessionMemoryManager:
                 ).order_by('-created_at')[:cls.RECENT_MESSAGES_COUNT]
                 
                 if recent:
+                    def format_fallback_message(msg):
+                        role = 'User' if msg.type == 'customer' else 'Assistant'
+                        if msg.type == 'customer' and hasattr(msg, 'message_type'):
+                            if msg.message_type == 'image':
+                                return f"{role} [sent an image]: {msg.content}"
+                            elif msg.message_type == 'voice':
+                                return f"{role} [sent a voice message]: {msg.content}"
+                        return f"{role}: {msg.content}"
+                    
                     return "Recent messages:\n" + "\n".join([
-                        f"{'User' if msg.type == 'customer' else 'Assistant'}: {msg.content}"
-                        for msg in reversed(recent)
+                        format_fallback_message(msg) for msg in reversed(recent)
                     ])
             except:
                 pass
@@ -191,20 +208,9 @@ class SessionMemoryManager:
         Target: ≤150 tokens
         """
         try:
-            import os
-            import json
-            
-            # ✅ Set proxy BEFORE importing Gemini (required for Iran servers)
-            from core.utils import get_active_proxy
-            proxy_config = get_active_proxy()
-            if proxy_config and proxy_config.get('http'):
-                os.environ['HTTP_PROXY'] = proxy_config['http']
-                os.environ['HTTPS_PROXY'] = proxy_config['https']
-                os.environ['http_proxy'] = proxy_config['http']
-                os.environ['https_proxy'] = proxy_config['https']
-            
             import google.generativeai as genai
             from settings.models import GeneralSettings
+            import json
             
             # Get API key from GeneralSettings
             settings = GeneralSettings.get_settings()

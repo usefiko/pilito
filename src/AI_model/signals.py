@@ -36,6 +36,13 @@ def handle_new_customer_message(sender, instance, created, **kwargs):
         logger.debug(f"Skipping message {instance.id} - already answered or is AI response")
         return
     
+    # Skip voice/image messages that are still processing
+    # They will trigger AI after transcription/analysis completes
+    if hasattr(instance, 'message_type') and instance.message_type in ['voice', 'image']:
+        if hasattr(instance, 'processing_status') and instance.processing_status != 'completed':
+            logger.info(f"Skipping message {instance.id} - {instance.message_type} message still processing (status: {instance.processing_status})")
+            return
+    
     # Check if conversation should be handled by AI
     if instance.conversation.status != 'active':
         logger.info(f"Skipping AI processing for conversation {instance.conversation.id} - status is '{instance.conversation.status}', not 'active'")
@@ -96,7 +103,16 @@ def handle_new_customer_message(sender, instance, created, **kwargs):
         except Exception:
             pass
 
-        # Do not pre-skip AI based on potential workflows; enqueue AI, but gating will skip if needed
+        # Check if there are active workflows that might handle this message
+        # If yes, don't trigger AI immediately - let workflow decide
+        try:
+            from workflow.models import Workflow
+            business_owner_id = str(instance.conversation.user.id)
+            if Workflow.objects.filter(created_by_id=business_owner_id, status='ACTIVE').exists():
+                logger.info(f"Active workflows found for business owner {business_owner_id} - AI will be triggered by workflow if needed")
+                return
+        except Exception as wf_check_err:
+            logger.debug(f"Could not check for active workflows: {wf_check_err}")
         
         # Additional check to prevent duplicate processing
         # Check if there's already a pending AI task for this message

@@ -9,10 +9,17 @@ class TagSerializer(serializers.ModelSerializer):
 
 
 class CustomerSerializer(serializers.ModelSerializer):
-    tag = TagSerializer(many=True, read_only=True)
+    tag = serializers.SerializerMethodField()
+    
     class Meta:
         model = Customer
         fields = '__all__'
+    
+    def get_tag(self, obj):
+        """Filter out system tags (Instagram, Telegram, Whatsapp) from customer tags"""
+        # Exclude system tags from display
+        user_tags = obj.tag.exclude(name__in=["Telegram", "Whatsapp", "Instagram"])
+        return TagSerializer(user_tags, many=True).data
 
 
 class CustomerUpdateSerializer(serializers.ModelSerializer):
@@ -24,7 +31,7 @@ class CustomerUpdateSerializer(serializers.ModelSerializer):
         allow_empty=True,
         help_text="List of tag IDs to assign to the customer. Example: [1, 2, 3]"
     )
-    tag = TagSerializer(many=True, read_only=True)
+    tag = serializers.SerializerMethodField()
     
     class Meta:
         model = Customer
@@ -77,6 +84,11 @@ class CustomerUpdateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(f'Invalid tag IDs: {sorted(list(invalid_ids))}. Please provide valid tag IDs.')
         
         return value
+    
+    def get_tag(self, obj):
+        """Filter out system tags (Instagram, Telegram, Whatsapp) from customer tags"""
+        user_tags = obj.tag.exclude(name__in=["Telegram", "Whatsapp", "Instagram"])
+        return TagSerializer(user_tags, many=True).data
 
     def update(self, instance, validated_data):
         # Extract tag_ids if provided
@@ -119,13 +131,18 @@ class MessageSupportAnswerSerializer(serializers.ModelSerializer):
 # WebSocket-specific serializers for better performance
 class WSCustomerSerializer(serializers.ModelSerializer):
     """Enhanced customer serializer for WebSocket messages with complete customer data"""
-    tag = TagSerializer(many=True, read_only=True)
+    tag = serializers.SerializerMethodField()
     
     class Meta:
         model = Customer
         fields = ['id', 'first_name', 'last_name', 'username', 'email', 'phone_number', 
                  'description', 'source', 'source_id', 'profile_picture', 'created_at', 
                  'updated_at', 'tag']
+    
+    def get_tag(self, obj):
+        """Filter out system tags (Instagram, Telegram, Whatsapp) from customer tags"""
+        user_tags = obj.tag.exclude(name__in=["Telegram", "Whatsapp", "Instagram"])
+        return TagSerializer(user_tags, many=True).data
 
 
 class WSConversationSerializer(serializers.ModelSerializer):
@@ -185,8 +202,10 @@ class CustomerWithConversationSerializer(serializers.ModelSerializer):
                  'conversations', 'tags']
     
     def get_tags(self, obj):
-        """Get customer tags"""
-        return [{'id': tag.id, 'name': tag.name} for tag in obj.tag.all()]
+        """Get customer tags (excluding system tags: Instagram, Telegram, Whatsapp)"""
+        # Filter out system tags from display
+        user_tags = obj.tag.exclude(name__in=["Telegram", "Whatsapp", "Instagram"])
+        return [{'id': tag.id, 'name': tag.name} for tag in user_tags]
     
     def get_conversations(self, obj):
         """Get conversations for this customer filtered by the current user"""

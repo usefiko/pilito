@@ -305,15 +305,21 @@ class TriggerService:
             
             logger.info(f"🔄 Looking for node-based workflows with when_type: '{when_type}'")
             
+            # For MESSAGE_RECEIVED, also check add_tag nodes (they can act as tag filters)
+            when_types_to_check = [when_type]
+            if event_log.event_type == 'MESSAGE_RECEIVED':
+                when_types_to_check.append('add_tag')
+                logger.info(f"🏷️  Also checking 'add_tag' when nodes for MESSAGE_RECEIVED (tag filtering)")
+            
             # Find when nodes that match this event type AND belong to the conversation owner
             matching_when_nodes = WhenNode.objects.filter(
-                when_type=when_type,
+                when_type__in=when_types_to_check,
                 is_active=True,
                 workflow__status='ACTIVE',
                 workflow__created_by_id=conversation_owner_id  # Only workflows owned by conversation owner
             ).select_related('workflow').prefetch_related('workflow__nodes')
             
-            logger.info(f"🔍 Found {matching_when_nodes.count()} when nodes with type '{when_type}'")
+            logger.info(f"🔍 Found {matching_when_nodes.count()} when nodes with types {when_types_to_check}")
             if matching_when_nodes.count() == 0:
                 # Extra diagnostics to help identify why nothing matched
                 try:
@@ -327,11 +333,11 @@ class TriggerService:
                     owner_active_when_nodes_type = WhenNode.objects.filter(
                         workflow__created_by_id=conversation_owner_id,
                         is_active=True,
-                        when_type=when_type
+                        when_type__in=when_types_to_check
                     ).count()
                     all_active_type = WhenNode.objects.filter(
                         is_active=True,
-                        when_type=when_type,
+                        when_type__in=when_types_to_check,
                         workflow__status='ACTIVE'
                     ).count()
                     logger.info(
@@ -525,12 +531,56 @@ class TriggerService:
                         logger.info(f"✅ Channel match found")
             
             elif when_node.when_type == 'add_tag':
-                # Check specific tags
-                if when_node.tags:
-                    added_tag = event_data.get('tag_name', '')
-                    if added_tag not in when_node.tags:
-                        logger.debug(f"Added tag '{added_tag}' not in required tags: {when_node.tags}")
-                        return False
+                # Two modes for add_tag:
+                # 1. TAG_ADDED event: check if the added tag matches
+                # 2. MESSAGE_RECEIVED event: filter by user tags (frontend "by tag" feature)
+                
+                event_type = context.get('event', {}).get('type') or context.get('event', {}).get('event_type', '')
+                
+                if event_type == 'TAG_ADDED':
+                    # Original behavior: trigger when a specific tag is added
+                    if when_node.tags:
+                        added_tag = event_data.get('tag_name', '')
+                        if added_tag not in when_node.tags:
+                            logger.debug(f"Added tag '{added_tag}' not in required tags: {when_node.tags}")
+                            return False
+                
+                elif event_type == 'MESSAGE_RECEIVED':
+                    # New behavior: filter by user tags when message is received
+                    logger.info(f"🏷️  add_tag node acting as tag filter for MESSAGE_RECEIVED")
+                    if when_node.tags:
+                        user_tags = context.get('user', {}).get('tags', [])
+                        logger.info(f"   User tags: {user_tags}")
+                        logger.info(f"   Required tags: {when_node.tags}")
+                        
+                        # Check if user has at least one of the required tags
+                        has_required_tag = any(tag in user_tags for tag in when_node.tags)
+                        
+                        if not has_required_tag:
+                            logger.info(f"❌ User tags {user_tags} don't match required tags: {when_node.tags}")
+                            return False
+                        else:
+                            logger.info(f"✅ User has required tag from: {when_node.tags}")
+                    
+                    # Also check keywords if configured (just like receive_message)
+                    if when_node.keywords:
+                        message_content = event_data.get('content', '').lower()
+                        logger.info(f"   Message content: '{message_content}'")
+                        if not any(keyword.lower() in message_content for keyword in when_node.keywords):
+                            logger.info(f"❌ Message content '{message_content}' doesn't contain any keywords: {when_node.keywords}")
+                            return False
+                        else:
+                            logger.info(f"✅ Keyword match found")
+                    
+                    # Also check channels if configured
+                    if when_node.channels and 'all' not in when_node.channels:
+                        source = context.get('user', {}).get('source', '')
+                        logger.info(f"   User source: '{source}'")
+                        if source not in when_node.channels:
+                            logger.info(f"❌ User source '{source}' not in allowed channels: {when_node.channels}")
+                            return False
+                        else:
+                            logger.info(f"✅ Channel match found")
             
             # For new_customer and scheduled, no additional conditions to check
             logger.info(f"✅ All when node conditions passed for '{when_node.title}'")

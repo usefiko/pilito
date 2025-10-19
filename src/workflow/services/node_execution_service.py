@@ -247,7 +247,13 @@ class NodeBasedWorkflowExecutionService:
             }
             
             expected_when_type = event_to_when_mapping.get(event_type)
-            if expected_when_type != when_node_obj.when_type:
+            
+            # Special case: add_tag can also trigger on MESSAGE_RECEIVED if it has tags configured
+            # This allows filtering users by tags when they send a message (frontend "by tag" feature)
+            if event_type == 'MESSAGE_RECEIVED' and when_node_obj.when_type == 'add_tag' and when_node_obj.tags:
+                logger.info(f"🏷️  add_tag when node will act as tag filter for MESSAGE_RECEIVED event")
+                # Allow it to continue and check tags below
+            elif expected_when_type != when_node_obj.when_type:
                 logger.debug(f"Event type {event_type} (when: {expected_when_type}) doesn't match node when_type: {when_node_obj.when_type}")
                 return False
             
@@ -266,6 +272,39 @@ class NodeBasedWorkflowExecutionService:
                     if source not in when_node_obj.channels:
                         logger.debug(f"User source '{source}' not in allowed channels: {when_node_obj.channels}")
                         return False
+                
+                # Check tags - filter by user tags
+                if when_node_obj.tags:
+                    user_tags = context.get('user', {}).get('tags', [])
+                    
+                    # If tags not in context, try to fetch from database
+                    if not user_tags and context.get('event', {}).get('user_id'):
+                        try:
+                            from workflow.settings_adapters import get_model_class
+                            UserModel = get_model_class('USER')
+                            user_id = context.get('event', {}).get('user_id')
+                            user = UserModel.objects.get(id=user_id)
+                            
+                            # Try different tag field names
+                            try:
+                                user_tags = list(user.tag.values_list('name', flat=True))
+                            except:
+                                try:
+                                    user_tags = list(user.tags.values_list('name', flat=True))
+                                except:
+                                    user_tags = []
+                        except Exception as e:
+                            logger.warning(f"Could not load user tags for tag filtering: {e}")
+                            user_tags = []
+                    
+                    # Check if user has at least one of the required tags
+                    has_required_tag = any(tag in user_tags for tag in when_node_obj.tags)
+                    
+                    if not has_required_tag:
+                        logger.debug(f"User tags {user_tags} don't match required tags: {when_node_obj.tags}")
+                        return False
+                    else:
+                        logger.info(f"✅ User has required tag from: {when_node_obj.tags}")
             
             elif when_node_obj.when_type == 'scheduled':
                 # Validate schedule by workflow owner's timezone (or conversation owner's if available)
@@ -359,12 +398,65 @@ class NodeBasedWorkflowExecutionService:
                     return False
                 
             elif when_node_obj.when_type == 'add_tag':
-                # Check specific tags
-                if when_node_obj.tags:
-                    added_tag = event_data.get('tag_name', '')
-                    if added_tag not in when_node_obj.tags:
-                        logger.debug(f"Added tag '{added_tag}' not in required tags: {when_node_obj.tags}")
-                        return False
+                # Two modes for add_tag:
+                # 1. TAG_ADDED event: check if the added tag matches
+                # 2. MESSAGE_RECEIVED event: filter by user tags (frontend "by tag" feature)
+                
+                if event_type == 'TAG_ADDED':
+                    # Original behavior: trigger when a specific tag is added
+                    if when_node_obj.tags:
+                        added_tag = event_data.get('tag_name', '')
+                        if added_tag not in when_node_obj.tags:
+                            logger.debug(f"Added tag '{added_tag}' not in required tags: {when_node_obj.tags}")
+                            return False
+                
+                elif event_type == 'MESSAGE_RECEIVED':
+                    # New behavior: filter by user tags when message is received
+                    if when_node_obj.tags:
+                        user_tags = context.get('user', {}).get('tags', [])
+                        
+                        # If tags not in context, try to fetch from database
+                        if not user_tags and context.get('event', {}).get('user_id'):
+                            try:
+                                from workflow.settings_adapters import get_model_class
+                                UserModel = get_model_class('USER')
+                                user_id = context.get('event', {}).get('user_id')
+                                user = UserModel.objects.get(id=user_id)
+                                
+                                # Try different tag field names
+                                try:
+                                    user_tags = list(user.tag.values_list('name', flat=True))
+                                except:
+                                    try:
+                                        user_tags = list(user.tags.values_list('name', flat=True))
+                                    except:
+                                        user_tags = []
+                            except Exception as e:
+                                logger.warning(f"Could not load user tags for add_tag filtering: {e}")
+                                user_tags = []
+                        
+                        # Check if user has at least one of the required tags
+                        has_required_tag = any(tag in user_tags for tag in when_node_obj.tags)
+                        
+                        if not has_required_tag:
+                            logger.debug(f"🏷️  User tags {user_tags} don't match required tags: {when_node_obj.tags}")
+                            return False
+                        else:
+                            logger.info(f"✅ 🏷️  User has required tag from: {when_node_obj.tags} (add_tag as filter)")
+                    
+                    # Also check keywords if configured (just like receive_message)
+                    if when_node_obj.keywords:
+                        message_content = event_data.get('content', '').lower()
+                        if not any(keyword.lower() in message_content for keyword in when_node_obj.keywords):
+                            logger.debug(f"🏷️  Message content '{message_content}' doesn't contain any keywords: {when_node_obj.keywords}")
+                            return False
+                    
+                    # Also check channels if configured
+                    if when_node_obj.channels and 'all' not in when_node_obj.channels:
+                        source = context.get('user', {}).get('source', '')
+                        if source not in when_node_obj.channels:
+                            logger.debug(f"🏷️  User source '{source}' not in allowed channels: {when_node_obj.channels}")
+                            return False
             
             # For new_customer, the event type check above is sufficient
             
@@ -1134,7 +1226,6 @@ class NodeBasedWorkflowExecutionService:
     def _send_telegram_message(self, chat_id: str, message: str):
         """Send message via Telegram Bot API"""
         import requests
-        from core.utils import get_active_proxy
         
         token = INTEGRATION_SETTINGS.get('TELEGRAM_BOT_TOKEN')
         if not token:
@@ -1147,9 +1238,7 @@ class NodeBasedWorkflowExecutionService:
             'parse_mode': 'HTML'
         }
         
-        # ✅ Send Telegram message with automatic fallback proxy
-        from core.utils import make_request_with_proxy
-        response = make_request_with_proxy('post', url, json=data, timeout=10)
+        response = requests.post(url, json=data, timeout=10)
         response.raise_for_status()
     
     def _send_instagram_message(self, user_id: str, message: str):

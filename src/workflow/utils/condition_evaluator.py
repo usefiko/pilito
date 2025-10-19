@@ -709,6 +709,46 @@ def build_context_from_event_log(event_log) -> Dict[str, Any]:
                     'updated_at': conversation.updated_at.isoformat() if hasattr(conversation, 'updated_at') and conversation.updated_at else '',
                 }
                 
+                # Add last message information (both overall and customer-specific)
+                try:
+                    MessageModel = get_model_class('MESSAGE')
+                    
+                    # Get last message overall (any type)
+                    last_message = MessageModel.objects.filter(
+                        conversation_id=event_log.conversation_id
+                    ).order_by('-created_at').first()
+                    
+                    if last_message:
+                        context['conversation']['last_message_at'] = last_message.created_at.isoformat()
+                        context['conversation']['last_message_type'] = getattr(last_message, 'type', 'unknown')
+                        # Calculate days since last message
+                        from django.utils import timezone as dj_tz
+                        days_since = (dj_tz.now() - last_message.created_at).days
+                        context['conversation']['days_since_last_message'] = days_since
+                    else:
+                        context['conversation']['last_message_at'] = None
+                        context['conversation']['last_message_type'] = None
+                        context['conversation']['days_since_last_message'] = None
+                    
+                    # Get last customer message specifically
+                    last_customer_message = MessageModel.objects.filter(
+                        conversation_id=event_log.conversation_id,
+                        type='customer'
+                    ).order_by('-created_at').first()
+                    
+                    if last_customer_message:
+                        context['conversation']['last_customer_message_at'] = last_customer_message.created_at.isoformat()
+                        # Calculate days since last customer message
+                        from django.utils import timezone as dj_tz
+                        days_since_customer = (dj_tz.now() - last_customer_message.created_at).days
+                        context['conversation']['days_since_last_customer_message'] = days_since_customer
+                    else:
+                        context['conversation']['last_customer_message_at'] = None
+                        context['conversation']['days_since_last_customer_message'] = None
+                        
+                except Exception as msg_err:
+                    logger.warning(f"Could not get message info for conversation {event_log.conversation_id}: {msg_err}")
+                
             except Exception as e:
                 logger.warning(f"Could not load conversation {event_log.conversation_id} for context: {e}")
                 # Add minimal conversation context

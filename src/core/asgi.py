@@ -14,7 +14,6 @@ from channels.security.websocket import AllowedHostsOriginValidator, OriginValid
 from message.routing import websocket_urlpatterns
 from message.middleware.websocket_auth import WebSocketAuthMiddleware, WebSocketSecurityMiddleware
 
-
 class ProductionOriginValidator:
     """
     Custom origin validator for production environment
@@ -40,13 +39,13 @@ class ProductionOriginValidator:
 
 # Production allowed origins
 PRODUCTION_ALLOWED_ORIGINS = [
-    "https://app.pilito.com",
-    "https://pilito.com", 
-    "https://api.pilito.com",
+    "https://app.fiko.net",
+    "https://fiko.net", 
+    "https://api.fiko.net",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "ws://localhost:8000",
-    "wss://api.pilito.com",
+    "wss://api.fiko.net",
 ]
 
 # Choose middleware stack based on environment

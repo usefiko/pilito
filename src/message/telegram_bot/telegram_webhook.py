@@ -9,6 +9,7 @@ from message.models import Customer,Conversation,Message
 from settings.models import TelegramChannel
 from message.websocket_utils import notify_new_customer_message
 from message.services.telegram_service import TelegramService
+from message.tasks import process_telegram_voice
 
 logger = logging.getLogger(__name__)
 
@@ -18,38 +19,55 @@ class TelegramWebhook(APIView):
     def post(self, *args, **kwargs):
         try:
             data = json.loads(self.request.body.decode("utf-8"))
-            
-            # Check if this is a regular message update
-            if 'message' not in data:
-                # Log other update types for debugging
-                update_type = next((key for key in data.keys() if key != 'update_id'), 'unknown')
-                logger.info(f"⏭️ Ignoring non-message Telegram update: {update_type}")
-                return JsonResponse({
-                    "status": "ok",
-                    "message": f"Update type '{update_type}' not handled",
-                    "ignored": True
-                }, status=200)
-            
-            # Check if message has text (could be photo, sticker, etc.)
-            if 'text' not in data['message']:
-                message_type = next((key for key in data['message'].keys() if key in ['photo', 'video', 'document', 'sticker', 'voice', 'location']), 'unknown')
-                logger.info(f"⏭️ Ignoring non-text Telegram message type: {message_type}")
-                return JsonResponse({
-                    "status": "ok",
-                    "message": f"Message type '{message_type}' not handled",
-                    "ignored": True
-                }, status=200)
-            
             user_info = data['message']['from']
             chat_id = data['message']['chat']['id']
-            message_text = data['message']['text']
             telegram_id = user_info['id']
             first_name = user_info.get('first_name', '')
             last_name = user_info.get('last_name', '')
             username = user_info.get('username', '')
             bot_name = self.kwargs["bot_name"]
-
-            logger.info(f"📨 Telegram message from {telegram_id} (@{username}) to bot {bot_name}: {message_text}")
+            
+            # ============== Detect message type ==============
+            message_text = data['message'].get('text')
+            caption = data['message'].get('caption')  # Caption for photos/videos
+            voice = data['message'].get('voice')
+            photo = data['message'].get('photo')  # Array of PhotoSize objects
+            
+            message_type = 'text'
+            file_id = None
+            placeholder_text = None
+            
+            if voice:
+                message_type = 'voice'
+                file_id = voice.get('file_id')
+                duration = voice.get('duration', 0)
+                placeholder_text = "[Voice Message]"  # Simple placeholder, no notification to user
+                logger.info(f"🎤 Voice message received from {telegram_id} (@{username}), duration: {duration}s")
+                
+            elif photo:
+                message_type = 'image'
+                # Get largest photo (last in array)
+                largest_photo = photo[-1]
+                file_id = largest_photo.get('file_id')
+                # Use caption if available, otherwise generic placeholder
+                if caption:
+                    placeholder_text = f"[Image: {caption}]"
+                    logger.info(f"📸 Image with caption received from {telegram_id} (@{username}): {caption}")
+                else:
+                    placeholder_text = "[Image]"
+                    logger.info(f"📸 Image message received from {telegram_id} (@{username})")
+                
+            elif not message_text:
+                # Unsupported message type (video, sticker, etc.)
+                logger.info(f"⚠️ Unsupported message type from {telegram_id}, ignoring")
+                return JsonResponse({
+                    'status': 'ignored',
+                    'reason': 'Unsupported message type'
+                }, status=200)
+            
+            # Log text messages
+            if message_type == 'text':
+                logger.info(f"📨 Telegram text message from {telegram_id} (@{username}) to bot {bot_name}: {message_text}")
 
             channel = TelegramChannel.objects.get(bot_username=bot_name)
             bot_user = channel.user
@@ -155,12 +173,56 @@ class TelegramWebhook(APIView):
             # Always update conversation's updated_at field
             conversation.save(update_fields=['updated_at'])
 
-            # Create Message
-            message = Message.objects.create(content=message_text, conversation=conversation, customer=customer, type='customer')
-            logger.info(f"Message created: {message}")
+            # ============== Create Message based on type ==============
+            if message_type == 'text':
+                # Original behavior - unchanged
+                message = Message.objects.create(
+                    content=message_text,
+                    conversation=conversation,
+                    customer=customer,
+                    type='customer',
+                    message_type='text',
+                    processing_status='completed'
+                )
+                logger.info(f"✅ Text message created: {message.id}")
+                
+            else:
+                # Voice or Image message
+                message = Message.objects.create(
+                    content=placeholder_text,
+                    conversation=conversation,
+                    customer=customer,
+                    type='customer',
+                    message_type=message_type,
+                    metadata={
+                        'telegram_file_id': file_id,
+                        'bot_token_hint': bot_name  # Don't store token in DB
+                    },
+                    processing_status='pending'
+                )
+                logger.info(f"✅ {message_type.capitalize()} message created (pending): {message.id}")
+                
+                # Queue async processing based on type
+                if message_type == 'voice':
+                    logger.info(f"📤 Queueing voice processing task for message {message.id}")
+                    process_telegram_voice.delay(
+                        str(message.id),
+                        file_id,
+                        channel.bot_token
+                    )
+                elif message_type == 'image':
+                    from message.tasks import process_telegram_image
+                    logger.info(f"📤 Queueing image processing task for message {message.id}")
+                    process_telegram_image.delay(
+                        str(message.id),
+                        file_id,
+                        channel.bot_token,
+                        caption  # Pass caption if available
+                    )
 
-            # Notify WebSocket consumers about new customer message
-            notify_new_customer_message(message)
+            # Notify WebSocket only for text messages (voice/image will notify after processing)
+            if message_type == 'text':
+                notify_new_customer_message(message)
 
             # You can now process or store this message, or send it over WebSocket
             # Optional: respond back
@@ -198,7 +260,9 @@ class TelegramWebhook(APIView):
                     },
                     "message": {
                         "id": message.id,
-                        "content": message_text,
+                        "content": message.content,
+                        "message_type": message_type,
+                        "processing_status": message.processing_status,
                         "chat_id": chat_id,
                         "timestamp": message.created_at.isoformat() if hasattr(message, 'created_at') else None
                     }

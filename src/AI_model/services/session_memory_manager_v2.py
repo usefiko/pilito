@@ -256,15 +256,26 @@ class SessionMemoryManagerV2:
             verbatim_start = max(0, total_count - cls.TIER_VERBATIM_COUNT)
             verbatim_messages = messages[verbatim_start:]
             
+            # Format verbatim messages with media context
+            verbatim_list = []
+            for msg in verbatim_messages:
+                msg_dict = {
+                    'type': msg.type,
+                    'content': msg.content,
+                    'created_at': msg.created_at.isoformat()
+                }
+                
+                # Add media type context for customer messages
+                if msg.type == 'customer' and hasattr(msg, 'message_type'):
+                    if msg.message_type == 'image':
+                        msg_dict['content'] = f"[sent an image]: {msg.content}"
+                    elif msg.message_type == 'voice':
+                        msg_dict['content'] = f"[sent a voice message]: {msg.content}"
+                
+                verbatim_list.append(msg_dict)
+            
             context = {
-                'verbatim': [
-                    {
-                        'type': msg.type,
-                        'content': msg.content,
-                        'created_at': msg.created_at.isoformat()
-                    }
-                    for msg in verbatim_messages
-                ],
+                'verbatim': verbatim_list,
                 'recent_summary': stored.get('recent'),
                 'mid_summary': stored.get('mid'),
                 'old_summary': stored.get('old'),
@@ -296,16 +307,6 @@ class SessionMemoryManagerV2:
             return None
         
         try:
-            # ✅ Set proxy BEFORE importing Gemini (required for Iran servers)
-            import os
-            from core.utils import get_active_proxy
-            proxy_config = get_active_proxy()
-            if proxy_config and proxy_config.get('http'):
-                os.environ['HTTP_PROXY'] = proxy_config['http']
-                os.environ['HTTPS_PROXY'] = proxy_config['https']
-                os.environ['http_proxy'] = proxy_config['http']
-                os.environ['https_proxy'] = proxy_config['https']
-            
             import google.generativeai as genai
             from settings.models import GeneralSettings
             
@@ -360,10 +361,10 @@ Brief overview (1-2 sentences):"""
             
             # Configure safety settings
             safety_settings = {
-                "HARASSMENT": "BLOCK_NONE",
-                "HATE_SPEECH": "BLOCK_NONE",
-                "SEXUALLY_EXPLICIT": "BLOCK_NONE",
-                "DANGEROUS_CONTENT": "BLOCK_NONE"
+                "HARASSMENT": "BLOCK_ONLY_HIGH",
+                "HATE_SPEECH": "BLOCK_ONLY_HIGH",
+                "SEXUALLY_EXPLICIT": "BLOCK_ONLY_HIGH",
+                "DANGEROUS_CONTENT": "BLOCK_ONLY_HIGH"
             }
             
             response = model.generate_content(
@@ -406,16 +407,6 @@ Brief overview (1-2 sentences):"""
             return []
         
         try:
-            # ✅ Set proxy BEFORE importing Gemini (required for Iran servers)
-            import os
-            from core.utils import get_active_proxy
-            proxy_config = get_active_proxy()
-            if proxy_config and proxy_config.get('http'):
-                os.environ['HTTP_PROXY'] = proxy_config['http']
-                os.environ['HTTPS_PROXY'] = proxy_config['https']
-                os.environ['http_proxy'] = proxy_config['http']
-                os.environ['https_proxy'] = proxy_config['https']
-            
             import google.generativeai as genai
             from settings.models import GeneralSettings
             
@@ -458,10 +449,10 @@ Conversation sample:
 Key facts (3-7 bullet points):"""
             
             safety_settings = {
-                "HARASSMENT": "BLOCK_NONE",
-                "HATE_SPEECH": "BLOCK_NONE",
-                "SEXUALLY_EXPLICIT": "BLOCK_NONE",
-                "DANGEROUS_CONTENT": "BLOCK_NONE"
+                "HARASSMENT": "BLOCK_ONLY_HIGH",
+                "HATE_SPEECH": "BLOCK_ONLY_HIGH",
+                "SEXUALLY_EXPLICIT": "BLOCK_ONLY_HIGH",
+                "DANGEROUS_CONTENT": "BLOCK_ONLY_HIGH"
             }
             
             response = model.generate_content(

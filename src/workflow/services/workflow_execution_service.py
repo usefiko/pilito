@@ -10,7 +10,6 @@ import logging
 import requests
 from typing import Dict, List, Any, Optional, Union
 from datetime import datetime, timedelta
-from core.utils import get_active_proxy
 
 from django.utils import timezone
 from django.db import transaction
@@ -504,9 +503,7 @@ class WorkflowExecutionService:
             'parse_mode': 'HTML'
         }
         
-        # ✅ Send Telegram message with automatic fallback proxy
-        from core.utils import make_request_with_proxy
-        response = make_request_with_proxy('post', url, json=data, timeout=10)
+        response = requests.post(url, json=data, timeout=10)
         response.raise_for_status()
     
     def _send_instagram_message(self, user_id: str, message: str):
