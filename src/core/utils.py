@@ -29,6 +29,28 @@ def setup_ai_proxy():
     return False
 
 
+def _get_active_proxy_sync() -> Dict[str, str]:
+    """
+    Internal synchronous function to get active proxy
+    """
+    from .models import ProxySetting
+    
+    proxy = ProxySetting.objects.filter(is_active=True).first()
+    if proxy:
+        logger.debug(f"🔒 Using proxy: {proxy.name}")
+        # ✅ Fix: تبدیل به lowercase برای سازگاری با requests library
+        http_proxy = proxy.http_proxy.lower() if proxy.http_proxy.startswith(('HTTP://', 'HTTPS://')) else proxy.http_proxy
+        https_proxy = proxy.https_proxy.lower() if proxy.https_proxy.startswith(('HTTP://', 'HTTPS://')) else proxy.https_proxy
+        
+        return {
+            "http": http_proxy,
+            "https": https_proxy
+        }
+    
+    logger.debug("⚠️ No active proxy found - direct connection will be used")
+    return {}
+
+
 def get_active_proxy() -> Dict[str, str]:
     """
     برگرداندن پروکسی فعال برای استفاده در requests
@@ -41,26 +63,36 @@ def get_active_proxy() -> Dict[str, str]:
         response = requests.get(url, proxies=get_active_proxy())
     """
     try:
-        from .models import ProxySetting
-        
-        proxy = ProxySetting.objects.filter(is_active=True).first()
-        if proxy:
-            logger.debug(f"🔒 Using proxy: {proxy.name}")
-            # ✅ Fixتبدیل به lowercase برای سازگاری با requests library
-            http_proxy = proxy.http_proxy.lower() if proxy.http_proxy.startswith(('HTTP://', 'HTTPS://')) else proxy.http_proxy
-            https_proxy = proxy.https_proxy.lower() if proxy.https_proxy.startswith(('HTTP://', 'HTTPS://')) else proxy.https_proxy
-            
-            return {
-                "http": http_proxy,
-                "https": https_proxy
-            }
-        
-        logger.debug("⚠️ No active proxy found - direct connection will be used")
-        return {}
+        import os
+        # Allow synchronous database queries in async context
+        os.environ['DJANGO_ALLOW_ASYNC_UNSAFE'] = 'true'
+        return _get_active_proxy_sync()
         
     except Exception as e:
         logger.error(f"❌ Error getting active proxy: {e}")
         return {}
+
+
+def _get_fallback_proxy_sync() -> Dict[str, str]:
+    """
+    Internal synchronous function to get fallback proxy
+    """
+    from .models import ProxySetting
+    
+    proxy = ProxySetting.objects.filter(is_active=True).first()
+    if proxy and proxy.fallback_http_proxy:
+        logger.info(f"🔄 Using fallback proxy: {proxy.name}")
+        # ✅ Fix: تبدیل به lowercase برای سازگاری با requests library
+        fallback_http = proxy.fallback_http_proxy.lower() if proxy.fallback_http_proxy.startswith(('HTTP://', 'HTTPS://')) else proxy.fallback_http_proxy
+        fallback_https = proxy.fallback_https_proxy.lower() if proxy.fallback_https_proxy and proxy.fallback_https_proxy.startswith(('HTTP://', 'HTTPS://')) else proxy.fallback_https_proxy
+        
+        return {
+            "http": fallback_http,
+            "https": fallback_https
+        }
+    
+    logger.debug("⚠️ No fallback proxy configured")
+    return {}
 
 
 def get_fallback_proxy() -> Dict[str, str]:
@@ -77,22 +109,10 @@ def get_fallback_proxy() -> Dict[str, str]:
             response = requests.get(url, proxies=get_fallback_proxy())
     """
     try:
-        from .models import ProxySetting
-        
-        proxy = ProxySetting.objects.filter(is_active=True).first()
-        if proxy and proxy.fallback_http_proxy:
-            logger.info(f"🔄 Using fallback proxy: {proxy.name}")
-            # ✅ Fix: تبدیل به lowercase برای سازگاری با requests library
-            fallback_http = proxy.fallback_http_proxy.lower() if proxy.fallback_http_proxy.startswith(('HTTP://', 'HTTPS://')) else proxy.fallback_http_proxy
-            fallback_https = proxy.fallback_https_proxy.lower() if proxy.fallback_https_proxy and proxy.fallback_https_proxy.startswith(('HTTP://', 'HTTPS://')) else proxy.fallback_https_proxy
-            
-            return {
-                "http": fallback_http,
-                "https": fallback_https
-            }
-        
-        logger.debug("⚠️ No fallback proxy configured")
-        return {}
+        import os
+        # Allow synchronous database queries in async context
+        os.environ['DJANGO_ALLOW_ASYNC_UNSAFE'] = 'true'
+        return _get_fallback_proxy_sync()
         
     except Exception as e:
         logger.error(f"❌ Error getting fallback proxy: {e}")
