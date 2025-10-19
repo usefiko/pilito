@@ -18,6 +18,28 @@ class TelegramWebhook(APIView):
     def post(self, *args, **kwargs):
         try:
             data = json.loads(self.request.body.decode("utf-8"))
+            
+            # Check if this is a regular message update
+            if 'message' not in data:
+                # Log other update types for debugging
+                update_type = next((key for key in data.keys() if key != 'update_id'), 'unknown')
+                logger.info(f"⏭️ Ignoring non-message Telegram update: {update_type}")
+                return JsonResponse({
+                    "status": "ok",
+                    "message": f"Update type '{update_type}' not handled",
+                    "ignored": True
+                }, status=200)
+            
+            # Check if message has text (could be photo, sticker, etc.)
+            if 'text' not in data['message']:
+                message_type = next((key for key in data['message'].keys() if key in ['photo', 'video', 'document', 'sticker', 'voice', 'location']), 'unknown')
+                logger.info(f"⏭️ Ignoring non-text Telegram message type: {message_type}")
+                return JsonResponse({
+                    "status": "ok",
+                    "message": f"Message type '{message_type}' not handled",
+                    "ignored": True
+                }, status=200)
+            
             user_info = data['message']['from']
             chat_id = data['message']['chat']['id']
             message_text = data['message']['text']
