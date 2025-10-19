@@ -33,7 +33,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             logger.debug(f"User {self.user.id} connecting to conversation {self.conversation_id}")
         else:
             # Try to get user from token if middleware didn't authenticate
-            user, error_message = await self.get_user_from_token()
+            user = await self.get_user_from_token()
             if user:
                 self.user = user
                 logger.debug(f"User {self.user.id} authenticated via token for conversation {self.conversation_id}")
@@ -46,60 +46,19 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         logger.debug(f"Development mode: Using default user {self.user.id} for conversation {self.conversation_id}")
                     else:
                         logger.warning("WebSocket connection rejected: No user available")
-                        await self.accept()  # باید اول accept کنیم!
-                        await self.send(text_data=json.dumps({
-                            'type': 'authentication_error',
-                            'message': 'Authentication required',
-                            'error_code': 'NO_USER_AVAILABLE',
-                            'timestamp': timezone.now().isoformat()
-                        }))
-                        await self.close(code=4001)  # Custom close code for auth error
+                        await self.close(code=1008)
                         return
                 else:
-                    logger.warning(f"WebSocket connection rejected: {error_message}")
-                    await self.accept()  # باید اول accept کنیم!
-                    await self.send(text_data=json.dumps({
-                        'type': 'authentication_error',
-                        'message': error_message or 'Authentication required',
-                        'error_code': 'AUTH_REQUIRED',
-                        'timestamp': timezone.now().isoformat()
-                    }))
-                    await self.close(code=4001)  # Custom close code for auth error
+                    logger.warning("WebSocket connection rejected: Authentication required")
+                    await self.close(code=1008)
                     return
         
         # Check conversation access
         has_access = await self.check_conversation_access()
         if not has_access:
             logger.warning(f"User {self.user.id} denied access to conversation {self.conversation_id}")
-            await self.accept()  # باید اول accept کنیم!
-            await self.send(text_data=json.dumps({
-                'type': 'access_denied',
-                'message': 'You do not have access to this conversation',
-                'timestamp': timezone.now().isoformat()
-            }))
             await self.close(code=1008)
             return
-        
-        # 🔒 Check if user already has an active connection to this conversation
-        # If yes, close old connections to prevent duplicate messages
-        user_connection_key = f"ws_chat_{self.user.id}_{self.conversation_id}"
-        old_channel = cache.get(user_connection_key)
-        
-        if old_channel and old_channel != self.channel_name:
-            logger.info(f"User {self.user.id} reconnecting to conversation {self.conversation_id}, closing old connection")
-            try:
-                await self.channel_layer.send(
-                    old_channel,
-                    {
-                        'type': 'close_connection',
-                        'reason': 'duplicate_connection'
-                    }
-                )
-            except Exception as e:
-                logger.warning(f"Could not close old connection: {e}")
-        
-        # Store this channel as the active one (expires after 1 hour)
-        cache.set(user_connection_key, self.channel_name, timeout=3600)
         
         # Join conversation group with timeout
         try:
@@ -122,14 +81,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.accept()
         logger.debug(f"User {self.user.id} connected to conversation {self.conversation_id}")
         
-        # ✅ Send connection established confirmation
-        await self.send(text_data=json.dumps({
-            'type': 'connection_established',
-            'message': '✅ Chat WebSocket connected successfully',
-            'conversation_id': self.conversation_id,
-            'timestamp': timezone.now().isoformat()
-        }))
-        
         # Send recent messages when user connects with timeout
         try:
             import asyncio
@@ -145,17 +96,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def disconnect(self, close_code):
         logger.debug(f"User {getattr(self, 'user', 'Unknown').id if hasattr(self, 'user') else 'Unknown'} disconnecting from conversation {getattr(self, 'conversation_id', 'Unknown')}")
-        
-        try:
-            # Clear user connection cache if this is the active connection
-            if hasattr(self, 'user') and hasattr(self, 'conversation_id'):
-                user_connection_key = f"ws_chat_{self.user.id}_{self.conversation_id}"
-                cached_channel = cache.get(user_connection_key)
-                if cached_channel == self.channel_name:
-                    cache.delete(user_connection_key)
-                    logger.debug(f"Cleared connection cache for user {self.user.id}, conversation {self.conversation_id}")
-        except Exception as e:
-            logger.warning(f"Error clearing connection cache: {e}")
         
         try:
             # Set user as offline with timeout
@@ -410,15 +350,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'user_id': event['user_id']
         }))
 
-    async def close_connection(self, event):
-        """Handle duplicate connection - close this old connection silently"""
-        reason = event.get('reason', 'unknown')
-        logger.info(f"Silently closing old connection {self.channel_name} due to: {reason}")
-        
-        # 🔇 Don't send message to frontend - close silently to prevent refresh loop
-        # Frontend should not auto-reconnect when server closes duplicate connections
-        await self.close(code=1000)  # Normal closure
-
     async def ai_message(self, event):
         """Handle AI message broadcasts to chat room"""
         message = event['message']
@@ -505,10 +436,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def get_user_from_token(self):
-        """
-        Get user from JWT token with proper error handling
-        Returns: (user, error_message) tuple
-        """
         try:
             # Get token from query string
             query_string = self.scope.get('query_string', b'').decode()
@@ -520,29 +447,21 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     break
             
             if not token:
-                logger.debug("No token provided in query string")
-                return None, "No authentication token provided"
+                return None
                 
             # Validate JWT token
             if not validate_token(token):
-                logger.warning("Invalid or expired JWT token")
-                return None, "Invalid or expired authentication token"
+                return None
                 
             payload = claim_token(token)
             user_id = payload.get('user_id')
             if not user_id:
-                logger.warning("JWT token missing user_id")
-                return None, "Invalid token payload"
+                return None
                 
-            user = User.objects.get(id=user_id)
-            return user, None
+            return User.objects.get(id=user_id)
             
-        except User.DoesNotExist:
-            logger.warning(f"User not found for id: {user_id}")
-            return None, "User not found"
-        except Exception as e:
-            logger.error(f"Error validating token: {e}")
-            return None, "Authentication error"
+        except Exception:
+            return None
 
     @database_sync_to_async
     def get_default_user(self):
@@ -831,7 +750,7 @@ class ConversationListConsumer(AsyncWebsocketConsumer):
             logger.debug(f"User {self.user.id} connecting to conversation list")
         else:
             # Try to get user from token if middleware didn't authenticate
-            user, error_message = await self.get_user_from_token()
+            user = await self.get_user_from_token()
             if user:
                 self.user = user
                 logger.debug(f"User {self.user.id} authenticated via token for conversation list")
@@ -844,52 +763,15 @@ class ConversationListConsumer(AsyncWebsocketConsumer):
                         logger.debug(f"Development mode: Using default user {self.user.id} for conversation list")
                     else:
                         logger.warning("ConversationList WebSocket connection rejected: No user available")
-                        await self.accept()  # باید اول accept کنیم!
-                        await self.send(text_data=json.dumps({
-                            'type': 'authentication_error',
-                            'message': 'Authentication required',
-                            'error_code': 'NO_USER_AVAILABLE',
-                            'timestamp': timezone.now().isoformat()
-                        }))
-                        await self.close(code=4001)
+                        await self.close(code=1008)
                         return
                 else:
-                    logger.warning(f"ConversationList WebSocket connection rejected: {error_message}")
-                    await self.accept()  # باید اول accept کنیم!
-                    await self.send(text_data=json.dumps({
-                        'type': 'authentication_error',
-                        'message': error_message or 'Authentication required',
-                        'error_code': 'AUTH_REQUIRED',
-                        'timestamp': timezone.now().isoformat()
-                    }))
-                    await self.close(code=4001)
+                    logger.warning("ConversationList WebSocket connection rejected: Authentication required")
+                    await self.close(code=1008)
                     return
         
         self.user_group_name = f'user_{self.user.id}_conversations'
-        logger.info(f"👤 User {self.user.id} connecting to conversation list - channel: {self.channel_name}")
-        
-        # 🔒 Check if user already has an active connection to conversation list
-        # If yes, close old connections to prevent duplicate refresh loops
-        from django.core.cache import cache
-        user_connection_key = f"ws_conversations_{self.user.id}"
-        old_channel = cache.get(user_connection_key)
-        logger.info(f"🔍 Cache check for {user_connection_key}: old_channel={old_channel}, current_channel={self.channel_name}")
-        
-        if old_channel and old_channel != self.channel_name:
-            logger.info(f"User {self.user.id} reconnecting to conversation list, closing old connection")
-            try:
-                await self.channel_layer.send(
-                    old_channel,
-                    {
-                        'type': 'close_connection',
-                        'reason': 'duplicate_connection'
-                    }
-                )
-            except Exception as e:
-                logger.warning(f"Could not close old conversation list connection: {e}")
-        
-        # Store this channel as the active one (expires after 1 hour)
-        cache.set(user_connection_key, self.channel_name, timeout=3600)
+        logger.debug(f"User {self.user.id} connecting to conversation list (duplicate)")
         
         # Join user's conversation list group with timeout
         try:
@@ -911,13 +793,6 @@ class ConversationListConsumer(AsyncWebsocketConsumer):
         
         await self.accept()
         logger.debug(f"User {self.user.id} connected to conversation list")
-        
-        # ✅ Send connection established confirmation
-        await self.send(text_data=json.dumps({
-            'type': 'connection_established',
-            'message': '✅ Conversation List WebSocket connected successfully',
-            'timestamp': timezone.now().isoformat()
-        }))
         
         # Send current conversations with timeout
         try:
@@ -987,14 +862,6 @@ class ConversationListConsumer(AsyncWebsocketConsumer):
             await self.send(text_data=json.dumps({
                 'error': 'Invalid JSON format'
             }))
-
-    async def close_connection(self, event):
-        """Handle duplicate connection - close this old connection silently"""
-        reason = event.get('reason', 'unknown')
-        logger.info(f"Silently closing old conversation list connection {self.channel_name} due to: {reason}")
-        
-        # 🔇 Don't send message to frontend - close silently to prevent refresh loop
-        await self.close(code=1000)  # Normal closure
 
     # WebSocket message handlers
     async def conversation_updated(self, event):
@@ -1079,10 +946,6 @@ class ConversationListConsumer(AsyncWebsocketConsumer):
     # Database operations
     @database_sync_to_async
     def get_user_from_token(self):
-        """
-        Get user from JWT token with proper error handling
-        Returns: (user, error_message) tuple
-        """
         try:
             # Get token from query string
             query_string = self.scope.get('query_string', b'').decode()
@@ -1094,29 +957,21 @@ class ConversationListConsumer(AsyncWebsocketConsumer):
                     break
             
             if not token:
-                logger.debug("No token provided in query string")
-                return None, "No authentication token provided"
+                return None
                 
             # Validate JWT token
             if not validate_token(token):
-                logger.warning("Invalid or expired JWT token")
-                return None, "Invalid or expired authentication token"
+                return None
                 
             payload = claim_token(token)
             user_id = payload.get('user_id')
             if not user_id:
-                logger.warning("JWT token missing user_id")
-                return None, "Invalid token payload"
+                return None
                 
-            user = User.objects.get(id=user_id)
-            return user, None
+            return User.objects.get(id=user_id)
             
-        except User.DoesNotExist:
-            logger.warning(f"User not found for id: {user_id}")
-            return None, "User not found"
-        except Exception as e:
-            logger.error(f"Error validating token: {e}")
-            return None, "Authentication error"
+        except Exception:
+            return None
 
     @database_sync_to_async
     def get_default_user(self):
@@ -1266,17 +1121,12 @@ class ConversationListConsumer(AsyncWebsocketConsumer):
                 'timestamp': timezone.now().isoformat()
             }))
         except Exception as e:
-            import traceback
             logger.error(f"Error sending conversations to user {self.user.id}: {e}")
-            logger.error(f"Traceback: {traceback.format_exc()}")
-            try:
-                await self.send(text_data=json.dumps({
-                    'type': 'error',
-                    'message': 'Failed to load conversations',
-                    'timestamp': timezone.now().isoformat()
-                }))
-            except Exception as send_error:
-                logger.error(f"Could not send error message: {send_error}")
+            await self.send(text_data=json.dumps({
+                'type': 'error',
+                'message': 'Failed to load conversations',
+                'timestamp': timezone.now().isoformat()
+            }))
 
     @database_sync_to_async
     def get_conversation_filter_options(self):
@@ -1466,7 +1316,7 @@ class CustomerListConsumer(AsyncWebsocketConsumer):
             logger.debug(f"User {self.user.id} connecting to customer list")
         else:
             # Try to get user from token if middleware didn't authenticate
-            user, error_message = await self.get_user_from_token()
+            user = await self.get_user_from_token()
             if user:
                 self.user = user
                 logger.debug(f"User {self.user.id} authenticated via token for customer list")
@@ -1479,52 +1329,15 @@ class CustomerListConsumer(AsyncWebsocketConsumer):
                         logger.debug(f"Development mode: Using default user {self.user.id} for customer list")
                     else:
                         logger.warning("CustomerList WebSocket connection rejected: No user available")
-                        await self.accept()  # باید اول accept کنیم!
-                        await self.send(text_data=json.dumps({
-                            'type': 'authentication_error',
-                            'message': 'Authentication required',
-                            'error_code': 'NO_USER_AVAILABLE',
-                            'timestamp': timezone.now().isoformat()
-                        }))
-                        await self.close(code=4001)
+                        await self.close(code=1008)
                         return
                 else:
-                    logger.warning(f"CustomerList WebSocket connection rejected: {error_message}")
-                    await self.accept()  # باید اول accept کنیم!
-                    await self.send(text_data=json.dumps({
-                        'type': 'authentication_error',
-                        'message': error_message or 'Authentication required',
-                        'error_code': 'AUTH_REQUIRED',
-                        'timestamp': timezone.now().isoformat()
-                    }))
-                    await self.close(code=4001)
+                    logger.warning("CustomerList WebSocket connection rejected: Authentication required")
+                    await self.close(code=1008)
                     return
         
         self.user_group_name = f'user_{self.user.id}_customers'
-        logger.info(f"👤 User {self.user.id} connecting to customer list - channel: {self.channel_name}")
-        
-        # 🔒 Check if user already has an active connection to customer list
-        # If yes, close old connections to prevent duplicate refresh loops
-        from django.core.cache import cache
-        user_connection_key = f"ws_customers_{self.user.id}"
-        old_channel = cache.get(user_connection_key)
-        logger.info(f"🔍 Cache check for {user_connection_key}: old_channel={old_channel}, current_channel={self.channel_name}")
-        
-        if old_channel and old_channel != self.channel_name:
-            logger.info(f"User {self.user.id} reconnecting to customer list, closing old connection")
-            try:
-                await self.channel_layer.send(
-                    old_channel,
-                    {
-                        'type': 'close_connection',
-                        'reason': 'duplicate_connection'
-                    }
-                )
-            except Exception as e:
-                logger.warning(f"Could not close old customer list connection: {e}")
-        
-        # Store this channel as the active one (expires after 1 hour)
-        cache.set(user_connection_key, self.channel_name, timeout=3600)
+        logger.debug(f"User {self.user.id} connecting to customer list (duplicate)")
         
         # Join user's customer list group with timeout
         try:
@@ -1546,13 +1359,6 @@ class CustomerListConsumer(AsyncWebsocketConsumer):
         
         await self.accept()
         logger.debug(f"User {self.user.id} connected to customer list")
-        
-        # ✅ Send connection established confirmation
-        await self.send(text_data=json.dumps({
-            'type': 'connection_established',
-            'message': '✅ Customer List WebSocket connected successfully',
-            'timestamp': timezone.now().isoformat()
-        }))
         
         # Send current customers with timeout
         try:
@@ -1624,14 +1430,6 @@ class CustomerListConsumer(AsyncWebsocketConsumer):
             }))
 
     # WebSocket message handlers
-    async def close_connection(self, event):
-        """Handle duplicate connection - close this old connection silently"""
-        reason = event.get('reason', 'unknown')
-        logger.info(f"Silently closing old customer list connection {self.channel_name} due to: {reason}")
-        
-        # 🔇 Don't send message to frontend - close silently to prevent refresh loop
-        await self.close(code=1000)  # Normal closure
-
     async def customer_updated(self, event):
         # When a customer is updated, send fresh customer list
         logger.debug(f"Customer updated for user {self.user.id}")
@@ -1693,10 +1491,6 @@ class CustomerListConsumer(AsyncWebsocketConsumer):
     # Database operations
     @database_sync_to_async
     def get_user_from_token(self):
-        """
-        Get user from JWT token with proper error handling
-        Returns: (user, error_message) tuple
-        """
         try:
             # Get token from query string
             query_string = self.scope.get('query_string', b'').decode()
@@ -1708,29 +1502,21 @@ class CustomerListConsumer(AsyncWebsocketConsumer):
                     break
             
             if not token:
-                logger.debug("No token provided in query string")
-                return None, "No authentication token provided"
+                return None
                 
             # Validate JWT token
             if not validate_token(token):
-                logger.warning("Invalid or expired JWT token")
-                return None, "Invalid or expired authentication token"
+                return None
                 
             payload = claim_token(token)
             user_id = payload.get('user_id')
             if not user_id:
-                logger.warning("JWT token missing user_id")
-                return None, "Invalid token payload"
+                return None
                 
-            user = User.objects.get(id=user_id)
-            return user, None
+            return User.objects.get(id=user_id)
             
-        except User.DoesNotExist:
-            logger.warning(f"User not found for id: {user_id}")
-            return None, "User not found"
-        except Exception as e:
-            logger.error(f"Error validating token: {e}")
-            return None, "Authentication error"
+        except Exception:
+            return None
 
     @database_sync_to_async
     def get_default_user(self):
@@ -1924,17 +1710,12 @@ class CustomerListConsumer(AsyncWebsocketConsumer):
                 'timestamp': timezone.now().isoformat()
             }))
         except Exception as e:
-            import traceback
             logger.error(f"Error sending customers to user {self.user.id}: {e}")
-            logger.error(f"Traceback: {traceback.format_exc()}")
-            try:
-                await self.send(text_data=json.dumps({
-                    'type': 'error',
-                    'message': 'Failed to load customers',
-                    'timestamp': timezone.now().isoformat()
-                }))
-            except Exception as send_error:
-                logger.error(f"Could not send error message: {send_error}")
+            await self.send(text_data=json.dumps({
+                'type': 'error',
+                'message': 'Failed to load customers',
+                'timestamp': timezone.now().isoformat()
+            }))
 
     @database_sync_to_async
     def get_filter_options(self):
