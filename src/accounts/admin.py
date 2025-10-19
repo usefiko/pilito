@@ -1,5 +1,5 @@
 from django.contrib import admin
-from accounts.models import User, PasswordResetToken, EmailConfirmationToken
+from accounts.models import User, PasswordResetToken, EmailConfirmationToken, OTPToken
 from import_export.admin import ImportExportModelAdmin
 
 admin.site.site_header = "Fiko Admin Panel"
@@ -135,3 +135,28 @@ class EmailConfirmationTokenAdmin(ImportExportModelAdmin):
         return super().get_queryset(request).select_related('user')
 
 admin.site.register(EmailConfirmationToken, EmailConfirmationTokenAdmin)
+
+class OTPTokenAdmin(ImportExportModelAdmin):
+    list_display = ("phone_number", "code", "created_at", "expires_at", "is_used", "attempts", "is_valid_status")
+    list_filter = ("is_used", "created_at", "expires_at")
+    search_fields = ["phone_number", "code"]
+    readonly_fields = ("code", "created_at", "expires_at", "is_valid_status")
+    ordering = ["-created_at"]
+    
+    fieldsets = (
+        ('OTP Details', {
+            'fields': ('phone_number', 'code', 'is_used', 'attempts')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'expires_at', 'is_valid_status'),
+            'classes': ('collapse',)
+        })
+    )
+    
+    def is_valid_status(self, obj):
+        """Show if the OTP is currently valid"""
+        return obj.is_valid()
+    is_valid_status.boolean = True
+    is_valid_status.short_description = "Valid"
+
+admin.site.register(OTPToken, OTPTokenAdmin)

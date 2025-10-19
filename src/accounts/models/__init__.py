@@ -1,1 +1,1 @@
-from accounts.models.user import User, Plan, PasswordResetToken, EmailConfirmationToken
+from accounts.models.user import User, Plan, PasswordResetToken, EmailConfirmationToken, OTPToken

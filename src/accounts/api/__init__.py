@@ -9,3 +9,4 @@ from accounts.api.wizard_complete import WizardCompleteAPIView
 from accounts.api.delete_account import DeleteAccountAPIView
 from accounts.api.forget_password import ForgetPasswordAPIView, ResetPasswordAPIView
 from accounts.api.google_oauth import GoogleOAuthLoginAPIView, GoogleOAuthCodeAPIView, GoogleOAuthAuthURLAPIView, GoogleOAuthTestAPIView
+from accounts.api.otp import SendOTPAPIView, VerifyOTPAPIView

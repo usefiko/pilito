@@ -526,3 +526,11 @@ CELERY_TASK_SEND_SENT_EVENT = True
 RAPIDAPI_KEY = environ.get("RAPIDAPI_KEY", "")
 INSTAGRAM_PROFILE_CACHE_TTL = 30 * 24 * 60 * 60  # 30 days
 
+# ============================================================================
+# KAVENEGAR SMS CONFIGURATION (OTP Service)
+# ============================================================================
+KAVENEGAR_API_KEY = environ.get("KAVENEGAR_API_KEY", "")
+KAVENEGAR_SENDER = environ.get("KAVENEGAR_SENDER", "10008663")  # Default sender number
+OTP_EXPIRY_TIME = int(environ.get("OTP_EXPIRY_TIME", "300"))  # 5 minutes in seconds
+OTP_MAX_ATTEMPTS = int(environ.get("OTP_MAX_ATTEMPTS", "3"))  # Maximum verification attempts
+

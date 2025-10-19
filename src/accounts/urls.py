@@ -1,5 +1,5 @@
 from django.urls import path
-from accounts.api import LoginAPIView,RegisterView,CompleteRegisterView,Refresh,RefreshAccess,Logout,Profile,ProfilePicture,ProfilePictureRemove,ChangePasswordAPIView,DeleteAccountAPIView,WizardCompleteAPIView,ForgetPasswordAPIView,ResetPasswordAPIView,GoogleOAuthLoginAPIView,GoogleOAuthCodeAPIView,GoogleOAuthAuthURLAPIView,GoogleOAuthTestAPIView,UserOverview
+from accounts.api import LoginAPIView,RegisterView,CompleteRegisterView,Refresh,RefreshAccess,Logout,Profile,ProfilePicture,ProfilePictureRemove,ChangePasswordAPIView,DeleteAccountAPIView,WizardCompleteAPIView,ForgetPasswordAPIView,ResetPasswordAPIView,GoogleOAuthLoginAPIView,GoogleOAuthCodeAPIView,GoogleOAuthAuthURLAPIView,GoogleOAuthTestAPIView,UserOverview,SendOTPAPIView,VerifyOTPAPIView
 from accounts.api.intercom import IntercomJWTView, IntercomConfigView, IntercomUserHashView, IntercomValidateJWTView
 from accounts.api.email_confirmation import EmailConfirmationAPIView, ResendEmailConfirmationAPIView, EmailConfirmationStatusAPIView
 from accounts.api.auth_status import AuthStatusAPIView, DashboardAccessAPIView
@@ -40,4 +40,8 @@ urlpatterns = [
     # Authentication debugging endpoints
     path("auth/status", AuthStatusAPIView.as_view(), name="auth-status"),
     path("auth/dashboard-test", DashboardAccessAPIView.as_view(), name="dashboard-test"),
+    
+    # OTP authentication endpoints
+    path("otp", SendOTPAPIView.as_view(), name="send_otp"),
+    path("otp/verify", VerifyOTPAPIView.as_view(), name="verify_otp"),
 ]

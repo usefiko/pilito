@@ -2,3 +2,4 @@ from accounts.serializers.user import UserSerializer,LoginSerializer,UserUpdateS
     ChangePasswordSerializer,DeleteAccountSerializer,DefaultReplyHandlerSerializer,WizardCompleteSerializer,UserOverviewSerializer
 from accounts.serializers.register import RegisterSerializer,CompleteRegisterSerializer
 from accounts.serializers.google_oauth import GoogleOAuthLoginSerializer,GoogleOAuthCodeSerializer,GoogleOAuthAuthURLSerializer,GoogleUserSerializer
+from accounts.serializers.otp import SendOTPSerializer, VerifyOTPSerializer

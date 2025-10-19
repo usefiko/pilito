@@ -112,3 +112,48 @@ class EmailConfirmationToken(models.Model):
     
     def __str__(self):
         return f"Email confirmation code for {self.user.email}"
+
+
+class OTPToken(models.Model):
+    """Model for storing OTP codes for phone number authentication"""
+    phone_number = models.CharField(max_length=100)
+    code = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    is_used = models.BooleanField(default=False)
+    attempts = models.IntegerField(default=0)  # Track verification attempts
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['phone_number', '-created_at']),
+        ]
+    
+    def save(self, *args, **kwargs):
+        if not self.code:
+            # Generate 6-digit OTP
+            self.code = ''.join(random.choices(string.digits, k=6))
+        if not self.expires_at:
+            # Token expires in 5 minutes (configurable via settings)
+            from django.conf import settings
+            expiry_seconds = getattr(settings, 'OTP_EXPIRY_TIME', 300)
+            self.expires_at = timezone.now() + timezone.timedelta(seconds=expiry_seconds)
+        super().save(*args, **kwargs)
+    
+    def is_valid(self):
+        """Check if OTP is valid (not used, not expired, attempts not exceeded)"""
+        from django.conf import settings
+        max_attempts = getattr(settings, 'OTP_MAX_ATTEMPTS', 3)
+        return (
+            not self.is_used 
+            and timezone.now() < self.expires_at 
+            and self.attempts < max_attempts
+        )
+    
+    def increment_attempts(self):
+        """Increment verification attempts"""
+        self.attempts += 1
+        self.save()
+    
+    def __str__(self):
+        return f"OTP for {self.phone_number} - {'Used' if self.is_used else 'Active'}"
