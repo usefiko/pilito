@@ -345,18 +345,18 @@ STRIPE_PORTAL_RETURN_URL = environ.get('STRIPE_PORTAL_RETURN_URL', 'https://app.
 # Use environment variables for email backend selection
 EMAIL_BACKEND = environ.get('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
 
-# AWS SES SMTP Configuration
-EMAIL_HOST = environ.get('EMAIL_HOST', 'email-smtp.us-east-2.amazonaws.com')
+# Liara Email SMTP Configuration
+EMAIL_HOST = environ.get('EMAIL_HOST', 'smtp.c1.liara.email')
 EMAIL_PORT = int(environ.get('EMAIL_PORT', '587'))
 EMAIL_USE_TLS = environ.get('EMAIL_USE_TLS', 'True').lower() == 'true'
 EMAIL_USE_SSL = environ.get('EMAIL_USE_SSL', 'False').lower() == 'true'
-EMAIL_HOST_USER = environ.get('EMAIL_HOST_USER', 'AKIARTLO5HLCKHLZ7KWR')
-EMAIL_HOST_PASSWORD = environ.get('EMAIL_HOST_PASSWORD', 'BLrFuGxymqJxlgcGdrWLJXFfX4+pMc33Dqi43J/av31h')
+EMAIL_HOST_USER = environ.get('EMAIL_HOST_USER', 'zen_torvalds_599nek')
+EMAIL_HOST_PASSWORD = environ.get('EMAIL_HOST_PASSWORD', '8d071fc6-a36c-43f1-9f09-b25bd408af87')
 EMAIL_TIMEOUT = int(environ.get('EMAIL_TIMEOUT', '30'))
 
 DEFAULT_FROM_EMAIL = environ.get('DEFAULT_FROM_EMAIL', 'noreply@pilito.com')
 # Email sender display name configuration
-DEFAULT_FROM_EMAIL_DISPLAY = 'Fiko <noreply@pilito.com>'
+DEFAULT_FROM_EMAIL_DISPLAY = 'Pilito <noreply@pilito.com>'
 # END EMAIL CONFIGURATION
 
 
