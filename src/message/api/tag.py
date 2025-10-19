@@ -1,18 +1,23 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from message.serializers import TagSerializer
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from message.models import Tag
 
 
 class TagsAPIView(APIView):
     serializer_class = TagSerializer
-    permission_classes = [AllowAny]
-    def get(self, *args, **kwargs):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, *args, **kwargs):
         try:
-            tag = Tag.objects.exclude(name__in=["Telegram", "Whatsapp", "Instagram"])
-            serializer = self.serializer_class(tag, many=True)
+            # فقط تگ‌هایی که این user ساخته
+            tags = Tag.objects.filter(
+                created_by=request.user
+            ).exclude(name__in=["Telegram", "Whatsapp", "Instagram"]).order_by('-created_at')
+            
+            serializer = self.serializer_class(tags, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Exception as e:
             return Response(f"Error: {str(e)}", status=status.HTTP_400_BAD_REQUEST)
@@ -33,8 +38,16 @@ class TagsAPIView(APIView):
                 serializer = self.serializer_class(data=data)
 
             if serializer.is_valid():
-                serializer.save()
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
+                # وقتی تگ جدید می‌سازیم، created_by را set می‌کنیم
+                if isinstance(serializer.validated_data, list):
+                    # برای لیست تگ‌ها
+                    tags = [Tag(created_by=request.user, **item) for item in serializer.validated_data]
+                    Tag.objects.bulk_create(tags)
+                    return Response(TagSerializer(tags, many=True).data, status=status.HTTP_201_CREATED)
+                else:
+                    # برای تگ تکی
+                    serializer.save(created_by=request.user)
+                    return Response(serializer.data, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({"detail": f"Error: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)

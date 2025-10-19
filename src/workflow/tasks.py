@@ -350,34 +350,47 @@ def process_event(self, event_log_id: str):
                     if current_status == status_values['ACTIVE']:
                         message_id = event_log.event_data.get('message_id')
                         if message_id:
+                            # Check if message is voice/image and still processing
+                            skip_ai_fallback = False
                             try:
-                                from django.core.cache import cache
-                                # Re-enable AI explicitly (we may have disabled it on message create)
-                                ai_control_key = f"ai_control_{event_log.conversation_id}"
-                                cache.set(ai_control_key, {'ai_enabled': True}, timeout=86400)
-                                # Force AI to bypass any residual guards for this message
-                                cache.set(f"ai_force_{message_id}", True, timeout=30)
-                            except Exception as re_err:
-                                logger.warning(f"Failed to re-enable/force AI in no-workflow branch: {re_err}")
+                                MessageModel = get_model_class('MESSAGE')
+                                message = MessageModel.objects.get(id=message_id)
+                                if hasattr(message, 'message_type') and message.message_type in ['voice', 'image']:
+                                    if hasattr(message, 'processing_status') and message.processing_status != 'completed':
+                                        skip_ai_fallback = True
+                                        logger.info(f"AI fallback skipped for message {message_id}: {message.message_type} still processing (status: {message.processing_status})")
+                            except Exception as msg_check_err:
+                                logger.debug(f"Could not check message type/status: {msg_check_err}")
+                            
+                            if not skip_ai_fallback:
+                                try:
+                                    from django.core.cache import cache
+                                    # Re-enable AI explicitly (we may have disabled it on message create)
+                                    ai_control_key = f"ai_control_{event_log.conversation_id}"
+                                    cache.set(ai_control_key, {'ai_enabled': True}, timeout=86400)
+                                    # Force AI to bypass any residual guards for this message
+                                    cache.set(f"ai_force_{message_id}", True, timeout=30)
+                                except Exception as re_err:
+                                    logger.warning(f"Failed to re-enable/force AI in no-workflow branch: {re_err}")
 
-                            # Guard with cache key used by AI signal to prevent duplicate enqueue
-                            try:
-                                from django.core.cache import cache
-                                cache_key = f"ai_processing_{message_id}"
-                                if cache.get(cache_key):
-                                    logger.info(f"AI fallback skipped for message {message_id}: already scheduled/processing")
-                                else:
-                                    # Set a short-lived lock to avoid race, then enqueue via adapter
-                                    cache.set(cache_key, True, timeout=300)
-                                    success = call_ai_fallback_task(message_id, event_log.conversation_id)
-                                    if success:
-                                        result['ai_fallback_called'] = True
-                                        logger.info(f"Called AI fallback for message {message_id}")
+                                # Guard with cache key used by AI signal to prevent duplicate enqueue
+                                try:
+                                    from django.core.cache import cache
+                                    cache_key = f"ai_processing_{message_id}"
+                                    if cache.get(cache_key):
+                                        logger.info(f"AI fallback skipped for message {message_id}: already scheduled/processing")
                                     else:
-                                        result['ai_fallback_failed'] = True
-                                        logger.warning(f"Failed to call AI fallback for message {message_id}")
-                            except Exception as cache_err:
-                                logger.warning(f"AI fallback cache guard failed: {cache_err}")
+                                        # Set a short-lived lock to avoid race, then enqueue via adapter
+                                        cache.set(cache_key, True, timeout=300)
+                                        success = call_ai_fallback_task(message_id, event_log.conversation_id)
+                                        if success:
+                                            result['ai_fallback_called'] = True
+                                            logger.info(f"Called AI fallback for message {message_id}")
+                                        else:
+                                            result['ai_fallback_failed'] = True
+                                            logger.warning(f"Failed to call AI fallback for message {message_id}")
+                                except Exception as cache_err:
+                                    logger.warning(f"AI fallback cache guard failed: {cache_err}")
                 except Exception as e:
                     logger.warning(f"Error checking for AI fallback: {e}")
         

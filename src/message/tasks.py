@@ -1,9 +1,12 @@
 import logging
+import time
 from celery import shared_task
 from django.utils import timezone
+from django.core.files.base import ContentFile
 from datetime import timedelta
 from settings.models import InstagramChannel
-from core.utils import make_request_with_proxy
+from typing import Dict, Any
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -323,8 +326,7 @@ def _should_refresh_unknown_expiry_token(channel):
             'access_token': channel.access_token
         }
         
-        # ✅ Instagram API with automatic fallback proxy
-        response = make_request_with_proxy('get', url, params=params, timeout=10)
+        response = requests.get(url, params=params, timeout=10)
         
         if response.status_code == 200:
             # Token works, but we might want to refresh it proactively
@@ -386,8 +388,7 @@ def _exchange_for_long_lived_token(short_lived_token):
             'access_token': short_lived_token
         }
         
-        # ✅ Instagram token exchange with automatic fallback proxy
-        response = make_request_with_proxy('get', url, params=params, timeout=30)
+        response = requests.get(url, params=params, timeout=30)
         
         if response.status_code == 200:
             data = response.json()
@@ -408,8 +409,7 @@ def _refresh_long_lived_instagram_token(current_token):
             'access_token': current_token
         }
         
-        # ✅ Instagram token refresh with automatic fallback proxy
-        response = make_request_with_proxy('get', url, params=params, timeout=10)
+        response = requests.get(url, params=params, timeout=10)
         
         if response.status_code == 200:
             data = response.json()
@@ -438,3 +438,286 @@ def _update_channel_token(channel, new_token, expires_in):
     except Exception as e:
         logger.error(f"Error updating channel token: {e}")
         raise
+
+
+# ============================================================================
+# VOICE & MEDIA PROCESSING TASKS
+# ============================================================================
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=10)
+def process_telegram_voice(self, message_id: str, file_id: str, bot_token: str) -> Dict[str, Any]:
+    """
+    Process Telegram voice message (transcription)
+    
+    Args:
+        message_id: Message ID to process
+        file_id: Telegram file ID
+        bot_token: Bot token for file download
+    
+    Returns:
+        Dict with processing result
+    """
+    start_time = time.time()
+    
+    try:
+        from message.models import Message
+        from message.services.telegram_service import TelegramService
+        from AI_model.services.media_processor import MediaProcessorService
+        
+        # Get message
+        try:
+            message = Message.objects.get(id=message_id)
+        except Message.DoesNotExist:
+            logger.error(f"❌ Message {message_id} not found")
+            return {'success': False, 'error': 'Message not found'}
+        
+        # Update status
+        message.processing_status = 'processing'
+        message.save(update_fields=['processing_status'])
+        
+        logger.info(f"🔄 Processing Telegram voice: {message_id}")
+        
+        # Download file from Telegram
+        telegram_service = TelegramService(bot_token)
+        file_result = telegram_service.get_file_download_url(file_id)
+        
+        if not file_result.get('success'):
+            raise Exception(f"Failed to get download URL: {file_result.get('error')}")
+        
+        download_url = file_result['download_url']
+        response = requests.get(download_url, timeout=30)
+        response.raise_for_status()
+        
+        # Save media file to S3
+        filename = f"telegram_voice_{message_id}.ogg"
+        message.media_file.save(filename, ContentFile(response.content), save=False)
+        message.media_url = download_url  # Store for reference
+        message.save(update_fields=['media_file', 'media_url'])
+        
+        # Process with AI - create temporary local file
+        import tempfile
+        import os
+        
+        processor = MediaProcessorService()
+        
+        if not processor.is_ready():
+            raise Exception("MediaProcessorService not ready")
+        
+        # Save to temporary file for processing
+        with tempfile.NamedTemporaryFile(suffix='.ogg', delete=False) as tmp_file:
+            tmp_file.write(response.content)
+            tmp_path = tmp_file.name
+        
+        try:
+            result = processor.process_voice(tmp_path)
+        finally:
+            # Clean up temp file
+            try:
+                os.unlink(tmp_path)
+            except:
+                pass
+        if result['success']:
+            message.content = result['transcription']
+            message.transcription = result['transcription']
+        else:
+            raise Exception(result['error'])
+        
+        # Update message as completed
+        message.processing_status = 'completed'
+        message.processed_at = timezone.now()
+        message.processing_duration_ms = int((time.time() - start_time) * 1000)
+        message.save()
+        
+        logger.info(f"✅ Telegram voice processed: {message_id} ({message.processing_duration_ms}ms)")
+        logger.info(f"📝 Transcription: {message.content[:100]}...")
+        
+        # Notify WebSocket
+        from message.websocket_utils import notify_new_customer_message
+        notify_new_customer_message(message)
+        
+        # Trigger AI response now that content is ready
+        from AI_model.tasks import process_ai_response_async
+        from django.core.cache import cache
+        
+        # Set force flag to bypass guards
+        cache.set(f"ai_force_{message_id}", True, timeout=30)
+        
+        logger.info(f"🤖 Triggering AI response for transcribed message {message_id}")
+        process_ai_response_async.delay(message_id)
+        
+        return {
+            'success': True,
+            'message_id': message_id,
+            'content': message.content[:100],
+            'duration_ms': message.processing_duration_ms
+        }
+        
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"❌ Failed to process Telegram voice {message_id}: {error_msg}")
+        
+        # Update message as failed
+        try:
+            message = Message.objects.get(id=message_id)
+            message.processing_status = 'failed'
+            message.processing_error = error_msg
+            message.content = f"[پردازش پیام صوتی ناموفق بود]"
+            message.processing_duration_ms = int((time.time() - start_time) * 1000)
+            message.save()
+        except:
+            pass
+        
+        # Retry if not last attempt
+        if self.request.retries < self.max_retries:
+            logger.info(f"🔄 Retrying voice processing (attempt {self.request.retries + 1}/{self.max_retries})")
+            raise self.retry(exc=e)
+        
+        return {
+            'success': False,
+            'error': error_msg,
+            'message_id': message_id
+        }
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=10)
+def process_telegram_image(self, message_id: str, file_id: str, bot_token: str, caption: str = None) -> Dict[str, Any]:
+    """
+    Process Telegram image message (analysis with AI)
+    
+    Args:
+        message_id: Message ID to process
+        file_id: Telegram file ID
+        bot_token: Bot token for file download
+        caption: Optional caption text with image
+    
+    Returns:
+        Dict with processing result
+    """
+    start_time = time.time()
+    
+    try:
+        from message.models import Message
+        from message.services.telegram_service import TelegramService
+        from AI_model.services.media_processor import MediaProcessorService
+        
+        # Get message
+        try:
+            message = Message.objects.get(id=message_id)
+        except Message.DoesNotExist:
+            logger.error(f"❌ Message {message_id} not found")
+            return {'success': False, 'error': 'Message not found'}
+        
+        # Update status
+        message.processing_status = 'processing'
+        message.save(update_fields=['processing_status'])
+        
+        if caption:
+            logger.info(f"🔄 Processing Telegram image with caption: {message_id}")
+        else:
+            logger.info(f"🔄 Processing Telegram image: {message_id}")
+        
+        # Download file from Telegram
+        telegram_service = TelegramService(bot_token)
+        file_result = telegram_service.get_file_download_url(file_id)
+        
+        if not file_result.get('success'):
+            raise Exception(f"Failed to get download URL: {file_result.get('error')}")
+        
+        download_url = file_result['download_url']
+        response = requests.get(download_url, timeout=30)
+        response.raise_for_status()
+        
+        # Save media file to S3/storage
+        filename = f"telegram_image_{message_id}.jpg"
+        message.media_file.save(filename, ContentFile(response.content), save=False)
+        message.media_url = download_url  # Store for reference
+        message.save(update_fields=['media_file', 'media_url'])
+        
+        # Process with AI - create temporary local file
+        import tempfile
+        import os
+        
+        processor = MediaProcessorService()
+        
+        if not processor.is_ready():
+            raise Exception("MediaProcessorService not ready")
+        
+        # Save to temporary file for processing
+        with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp_file:
+            tmp_file.write(response.content)
+            tmp_path = tmp_file.name
+        
+        try:
+            result = processor.process_image(tmp_path, analysis_type='comprehensive')
+        finally:
+            # Clean up temp file
+            try:
+                os.unlink(tmp_path)
+            except:
+                pass
+                
+        if result['success']:
+            # Combine caption (if any) with image description
+            if caption:
+                message.content = f"{caption}\n\n[Image Analysis]: {result['description']}"
+            else:
+                message.content = result['description']
+            message.transcription = result['description']
+        else:
+            raise Exception(result['error'])
+        
+        # Update message as completed
+        message.processing_status = 'completed'
+        message.processed_at = timezone.now()
+        message.processing_duration_ms = int((time.time() - start_time) * 1000)
+        message.save()
+        
+        logger.info(f"✅ Telegram image processed: {message_id} ({message.processing_duration_ms}ms)")
+        logger.info(f"📝 Description: {message.content[:100]}...")
+        
+        # Notify WebSocket
+        from message.websocket_utils import notify_new_customer_message
+        notify_new_customer_message(message)
+        
+        # Trigger AI response now that content is ready
+        from AI_model.tasks import process_ai_response_async
+        from django.core.cache import cache
+        
+        # Set force flag to bypass guards
+        cache.set(f"ai_force_{message_id}", True, timeout=30)
+        
+        logger.info(f"🤖 Triggering AI response for analyzed image {message_id}")
+        process_ai_response_async.delay(message_id)
+        
+        return {
+            'success': True,
+            'message_id': message_id,
+            'content': message.content[:100],
+            'duration_ms': message.processing_duration_ms
+        }
+        
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"❌ Failed to process Telegram image {message_id}: {error_msg}")
+        
+        # Update message as failed
+        try:
+            message = Message.objects.get(id=message_id)
+            message.processing_status = 'failed'
+            message.processing_error = error_msg
+            message.content = f"[پردازش تصویر ناموفق بود]"
+            message.processing_duration_ms = int((time.time() - start_time) * 1000)
+            message.save()
+        except:
+            pass
+        
+        # Retry if not last attempt
+        if self.request.retries < self.max_retries:
+            logger.info(f"🔄 Retrying image processing (attempt {self.request.retries + 1}/{self.max_retries})")
+            raise self.retry(exc=e)
+        
+        return {
+            'success': False,
+            'error': error_msg,
+            'message_id': message_id
+        }

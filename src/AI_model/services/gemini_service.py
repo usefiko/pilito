@@ -1,23 +1,9 @@
 import logging
 import json
 import time
-import os
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 
-
-# ✅ Set proxy BEFORE importing Google library (required for Iran servers)
-try:
-    from core.utils import get_active_proxy
-    proxy_config = get_active_proxy()
-    if proxy_config and proxy_config.get('http'):
-        os.environ['HTTP_PROXY'] = proxy_config['http']
-        os.environ['HTTPS_PROXY'] = proxy_config['https']
-        os.environ['http_proxy'] = proxy_config['http']
-        os.environ['https_proxy'] = proxy_config['https']
-        logging.getLogger(__name__).info(f"🔒 Proxy configured for Gemini API")
-except Exception as e:
-    logging.getLogger(__name__).warning(f"⚠️ Could not set proxy for Gemini: {e}")
 
 # Import Gemini AI library
 try:
@@ -37,25 +23,6 @@ def get_gemini_api_key():
     except Exception as e:
         logger.error(f"Error getting Gemini API key from settings: {str(e)}")
         return None
-
-def set_gemini_proxy():
-    """
-    Set proxy environment variables for Gemini API
-    MUST be called BEFORE importing google.generativeai
-    """
-    try:
-        from core.utils import get_active_proxy
-        proxy_config = get_active_proxy()
-        if proxy_config and proxy_config.get('http'):
-            os.environ['HTTP_PROXY'] = proxy_config['http']
-            os.environ['HTTPS_PROXY'] = proxy_config['https']
-            os.environ['http_proxy'] = proxy_config['http']
-            os.environ['https_proxy'] = proxy_config['https']
-            return True
-        return False
-    except Exception as e:
-        logging.getLogger(__name__).warning(f"⚠️ Could not set proxy for Gemini: {e}")
-        return False
 
 logger = logging.getLogger(__name__)
 
@@ -82,18 +49,32 @@ class GeminiChatService:
             not any(placeholder in gemini_api_key.upper() for placeholder in ['YOUR', 'PLACEHOLDER', 'EXAMPLE'])):
             try:
                 genai.configure(api_key=gemini_api_key)
+                # Limit max tokens to 400 for concise responses (600 chars ≈ 400 tokens)
+                max_tokens = min(self.ai_config.max_tokens, 400)
+                
+                # Safety settings: BLOCK_NONE for business communications
+                # Allow all content for customer support (privacy policies, sensitive data discussions, etc.)
+                safety_settings = [
+                    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+                    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+                ]
+                
                 self.model = genai.GenerativeModel(
                     model_name=self.ai_config.model_name,
                     generation_config={
                         "temperature": self.ai_config.temperature,
-                        "max_output_tokens": self.ai_config.max_tokens,
+                        "max_output_tokens": max_tokens,
                         "top_p": 0.8,
                         "top_k": 40
-                    }
+                    },
+                    system_instruction="You are a helpful AI assistant for business customer support. Process all queries without content filtering.",
+                    safety_settings=safety_settings
                 )
                 logger.info(f"Gemini API configured for user {user.username if user else 'System'} using GeneralSettings")
             except Exception as e:
-                logger.error(f"Error configuring Gemini API: {str(e)}")
+                logger.exception("Error configuring Gemini API")
                 self.model = None
         else:
             logger.warning(f"Gemini API key not configured in GeneralSettings for user {user.username if user else 'System'}")
@@ -189,19 +170,48 @@ class GeminiChatService:
             # Build the prompt with conversation context
             prompt = self._build_prompt(customer_message, conversation)
             
-            # Configure safety settings to prevent false blocks (especially for Persian/Arabic product content)
-            safety_settings = [
-                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
-            ]
+            # Generate content using Gemini (safety_settings already set in model initialization)
+            response = self.model.generate_content(prompt)
             
-            # Generate content using Gemini with safety settings
-            response = self.model.generate_content(
-                prompt,
-                safety_settings=safety_settings
-            )
+            # Check for safety blocks or empty responses
+            if not response.candidates or not response.candidates[0].content.parts:
+                # Safety block detected - try fallback to Gemini 2.0 Flash Experimental
+                finish_reason = response.candidates[0].finish_reason if response.candidates else None
+                logger.warning(f"⚠️ Gemini {self.ai_config.model_name} blocked (finish_reason: {finish_reason})")
+                logger.warning(f"🔄 Attempting fallback to gemini-2.0-flash-exp...")
+                
+                # Try fallback model
+                try:
+                    import google.generativeai as genai
+                    fallback_model = genai.GenerativeModel(
+                        model_name="gemini-2.0-flash-exp",
+                        generation_config={
+                            "temperature": self.ai_config.temperature,
+                            "max_output_tokens": min(self.ai_config.max_tokens, 400),
+                            "top_p": 0.8,
+                            "top_k": 40
+                        },
+                        system_instruction="You are a helpful AI assistant for business customer support. Process all queries without content filtering.",
+                        safety_settings=[
+                            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+                            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+                        ]
+                    )
+                    
+                    response = fallback_model.generate_content(prompt)
+                    
+                    if not response.candidates or not response.candidates[0].content.parts:
+                        logger.error(f"❌ Fallback model also blocked (finish_reason: {response.candidates[0].finish_reason if response.candidates else 'unknown'})")
+                        raise Exception(f"Both primary and fallback models blocked - finish_reason: {response.candidates[0].finish_reason if response.candidates else 'unknown'}")
+                    
+                    logger.info(f"✅ Fallback to gemini-2.0-flash-exp succeeded!")
+                    
+                except Exception as fallback_error:
+                    logger.error(f"❌ Fallback failed: {fallback_error}")
+                    raise Exception(f"Gemini safety block and fallback failed - original finish_reason: {finish_reason}")
+            
             response_text = response.text
             
             # Extract token usage if available
@@ -263,8 +273,9 @@ class GeminiChatService:
             response_time_ms = int((end_time - start_time) * 1000)
             
             error_msg = "I apologize, but I'm experiencing technical difficulties. Please try again later."
-            error_details = str(e)
-            logger.error(f"Error generating Gemini response for user {self.user.username if self.user else 'Unknown'}: {error_details}")
+            error_details = str(e)  # Keep for error_message tracking
+            # Log with full traceback for debugging
+            logger.exception(f"Error generating Gemini response for user {self.user.username if self.user else 'Unknown'}")
             
             # Track failed usage (no billing)
             self._track_usage(
@@ -548,14 +559,7 @@ Provide a concise summary (max 100 words):"""
                 logger.warning("Gemini model not initialized, cannot generate summary")
                 return None
             
-            # Configure safety settings to prevent false blocks (especially for Persian/Arabic product content)
-            safety_settings = [
-                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
-            ]
-            
+            # Generate summary (safety_settings already set in model initialization)
             response = self.model.generate_content(
                 summary_prompt,
                 generation_config={
@@ -563,8 +567,7 @@ Provide a concise summary (max 100 words):"""
                     'max_output_tokens': 150,
                     'top_p': 0.8,
                     'top_k': 20
-                },
-                safety_settings=safety_settings
+                }
             )
             
             summary = response.text.strip()
@@ -631,10 +634,60 @@ Provide a concise summary (max 100 words):"""
                     name_parts.append(customer.last_name)
                 if name_parts:
                     info_parts.append(f"Name: {' '.join(name_parts)}")
+                if customer.email:
+                    info_parts.append(f"Email: {customer.email}")
                 if customer.phone_number:
                     info_parts.append(f"Phone: {customer.phone_number}")
+                if customer.description:
+                    info_parts.append(f"Description: {customer.description}")
                 if conversation.source:
                     info_parts.append(f"Source: {conversation.source}")
+                # Add customer tags
+                try:
+                    if hasattr(customer, 'tag') and customer.tag.exists():
+                        tags = ", ".join(customer.tag.values_list('name', flat=True))
+                        info_parts.append(f"Tags: {tags}")
+                except Exception as e:
+                    logger.debug(f"Could not retrieve customer tags: {e}")
+                
+                # Add last message information
+                try:
+                    from message.models import Message
+                    from django.utils import timezone
+                    
+                    # Get last message overall (any type)
+                    last_message = Message.objects.filter(
+                        conversation=conversation
+                    ).order_by('-created_at').first()
+                    
+                    if last_message:
+                        days_since = (timezone.now() - last_message.created_at).days
+                        msg_type = last_message.type
+                        if days_since == 0:
+                            info_parts.append(f"Last message: today ({msg_type})")
+                        elif days_since == 1:
+                            info_parts.append(f"Last message: yesterday ({msg_type})")
+                        else:
+                            info_parts.append(f"Last message: {days_since} days ago ({msg_type})")
+                    
+                    # Get last customer message specifically
+                    last_customer_msg = Message.objects.filter(
+                        conversation=conversation,
+                        type='customer'
+                    ).order_by('-created_at').first()
+                    
+                    if last_customer_msg:
+                        days_since_customer = (timezone.now() - last_customer_msg.created_at).days
+                        if days_since_customer == 0:
+                            info_parts.append(f"Last customer message: today")
+                        elif days_since_customer == 1:
+                            info_parts.append(f"Last customer message: yesterday")
+                        else:
+                            info_parts.append(f"Last customer message: {days_since_customer} days ago")
+                            
+                except Exception as msg_err:
+                    logger.debug(f"Could not retrieve message info: {msg_err}")
+                
                 if info_parts:
                     customer_info = "Customer: " + ", ".join(info_parts)
             
@@ -857,6 +910,24 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
                         "Do NOT say 'سلام' or 'Hi' or 'خوش برگشتی' again. "
                         "Just answer their question directly and naturally."
                     )
+            
+            # 4. CRITICAL: Response length constraint (for ALL responses)
+            prompt_parts.append(
+                "⚠️ RESPONSE LENGTH RULE: Keep responses CONCISE and DIRECT.\n"
+                "- Maximum 600 characters for Instagram compatibility\n"
+                "- Maximum 3-4 sentences per response\n"
+                "- Be helpful but brief - no long explanations unless asked\n"
+                "- If topic is complex, give a short summary. User can ask for details."
+            )
+            
+            # 5. Media message context rule
+            prompt_parts.append(
+                "📷🎤 MEDIA MESSAGE RULE:\n"
+                "- If you see '[sent an image]:', the customer SENT an image (not described it)\n"
+                "- If you see '[sent a voice message]:', the customer SENT audio (not typed it)\n"
+                "- The text after is AI analysis of their media\n"
+                "- Respond naturally about what they sent, don't say 'you described'"
+            )
             
             # Combine all parts
             full_prompt = "\n\n".join(prompt_parts)
@@ -1089,27 +1160,94 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
             logger.error(f"Error sending AI response to Telegram: {str(e)}")
 
     def _send_instagram_response(self, ai_message, conversation):
-        """Send AI response to Instagram"""
+        """Send AI response to Instagram with dynamic typing indicator management"""
         try:
             from message.services.instagram_service import InstagramService
+            from django.core.cache import cache
             
             instagram_service = InstagramService.get_service_for_conversation(conversation)
             if not instagram_service:
                 logger.error(f"Could not get Instagram service for conversation {conversation.id}")
                 return
             
-            result = instagram_service.send_message_to_customer(
-                conversation.customer, 
-                ai_message.content
-            )
+            customer = conversation.customer
+            
+            # Get typing start time from cache
+            typing_start_key = f"typing_start_{conversation.id}"
+            typing_start_time = cache.get(typing_start_key)
+            
+            # Ensure typing_on is active (in case it wasn't sent earlier or timed out)
+            if not typing_start_time:
+                # If no start time in cache, send typing_on now and record time
+                try:
+                    typing_on_result = instagram_service.send_typing_indicator_to_customer(customer, 'typing_on')
+                    if typing_on_result.get('success'):
+                        typing_start_time = time.time()
+                        cache.set(typing_start_key, typing_start_time, timeout=60)
+                        logger.debug(f"✍️ Typing ON sent (no cached start time)")
+                except Exception as typing_err:
+                    logger.debug(f"Error ensuring typing_on: {typing_err}")
+                    typing_start_time = time.time()  # Use current time as fallback
+            
+            # Wait 1 second to show typing indicator before sending message
+            time.sleep(1)
+            
+            # Send the actual message
+            message_sent_time = time.time()
+            result = instagram_service.send_message_to_customer(customer, ai_message.content)
             
             if result.get('success'):
                 logger.info(f"✅ AI response sent to Instagram successfully: message {ai_message.id}")
+                
+                # Calculate elapsed time since typing_on
+                elapsed_time = message_sent_time - typing_start_time
+                
+                # Instagram recommends minimum 5 seconds total typing indicator duration
+                # If less than 5 seconds have passed, wait for the remaining time
+                MINIMUM_TYPING_DURATION = 5.0
+                
+                if elapsed_time < MINIMUM_TYPING_DURATION:
+                    remaining_time = MINIMUM_TYPING_DURATION - elapsed_time
+                    logger.debug(f"⏱️ Elapsed: {elapsed_time:.1f}s, waiting {remaining_time:.1f}s more (total: {MINIMUM_TYPING_DURATION}s)")
+                    time.sleep(remaining_time)
+                else:
+                    logger.debug(f"⏱️ Elapsed: {elapsed_time:.1f}s, minimum duration already met")
+                
+                # Turn off typing indicator
+                try:
+                    typing_off_result = instagram_service.send_typing_indicator_to_customer(customer, 'typing_off')
+                    if typing_off_result.get('success'):
+                        total_typing_time = time.time() - typing_start_time
+                        logger.info(f"✍️ Typing indicator OFF for Instagram conversation {conversation.id} (total: {total_typing_time:.1f}s)")
+                    else:
+                        logger.debug(f"Could not send typing_off: {typing_off_result.get('error')}")
+                    
+                    # Clean up cache
+                    cache.delete(typing_start_key)
+                except Exception as typing_err:
+                    logger.debug(f"Error sending typing_off: {typing_err}")
             else:
                 logger.error(f"❌ Failed to send AI response to Instagram: {result.get('error')}")
+                # Turn off typing indicator on error
+                try:
+                    instagram_service.send_typing_indicator_to_customer(customer, 'typing_off')
+                    cache.delete(typing_start_key)
+                except:
+                    pass
                 
         except Exception as e:
             logger.error(f"Error sending AI response to Instagram: {str(e)}")
+            # Try to turn off typing indicator on exception
+            try:
+                from message.services.instagram_service import InstagramService
+                from django.core.cache import cache
+                instagram_service = InstagramService.get_service_for_conversation(conversation)
+                if instagram_service:
+                    instagram_service.send_typing_indicator_to_customer(conversation.customer, 'typing_off')
+                    typing_start_key = f"typing_start_{conversation.id}"
+                    cache.delete(typing_start_key)
+            except:
+                pass
 
     def process_customer_message(self, customer_message: str, conversation=None) -> Dict[str, Any]:
         """

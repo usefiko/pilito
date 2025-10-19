@@ -12,7 +12,6 @@ from settings.models import InstagramChannel
 from settings.serializers import InstagramChannelSerializer
 from message.models import Customer, Conversation, Message
 from message.websocket_utils import notify_new_customer_message
-from core.utils import make_request_with_proxy
 
 logger = logging.getLogger(__name__)
 VERIFY_TOKEN = '123456'
@@ -27,15 +26,15 @@ class InstaWebhook(APIView):
         token = self.request.query_params.get('hub.verify_token')
         challenge = self.request.query_params.get('hub.challenge')
         
-        logger.info(f"Instagram webhook verification - mode: {mode}, token: {token}, challenge: {challenge}")
+        logger.info(f"Instagram webhook verification - mode: {mode}, token: {token}")
         
         if mode == 'subscribe' and token == VERIFY_TOKEN:
-            logger.info("✅ Instagram webhook verification successful")
-            # Instagram expects the challenge as PLAIN TEXT (no JSON, no quotes)
-            return HttpResponse(challenge or '', content_type='text/plain')
+            logger.info("Instagram webhook verification successful")
+            # Instagram expects the challenge as plain text response
+            return Response(challenge or '', content_type='text/plain')
         
-        logger.warning("❌ Invalid Instagram webhook verification token")
-        return HttpResponse('Invalid verification token', status=403, content_type='text/plain')
+        logger.warning("Invalid Instagram webhook verification token")
+        return Response('Invalid verification token', status=403)
     
     def post(self, *args, **kwargs):
         """Instagram webhook message handler"""
@@ -114,8 +113,7 @@ class InstaWebhook(APIView):
                 'access_token': access_token
             }
             
-            # ✅ Instagram Graph API with automatic fallback proxy (shorter timeout for speed)
-            response = make_request_with_proxy('get', url, params=params, timeout=5)
+            response = requests.get(url, params=params, timeout=10)
             
             if response.status_code == 200:
                 user_data = response.json()
@@ -159,7 +157,7 @@ class InstaWebhook(APIView):
                 return None
                 
             logger.info(f"📸 Downloading Instagram profile picture for user {user_id} from: {picture_url}")
-            response = make_request_with_proxy('get', picture_url, timeout=5)
+            response = requests.get(picture_url, timeout=15)
             response.raise_for_status()
             
             if response.status_code == 200:
@@ -234,8 +232,7 @@ class InstaWebhook(APIView):
                 'access_token': short_lived_token
             }
             
-            # ✅ Token exchange with automatic fallback proxy
-            response = make_request_with_proxy('get', url, params=params, timeout=10)
+            response = requests.get(url, params=params, timeout=10)
             
             if response.status_code == 200:
                 data = response.json()
@@ -270,8 +267,7 @@ class InstaWebhook(APIView):
                 'access_token': current_token
             }
             
-            # ✅ Token refresh with automatic fallback proxy
-            response = make_request_with_proxy('get', url, params=params, timeout=10)
+            response = requests.get(url, params=params, timeout=10)
             
             if response.status_code == 200:
                 data = response.json()
@@ -339,7 +335,7 @@ class InstaWebhook(APIView):
                 return None
                 
             logger.info(f"📸 Downloading Instagram profile picture for user {user_id} from: {picture_url}")
-            response = make_request_with_proxy('get', picture_url, timeout=5)
+            response = requests.get(picture_url, timeout=15)
             response.raise_for_status()
             
             if response.status_code == 200:
@@ -372,10 +368,35 @@ class InstaWebhook(APIView):
             timestamp = messaging.get('timestamp')
             message = messaging.get('message', {})
             
-            # فقط پیام‌هایی که متن دارند را پردازش کن
+            # Detect message type (text, image, voice, etc.)
             message_text = message.get('text')
-            if not message_text:
-                logger.info("Ignoring non-text message")
+            attachments = message.get('attachments', [])
+            
+            message_type = 'text'
+            media_url = None
+            placeholder_text = None
+            
+            # Check for image attachment
+            if attachments:
+                # Instagram sends attachments as array
+                for attachment in attachments:
+                    attach_type = attachment.get('type')
+                    if attach_type == 'image':
+                        message_type = 'image'
+                        media_url = attachment.get('payload', {}).get('url')
+                        placeholder_text = "[Image]"
+                        logger.info(f"📸 Image message received from {sender_id}")
+                        break
+                    elif attach_type in ['audio', 'voice']:
+                        message_type = 'voice'
+                        media_url = attachment.get('payload', {}).get('url')
+                        placeholder_text = "[Voice Message]"
+                        logger.info(f"🎤 Voice message received from {sender_id}")
+                        break
+            
+            # If no text and no supported attachment, ignore
+            if not message_text and not media_url:
+                logger.info("Ignoring unsupported message type")
                 return None
             
             logger.info(f"Processing message from {sender_id} to {recipient_id}: {message_text}")
@@ -432,8 +453,7 @@ class InstaWebhook(APIView):
                                     'fields': 'id,username',
                                     'access_token': candidate.access_token
                                 }
-                                # ✅ Auto-match with automatic fallback proxy
-                                resp = make_request_with_proxy('get', url, params=params, timeout=10)
+                                resp = requests.get(url, params=params, timeout=10)
                                 if resp.status_code != 200:
                                     continue
                                 data = resp.json() if resp.content else {}
@@ -475,22 +495,12 @@ class InstaWebhook(APIView):
                 }
             
             # Fetch detailed user information from Instagram Graph API
-            # ⚡ Make this non-blocking: use basic info first, enrich profile later via Celery task
             user_details = {}
-            profile_pic_url = None
-            
-            try:
-                if channel.access_token:
-                    logger.info(f"🔍 Attempting to fetch detailed user info for sender {sender_id}")
-                    user_details = self._get_instagram_user_details(sender_id, channel.access_token)
-                    if user_details:
-                        logger.info(f"✅ Successfully fetched user details")
-                    else:
-                        logger.info(f"⚠️ User details fetch returned empty, will use basic info")
-                else:
-                    logger.warning(f"⚠️ No access token available for channel {channel.username}, using basic info")
-            except Exception as fetch_error:
-                logger.warning(f"⚠️ Non-blocking profile fetch failed (will use defaults): {fetch_error}")
+            if channel.access_token:
+                logger.info(f"🔍 Fetching detailed user info for sender {sender_id}")
+                user_details = self._get_instagram_user_details(sender_id, channel.access_token)
+            else:
+                logger.warning(f"⚠️ No access token available for channel {channel.username}, using basic info")
             
             # Extract user information - use API data if available, fallback to webhook data
             if user_details:
@@ -537,22 +547,22 @@ class InstaWebhook(APIView):
                 logger.info(f"📋 Using webhook data - First: {first_name}, Last: {last_name}")
             
             # Prepare potential profile image
-            # ⚡ Non-blocking: try to fetch profile picture, but don't fail if it times out
             customer_profile_image = None
             
+            # Download and save profile picture if available
             if profile_pic_url:
+                logger.info(f"🔍 Downloading Instagram profile picture for user {sender_id}")
                 try:
-                    logger.info(f"🔍 Attempting quick download of profile picture for user {sender_id}")
                     profile_image = self._download_profile_picture(profile_pic_url, sender_id)
                     if profile_image:
                         customer_profile_image = profile_image
-                        logger.info(f"✅ Profile picture downloaded successfully")
+                        logger.info(f"✅ Instagram profile picture downloaded for user {sender_id}")
                     else:
-                        logger.info(f"⚠️ Profile picture download returned None (will use default)")
+                        logger.info(f"📷 Failed to download Instagram profile picture for user {sender_id}")
                 except Exception as e:
-                    logger.warning(f"⚠️ Non-blocking profile picture download failed (will use default): {e}")
+                    logger.error(f"❌ Error downloading Instagram profile picture for {sender_id}: {e}")
             else:
-                logger.info(f"📷 No profile picture URL available (will use default avatar)")
+                logger.info(f"📷 No Instagram profile picture available for user {sender_id}")
 
             # Create or update Customer but PRESERVE manual edits
             customer, created = Customer.objects.get_or_create(
@@ -670,17 +680,43 @@ class InstaWebhook(APIView):
             # Always update conversation's updated_at field
             conversation.save(update_fields=['updated_at'])
 
-            # Create Message (مشابه Telegram)
-            message_obj = Message.objects.create(
-                content=message_text, 
-                conversation=conversation, 
-                customer=customer,
-                type='customer'
-            )
-            logger.info(f"Message created: {message_obj}")
-
-            # Notify WebSocket consumers about new customer message
-            notify_new_customer_message(message_obj)
+            # Create Message based on type
+            if message_type == 'text':
+                message_obj = Message.objects.create(
+                    content=message_text, 
+                    conversation=conversation, 
+                    customer=customer,
+                    type='customer',
+                    message_type='text',
+                    processing_status='completed'
+                )
+                logger.info(f"✅ Text message created: {message_obj.id}")
+                
+                # Notify WebSocket only for text
+                notify_new_customer_message(message_obj)
+                
+            else:
+                # Image or Voice message
+                message_obj = Message.objects.create(
+                    content=placeholder_text,
+                    conversation=conversation,
+                    customer=customer,
+                    type='customer',
+                    message_type=message_type,
+                    media_url=media_url,  # Instagram provides direct URL
+                    processing_status='pending'
+                )
+                logger.info(f"✅ {message_type.capitalize()} message created (pending): {message_obj.id}")
+                
+                # Queue async processing
+                if message_type == 'image':
+                    from message.tasks_instagram_media import process_instagram_image
+                    logger.info(f"📤 Queueing Instagram image processing for {message_obj.id}")
+                    process_instagram_image.delay(str(message_obj.id), media_url, channel.access_token)
+                elif message_type == 'voice':
+                    from message.tasks_instagram_media import process_instagram_voice
+                    logger.info(f"📤 Queueing Instagram voice processing for {message_obj.id}")
+                    process_instagram_voice.delay(str(message_obj.id), media_url, channel.access_token)
 
             # Return detailed response with enhanced customer data
             return {
@@ -854,8 +890,7 @@ class InstaChannelAutoFixIDsAPIView(APIView):
                         'fields': 'id,username',
                         'access_token': channel.access_token
                     }
-                    # ✅ Auto-fix with automatic fallback proxy
-                    resp = make_request_with_proxy('get', url, params=params, timeout=15)
+                    resp = requests.get(url, params=params, timeout=15)
                     if resp.status_code != 200:
                         return {
                             'id': channel.id,
