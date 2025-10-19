@@ -856,13 +856,14 @@ class ConversationListConsumer(AsyncWebsocketConsumer):
                     return
         
         self.user_group_name = f'user_{self.user.id}_conversations'
-        logger.debug(f"User {self.user.id} connecting to conversation list")
+        logger.info(f"👤 User {self.user.id} connecting to conversation list - channel: {self.channel_name}")
         
         # 🔒 Check if user already has an active connection to conversation list
         # If yes, close old connections to prevent duplicate refresh loops
         from django.core.cache import cache
         user_connection_key = f"ws_conversations_{self.user.id}"
         old_channel = cache.get(user_connection_key)
+        logger.info(f"🔍 Cache check for {user_connection_key}: old_channel={old_channel}, current_channel={self.channel_name}")
         
         if old_channel and old_channel != self.channel_name:
             logger.info(f"User {self.user.id} reconnecting to conversation list, closing old connection")
@@ -1255,12 +1256,17 @@ class ConversationListConsumer(AsyncWebsocketConsumer):
                 'timestamp': timezone.now().isoformat()
             }))
         except Exception as e:
+            import traceback
             logger.error(f"Error sending conversations to user {self.user.id}: {e}")
-            await self.send(text_data=json.dumps({
-                'type': 'error',
-                'message': 'Failed to load conversations',
-                'timestamp': timezone.now().isoformat()
-            }))
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            try:
+                await self.send(text_data=json.dumps({
+                    'type': 'error',
+                    'message': 'Failed to load conversations',
+                    'timestamp': timezone.now().isoformat()
+                }))
+            except Exception as send_error:
+                logger.error(f"Could not send error message: {send_error}")
 
     @database_sync_to_async
     def get_conversation_filter_options(self):
@@ -1483,13 +1489,14 @@ class CustomerListConsumer(AsyncWebsocketConsumer):
                     return
         
         self.user_group_name = f'user_{self.user.id}_customers'
-        logger.debug(f"User {self.user.id} connecting to customer list")
+        logger.info(f"👤 User {self.user.id} connecting to customer list - channel: {self.channel_name}")
         
         # 🔒 Check if user already has an active connection to customer list
         # If yes, close old connections to prevent duplicate refresh loops
         from django.core.cache import cache
         user_connection_key = f"ws_customers_{self.user.id}"
         old_channel = cache.get(user_connection_key)
+        logger.info(f"🔍 Cache check for {user_connection_key}: old_channel={old_channel}, current_channel={self.channel_name}")
         
         if old_channel and old_channel != self.channel_name:
             logger.info(f"User {self.user.id} reconnecting to customer list, closing old connection")
@@ -1905,12 +1912,17 @@ class CustomerListConsumer(AsyncWebsocketConsumer):
                 'timestamp': timezone.now().isoformat()
             }))
         except Exception as e:
+            import traceback
             logger.error(f"Error sending customers to user {self.user.id}: {e}")
-            await self.send(text_data=json.dumps({
-                'type': 'error',
-                'message': 'Failed to load customers',
-                'timestamp': timezone.now().isoformat()
-            }))
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            try:
+                await self.send(text_data=json.dumps({
+                    'type': 'error',
+                    'message': 'Failed to load customers',
+                    'timestamp': timezone.now().isoformat()
+                }))
+            except Exception as send_error:
+                logger.error(f"Could not send error message: {send_error}")
 
     @database_sync_to_async
     def get_filter_options(self):
