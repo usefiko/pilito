@@ -23,7 +23,7 @@ def send_email_confirmation(user):
         token.save()  # This will regenerate code and expiry
     
     # Email subject and message
-    subject = 'Email Confirmation - Fiko'
+    subject = 'تایید ایمیل - Pilito'
     
     # Convert code to individual digits for template
     confirmation_code = list(str(token.code))
@@ -37,21 +37,21 @@ def send_email_confirmation(user):
     
     # Plain text version
     plain_message = f"""
-    Welcome to Fiko!
+    به Pilito خوش آمدید!
     
-    Hello {user.first_name or user.email},
+    سلام {user.first_name or user.email}،
     
-    Thank you for signing up! Please use the confirmation code below to verify your email address:
+    از اینکه ثبت‌نام کردید متشکریم! لطفاً از کد تایید زیر برای تایید آدرس ایمیل خود استفاده کنید:
     
-    Confirmation Code: {token.code}
+    کد تایید: {token.code}
     
-    Important:
-    - This code will expire in 15 minutes
-    - Enter this code in the app to complete your registration
-    - If you didn't create an account, please ignore this email
+    نکات مهم:
+    - این کد ۱۵ دقیقه اعتبار دارد
+    - این کد را در اپلیکیشن وارد کنید تا ثبت‌نام تکمیل شود
+    - اگر حساب کاربری ایجاد نکردید، این ایمیل را نادیده بگیرید
     
-    This is an automated message from Fiko.
-    If you need help, contact us at support@pilito.com
+    این یک پیام خودکار از Pilito است.
+    برای راهنمایی با ما تماس بگیرید: support@pilito.com
     """
     
     try:

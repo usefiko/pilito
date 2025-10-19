@@ -126,50 +126,47 @@
     </style> -->
     {% load static %}
   </head>
-  <body style="margin:0; padding:20px; color:#57564f; font-family:Helvetica, Arial, sans-serif; background-color:#09001b; background-image:url('{% static 'email_assets/bg.jpg' %}'); background-repeat:no-repeat; background-position:center bottom;">
+  <body style="margin:0; padding:20px; color:#57564f; font-family:Helvetica, Arial, sans-serif; background-color:#09001b;">
     <div class="container" style="display: block; max-width: 500px; margin: 40px auto 20px; background: #ffffff; border-radius: 12px; padding: 30px; text-align: center;">
-      <img src="{% static 'email_assets/logo.png' %}" alt="Fiko" style="height:40px; width:auto; margin:30px auto; display:block;" />
-      <h1 style="font-size: 24px; margin: 20px 0; color: #57564f;">Confirm Your Email Address</h1>
+      <img src="https://api.pilito.com/static/email_assets/logo.png" alt="Pilito" style="height:40px; width:auto; margin:30px auto; display:block;" />
+      <h1 style="font-size: 24px; margin: 20px 0; color: #57564f;">تایید آدرس ایمیل</h1>
       <p style="font-size: 13px; margin: 10px auto 20px; color: #57564f;">
-        Hi <strong>{{ user_email }}</strong>, thank you for joining us.
-        To complete your registration, please enter the confirmation code below:
+        سلام <strong>{{ user_email }}</strong>، از اینکه به ما پیوستید خوشحالیم.
+        برای تکمیل ثبت‌نام، لطفاً کد تایید زیر را وارد کنید:
       </p>
       <div style="display:block; text-align:center; margin:10px 0 20px 0;">
         {% for digit in confirmation_code %}<span id="{{ forloop.counter }}" style="display:inline-block; width:36px; height:40px; line-height:40px; text-align:center; font-size:20px; font-weight:700; color:#57564f; border:1px solid #e9ecef; border-radius:10px; margin:0 4px;">{{ digit }}</span>{% endfor %}
       </div>
-      <div class="important" style="background-color: #f1e4ff; border-radius: 12px; padding: 10px 26px; text-align: left; color: #7b1979; margin: 30px 10px;">
-        <p style="color: #7b1979; font-weight: 700; margin: 0 0 10px 0;">Important:</p>
-        <ul>
-          <li style="font-size: 12px; color: #7b1979; padding: 2px 0;">This code will expire in 15 minutes</li>
-          <li style="font-size: 12px; color: #7b1979; padding: 2px 0;">Enter this code in the app to complete your registration</li>
-          <li style="font-size: 12px; color: #7b1979; padding: 2px 0;">If you didn't create an account, please ignore this email</li>
+      <div class="important" style="background-color: #f1e4ff; border-radius: 12px; padding: 10px 26px; text-align: right; color: #7b1979; margin: 30px 10px;">
+        <p style="color: #7b1979; font-weight: 700; margin: 0 0 10px 0;">نکات مهم:</p>
+        <ul style="margin: 0; padding-right: 20px; color: #7b1979; text-align: right; list-style-position: inside;">
+          <li style="font-size: 12px; color: #7b1979; padding: 2px 0;">این کد ۱۵ دقیقه اعتبار دارد</li>
+          <li style="font-size: 12px; color: #7b1979; padding: 2px 0;">این کد را در اپلیکیشن وارد کنید تا ثبت‌نام تکمیل شود</li>
+          <li style="font-size: 12px; color: #7b1979; padding: 2px 0;">اگر حساب کاربری ایجاد نکردید، این ایمیل را نادیده بگیرید</li>
         </ul>
       </div>
     </div>
     <div style="max-width: 500px; margin: 0 auto 20px; text-align: center;">
       <div class="media" style="display: inline-block; width: 30px; height: 30px; background-color: white; padding: 5px; border-radius: 50%; margin: 0 5px;">
         <a href="https://www.facebook.com/fikoapp" target="_blank">
-          <img style="width: 100%; height: 100%;" src="{% static 'email_assets/facebook.png' %}" />
+          <img style="width: 100%; height: 100%;" src="https://api.pilito.com/static/email_assets/facebook.svg" />
         </a>
       </div>
       
       <div class="media" style="display: inline-block; width: 30px; height: 30px; background-color: white; padding: 5px; border-radius: 50%; margin: 0 5px;">
-        <a
-          href="https://www.instagram.com/accounts/suspended/?next=https%3A%2F%2Fwww.instagram.com%2Ffikoapp%2F%3F__coig_ufac%3D1"
-          target="_blank"
-        >
-          <img style="width: 100%; height: 100%;" src="{% static 'email_assets/instagram.png' %}" />
+        <a href="https://www.instagram.com/fikoapp" target="_blank">
+          <img style="width: 100%; height: 100%;" src="https://api.pilito.com/static/email_assets/instagram.svg" />
         </a>
       </div>
       <div class="media" style="display: inline-block; width: 30px; height: 30px; background-color: white; padding: 5px; border-radius: 50%; margin: 0 5px;">
         <a href="https://t.me/Fikoapp" target="_blank">
-          <img style="width: 100%; height: 100%;" src="{% static 'email_assets/telegram.png' %}" />
+          <img style="width: 100%; height: 100%;" src="https://api.pilito.com/static/email_assets/telegram.svg" />
         </a>
       </div>
     </div>
-    <p style="font-size: 11px; color: #dcdcdc; text-align: center; margin: 10px 0;">This is an automated message from pilito.com</p>
+    <p style="font-size: 11px; color: #dcdcdc; text-align: center; margin: 10px 0;">این یک پیام خودکار از pilito.com است</p>
     <p style="font-size: 11px; color: #dcdcdc; text-align: center; margin: 10px 0;">
-      If you need help, contact us at <a href="mailto:support@pilito.com" style="color: #dcdcdc; font-size: 11px;">support@pilito.com</a>
+      برای راهنمایی با ما تماس بگیرید: <a href="mailto:support@pilito.com" style="color: #dcdcdc; font-size: 11px;">support@pilito.com</a>
     </p>
   </body>
 </html>

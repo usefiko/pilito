@@ -44,7 +44,7 @@ class ForgetPasswordAPIView(APIView):
                 reset_link = f"{frontend_url}/auth/reset-password?token={reset_token.token}"
                 
                 # Send email
-                subject = "Password Reset Request - Fiko"
+                subject = "درخواست بازیابی رمز عبور - Pilito"
                 
                 # Render HTML email template
                 html_message = render_to_string('emails/password_reset.html', {
@@ -54,20 +54,20 @@ class ForgetPasswordAPIView(APIView):
                 
                 # Plain text version for email clients that don't support HTML
                 plain_message = f"""
-Hello {user.first_name or user.username},
+سلام {user.first_name or user.username}،
 
-You have requested to reset your password for your Fiko account.
+شما درخواست بازیابی رمز عبور حساب کاربری خود را داده‌اید.
 
-Reset your password by clicking this link:
+برای تغییر رمز عبور روی این لینک کلیک کنید:
 {reset_link}
 
-Important:
-- This link will expire in 1 hour
-- You can only use this link once
-- If you didn't request this, please ignore this email
+نکات مهم:
+- این لینک یک ساعت اعتبار دارد
+- این لینک فقط یک بار قابل استفاده است
+- اگر درخواست بازیابی نداشتید، این ایمیل را نادیده بگیرید
 
-This is an automated message from Fiko.
-If you need help, contact us at support@pilito.com
+این یک پیام خودکار از Pilito است.
+برای راهنمایی با ما تماس بگیرید: support@pilito.com
                 """
                 
                 try:
