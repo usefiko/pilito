@@ -2,6 +2,9 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.template.loader import render_to_string
 from accounts.models.user import EmailConfirmationToken
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def send_email_confirmation(user):
@@ -52,6 +55,9 @@ def send_email_confirmation(user):
     """
     
     try:
+        logger.info(f"Attempting to send email confirmation to {user.email}")
+        logger.info(f"Using SMTP settings - Host: {settings.EMAIL_HOST}, Port: {settings.EMAIL_PORT}, From: {settings.DEFAULT_FROM_EMAIL}")
+        
         # Try to send email
         result = send_mail(
             subject=subject,
@@ -63,23 +69,32 @@ def send_email_confirmation(user):
         )
         
         if result > 0:
+            logger.info(f"✅ Email successfully sent to {user.email}. Result: {result}")
             return True, token.code
         else:
+            logger.warning(f"⚠️ Email sending returned 0 for {user.email}")
             return False, "Email sending returned 0 (no emails sent)"
             
     except Exception as e:
-        # Log the detailed error
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.error(f"Email sending failed for user {user.email}: {str(e)}")
+        # Log the detailed error with full traceback
+        logger.error(f"❌ Email sending failed for user {user.email}: {str(e)}", exc_info=True)
+        logger.error(f"Error type: {type(e).__name__}")
         
         # Return detailed error information
         error_msg = str(e)
-        if "Authentication Credentials Invalid" in error_msg:
-            error_msg = "SMTP authentication failed. Please check AWS SES credentials and verify the sender email domain."
+        if "Authentication" in error_msg or "authentication" in error_msg.lower():
+            error_msg = f"SMTP authentication failed. Please check Liara credentials. Original error: {error_msg}"
+            logger.error(f"🔐 Authentication error detected")
         elif "550" in error_msg:
-            error_msg = "Email rejected by server. The sender email may not be verified in AWS SES."
+            error_msg = f"Email rejected by server. The sender email may not be verified in Liara. Original error: {error_msg}"
+            logger.error(f"📧 Email verification error detected")
         elif "timeout" in error_msg.lower():
-            error_msg = "Email server timeout. Please try again later."
+            error_msg = f"Email server timeout. Please try again later. Original error: {error_msg}"
+            logger.error(f"⏱️ Timeout error detected")
+        elif "Connection refused" in error_msg:
+            error_msg = f"Connection refused by SMTP server. Check host/port settings. Original error: {error_msg}"
+            logger.error(f"🔌 Connection refused error detected")
+        else:
+            logger.error(f"🔥 Unknown error: {error_msg}")
         
         return False, error_msg

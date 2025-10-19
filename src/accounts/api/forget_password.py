@@ -71,7 +71,10 @@ If you need help, contact us at support@pilito.com
                 """
                 
                 try:
-                    send_mail(
+                    logger.info(f"Attempting to send password reset email to {email}")
+                    logger.info(f"Using SMTP settings - Host: {settings.EMAIL_HOST}, Port: {settings.EMAIL_PORT}, From: {settings.DEFAULT_FROM_EMAIL}")
+                    
+                    result = send_mail(
                         subject=subject,
                         message=plain_message,
                         from_email=getattr(settings, 'DEFAULT_FROM_EMAIL_DISPLAY', 'Pilito <noreply@mail.pilito.com>'),
@@ -79,10 +82,24 @@ If you need help, contact us at support@pilito.com
                         html_message=html_message,
                         fail_silently=False,
                     )
-                    logger.info(f"Password reset email sent to {email}")
+                    
+                    logger.info(f"✅ Password reset email successfully sent to {email}. Result: {result}")
                     
                 except Exception as e:
-                    logger.error(f"Failed to send password reset email to {email}: {e}")
+                    logger.error(f"❌ Failed to send password reset email to {email}: {str(e)}", exc_info=True)
+                    logger.error(f"Error type: {type(e).__name__}")
+                    
+                    # Detailed error logging
+                    error_msg = str(e)
+                    if "Authentication" in error_msg or "authentication" in error_msg.lower():
+                        logger.error(f"🔐 SMTP Authentication error detected")
+                    elif "550" in error_msg:
+                        logger.error(f"📧 Email verification error - sender not verified in Liara")
+                    elif "timeout" in error_msg.lower():
+                        logger.error(f"⏱️ Timeout error detected")
+                    elif "Connection refused" in error_msg:
+                        logger.error(f"🔌 Connection refused by SMTP server")
+                    
                     return Response(
                         {"error": "Failed to send reset email. Please try again later."},
                         status=status.HTTP_500_INTERNAL_SERVER_ERROR
