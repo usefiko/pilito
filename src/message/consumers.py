@@ -403,17 +403,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
         }))
 
     async def close_connection(self, event):
-        """Handle duplicate connection - close this old connection gracefully"""
+        """Handle duplicate connection - close this old connection silently"""
         reason = event.get('reason', 'unknown')
-        logger.info(f"Closing connection {self.channel_name} due to: {reason}")
+        logger.info(f"Silently closing old connection {self.channel_name} due to: {reason}")
         
-        await self.send(text_data=json.dumps({
-            'type': 'connection_closed',
-            'reason': reason,
-            'message': 'Replaced by newer connection',
-            'timestamp': timezone.now().isoformat()
-        }))
-        
+        # 🔇 Don't send message to frontend - close silently to prevent refresh loop
+        # Frontend should not auto-reconnect when server closes duplicate connections
         await self.close(code=1000)  # Normal closure
 
     async def ai_message(self, event):
