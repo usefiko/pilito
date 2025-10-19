@@ -8,6 +8,7 @@ import json
 import logging
 import time
 import hashlib
+import requests
 from settings.models import InstagramChannel
 from message.models import Customer, Conversation, Message
 from django.contrib.auth import get_user_model
