@@ -8,7 +8,8 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 import os
 from urllib.parse import urlparse
-from core.utils import make_request_with_proxy
+import requests
+from core.utils import make_request_with_proxy, get_active_proxy
 
 
 class TeleBotAPIView(APIView):
