@@ -11,6 +11,7 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 
+
 # ============================================================================
 # USER SIGNALS - AIPrompts Auto-Creation
 # ============================================================================
@@ -127,3 +128,4 @@ def sync_message_to_intercom_on_create(sender, instance, created, **kwargs):
     
     from django.db import transaction
     transaction.on_commit(trigger_sync)
+
