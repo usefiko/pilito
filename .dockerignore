@@ -59,8 +59,8 @@ monitoring/grafana/
 monitoring/prometheus/
 *.pid
 
-# Scripts
-*.sh
+# Scripts (exclude management scripts but keep essential ones)
+# Keep: entrypoint.sh, start_celery_with_metrics.sh
 setup_*.sh
 fix_*.sh
 test_*.sh
