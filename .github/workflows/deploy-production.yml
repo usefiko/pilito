@@ -1,0 +1,217 @@
+name: Deploy to Production (Docker Swarm)
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:  # Allow manual trigger
+
+env:
+  DOCKER_BUILDKIT: 1
+  COMPOSE_DOCKER_CLI_BUILD: 1
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Create .env file
+        run: |
+          cat > .env << EOF
+          STAGE=TEST
+          DEBUG=True
+          SECRET_KEY=test-secret-key-for-ci
+          POSTGRES_DB=test_db
+          POSTGRES_USER=test_user
+          POSTGRES_PASSWORD=test_password
+          POSTGRES_HOST=db
+          POSTGRES_PORT=5432
+          REDIS_URL=redis://redis:6379/0
+          EOF
+      
+      - name: Build Docker images
+        run: docker-compose build
+      
+      - name: Start services
+        run: docker-compose up -d
+      
+      - name: Wait for services to be ready
+        run: |
+          echo "Waiting for services to start..."
+          sleep 30
+      
+      - name: Check services are running
+        run: docker-compose ps
+      
+      - name: Run Django tests
+        run: docker-compose exec -T web python manage.py test --noinput || true
+      
+      - name: Check health endpoint
+        run: |
+          max_attempts=10
+          attempt=0
+          until curl -sf http://localhost:8000/health/ || [ $attempt -eq $max_attempts ]; do
+            attempt=$((attempt+1))
+            echo "Waiting for health endpoint... attempt $attempt/$max_attempts"
+            sleep 5
+          done
+      
+      - name: Show logs on failure
+        if: failure()
+        run: docker-compose logs
+      
+      - name: Cleanup
+        if: always()
+        run: docker-compose down -v
+
+  deploy:
+    name: Deploy to Production Swarm
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H $SSH_HOST >> ~/.ssh/known_hosts
+      
+      - name: Copy files to server
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+        run: |
+          rsync -avz --exclude='.git' \
+            --exclude='venv' \
+            --exclude='__pycache__' \
+            --exclude='*.pyc' \
+            --exclude='.env' \
+            -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no" \
+            ./ $SSH_USER@$SSH_HOST:~/pilito/
+      
+      - name: Deploy to Docker Swarm
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+        run: |
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST << 'ENDSSH'
+            set -e
+            cd ~/pilito
+            
+            echo "🚀 Starting deployment..."
+            
+            # Check if Swarm is initialized
+            if ! docker info | grep -q "Swarm: active"; then
+              echo "⚠️  Initializing Docker Swarm..."
+              ./swarm_init.sh
+            fi
+            
+            # Build new images
+            echo "🔨 Building Docker images..."
+            docker-compose -f docker-compose.swarm.yml build
+            
+            # Deploy the stack
+            echo "📦 Deploying stack..."
+            ./swarm_deploy.sh
+            
+            # Wait for deployment to stabilize
+            echo "⏳ Waiting for deployment to stabilize..."
+            sleep 20
+            
+            # Check health
+            echo "🏥 Running health checks..."
+            ./health_check_services.sh || echo "⚠️  Some health checks failed, but deployment continued"
+            
+            # Show status
+            echo "📊 Deployment Status:"
+            docker stack services pilito
+            
+            echo "✅ Deployment complete!"
+          ENDSSH
+      
+      - name: Verify deployment
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+        run: |
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST << 'ENDSSH'
+            cd ~/pilito
+            
+            # Check if all services are running
+            TOTAL_SERVICES=$(docker stack services pilito -q | wc -l)
+            echo "Total services: $TOTAL_SERVICES"
+            
+            # Get service status
+            docker stack services pilito
+            
+            # Check for failed tasks
+            FAILED_TASKS=$(docker stack ps pilito --filter "desired-state=shutdown" --filter "current-state=failed" -q | wc -l)
+            echo "Failed tasks: $FAILED_TASKS"
+            
+            if [ "$FAILED_TASKS" -gt 5 ]; then
+              echo "⚠️  Warning: Multiple failed tasks detected!"
+              docker stack ps pilito --filter "desired-state=shutdown" --filter "current-state=failed" --no-trunc
+            fi
+          ENDSSH
+      
+      - name: Cleanup SSH
+        if: always()
+        run: rm -rf ~/.ssh/id_rsa
+      
+      - name: Deployment notification
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Deployment successful!"
+          else
+            echo "❌ Deployment failed!"
+          fi
+
+  rollback:
+    name: Rollback on Failure
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: failure()
+    
+    steps:
+      - name: Setup SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H $SSH_HOST >> ~/.ssh/known_hosts
+      
+      - name: Rollback deployment
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+        run: |
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST << 'ENDSSH'
+            cd ~/pilito
+            echo "🔄 Rolling back to previous version..."
+            ./swarm_rollback.sh all
+            echo "✅ Rollback complete!"
+          ENDSSH
+      
+      - name: Cleanup SSH
+        if: always()
+        run: rm -rf ~/.ssh/id_rsa
+

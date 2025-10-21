@@ -1,0 +1,461 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pilito_web:latest
+    command: gunicorn core.asgi:application -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000 --workers 2 --threads 4 --timeout 120 --max-requests 1000 --max-requests-jitter 50
+    working_dir: /app
+    volumes:
+      - ./src:/app
+      - static_volume:/app/static
+      - media_volume:/app/media
+    ports:
+      - target: 8000
+        published: 8000
+        mode: host
+    networks:
+      - pilito_network
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - RAPIDAPI_KEY=${RAPIDAPI_KEY}
+      - EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+      - EMAIL_HOST=smtp.c1.liara.email
+      - EMAIL_PORT=587
+      - EMAIL_USE_TLS=True
+      - EMAIL_USE_SSL=False
+      - EMAIL_HOST_USER=zen_torvalds_599nek
+      - EMAIL_HOST_PASSWORD=8d071fc6-a36c-43f1-9f09-b25bd408af87
+      - EMAIL_TIMEOUT=30
+      - DEFAULT_FROM_EMAIL=noreply@mail.pilito.com
+      - GOOGLE_OAUTH2_REDIRECT_URI=https://api.pilito.com/api/v1/usr/google/callback
+      - GOOGLE_OAUTH2_FRONTEND_REDIRECT=https://app.pilito.com/auth/success
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      mode: replicated
+      replicas: 3
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        monitor: 30s
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        delay: 5s
+        failure_action: pause
+        monitor: 30s
+        order: stop-first
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2048M
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+      placement:
+        constraints:
+          - node.role == worker
+        preferences:
+          - spread: node.id
+      labels:
+        - "com.pilito.service=web"
+        - "com.pilito.description=Django web application"
+
+  db:
+    image: pgvector/pgvector:pg15
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    networks:
+      - pilito_network
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    command: >
+      postgres -c shared_preload_libraries='vector' 
+      -c max_connections=200 
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c work_mem=2621kB
+      -c min_wal_size=1GB
+      -c max_wal_size=4GB
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2048M
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+      placement:
+        constraints:
+          - node.role == manager
+      labels:
+        - "com.pilito.service=database"
+        - "com.pilito.description=PostgreSQL with pgvector"
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru --save 60 1000 --appendonly yes
+    networks:
+      - pilito_network
+    ports:
+      - target: 6379
+        published: 6379
+        mode: host
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 768M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+      placement:
+        constraints:
+          - node.role == manager
+      labels:
+        - "com.pilito.service=cache"
+        - "com.pilito.description=Redis cache and message broker"
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pilito_web:latest
+    command: bash /start_celery_with_metrics.sh
+    working_dir: /app
+    volumes:
+      - ./src:/app
+      - ./start_celery_with_metrics.sh:/start_celery_with_metrics.sh
+      - media_volume:/app/media
+    networks:
+      - pilito_network
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - RAPIDAPI_KEY=${RAPIDAPI_KEY}
+    ports:
+      - target: 9808
+        published: 9808
+        mode: host
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A core inspect ping -d celery@$$HOSTNAME"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      mode: replicated
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 1536M
+        reservations:
+          cpus: '0.25'
+          memory: 512M
+      placement:
+        constraints:
+          - node.role == worker
+        preferences:
+          - spread: node.id
+      labels:
+        - "com.pilito.service=celery_worker"
+        - "com.pilito.description=Celery background workers"
+
+  celery_beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pilito_web:latest
+    command: celery -A core beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    working_dir: /app
+    volumes:
+      - ./src:/app
+    networks:
+      - pilito_network
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - RAPIDAPI_KEY=${RAPIDAPI_KEY}
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'celery.*beat' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+      placement:
+        constraints:
+          - node.role == manager
+      labels:
+        - "com.pilito.service=celery_beat"
+        - "com.pilito.description=Celery beat scheduler"
+
+  # Monitoring Stack
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml
+      - prometheus_data:/prometheus
+    networks:
+      - pilito_network
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    ports:
+      - target: 9090
+        published: 9090
+        mode: host
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1024M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+      placement:
+        constraints:
+          - node.role == manager
+      labels:
+        - "com.pilito.service=prometheus"
+        - "com.pilito.description=Metrics collection and monitoring"
+
+  grafana:
+    image: grafana/grafana:latest
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - pilito_network
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:3001
+      - GF_INSTALL_PLUGINS=redis-datasource
+    ports:
+      - target: 3000
+        published: 3001
+        mode: host
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+      placement:
+        constraints:
+          - node.role == manager
+      labels:
+        - "com.pilito.service=grafana"
+        - "com.pilito.description=Metrics visualization dashboard"
+
+  redis_exporter:
+    image: oliver006/redis_exporter:latest
+    command:
+      - '--redis.addr=redis://redis:6379'
+    networks:
+      - pilito_network
+    ports:
+      - target: 9121
+        published: 9121
+        mode: host
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9121/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 32M
+      placement:
+        constraints:
+          - node.role == manager
+      labels:
+        - "com.pilito.service=redis_exporter"
+        - "com.pilito.description=Redis metrics exporter"
+
+  postgres_exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable"
+    networks:
+      - pilito_network
+    ports:
+      - target: 9187
+        published: 9187
+        mode: host
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9187/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 32M
+      placement:
+        constraints:
+          - node.role == manager
+      labels:
+        - "com.pilito.service=postgres_exporter"
+        - "com.pilito.description=PostgreSQL metrics exporter"
+
+networks:
+  pilito_network:
+    driver: overlay
+    attachable: true
+    ipam:
+      config:
+        - subnet: 10.0.10.0/24
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  static_volume:
+    driver: local
+  media_volume:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+

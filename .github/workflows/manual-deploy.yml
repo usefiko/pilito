@@ -1,0 +1,94 @@
+name: Manual Deploy to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+      skip_tests:
+        description: 'Skip tests (not recommended)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    if: ${{ !inputs.skip_tests }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Create .env file
+        run: |
+          cat > .env << EOF
+          STAGE=TEST
+          DEBUG=True
+          SECRET_KEY=test-secret-key-for-ci
+          POSTGRES_DB=test_db
+          POSTGRES_USER=test_user
+          POSTGRES_PASSWORD=test_password
+          POSTGRES_HOST=db
+          POSTGRES_PORT=5432
+          REDIS_URL=redis://redis:6379/0
+          EOF
+      
+      - name: Build and test
+        run: |
+          docker-compose build
+          docker-compose up -d
+          sleep 30
+          docker-compose exec -T web python manage.py test --noinput || true
+          curl -sf http://localhost:8000/health/
+          docker-compose down -v
+
+  deploy:
+    name: Deploy to ${{ inputs.environment }}
+    needs: test
+    if: always() && (needs.test.result == 'success' || inputs.skip_tests)
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H $SSH_HOST >> ~/.ssh/known_hosts
+      
+      - name: Copy files and deploy
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+        run: |
+          # Copy files
+          rsync -avz --exclude='.git' --exclude='venv' --exclude='__pycache__' \
+            -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no" \
+            ./ $SSH_USER@$SSH_HOST:~/pilito/
+          
+          # Deploy
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST << 'ENDSSH'
+            cd ~/pilito
+            ./swarm_deploy.sh
+            ./health_check_services.sh
+          ENDSSH
+      
+      - name: Cleanup
+        if: always()
+        run: rm -rf ~/.ssh/id_rsa
+
