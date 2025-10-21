@@ -26,6 +26,22 @@ ERROR: "/entrypoint.sh": not found
 **Files Updated**:
 - `.dockerignore`
 
+---
+
+## Issue 3: GitHub Secrets Not Found
+Workflow was failing with empty secrets:
+```
+SSH_PRIVATE_KEY: 
+SSH_HOST: 
+SSH_USER: 
+```
+
+**Fix**: ✅ Updated workflows to use existing secret names (`VPS_SSH_PRIVATE_KEY`, `VPS_HOST`, `VPS_USER`)
+
+**Files Updated**:
+- `.github/workflows/deploy-production.yml`
+- `.github/workflows/manual-deploy.yml`
+
 ## Next Steps
 
 ### 1. Commit and Push These Changes
