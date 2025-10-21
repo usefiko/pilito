@@ -43,12 +43,12 @@ jobs:
       
       - name: Build and test
         run: |
-          docker-compose build
-          docker-compose up -d
+          docker compose build
+          docker compose up -d
           sleep 30
-          docker-compose exec -T web python manage.py test --noinput || true
+          docker compose exec -T web python manage.py test --noinput || true
           curl -sf http://localhost:8000/health/
-          docker-compose down -v
+          docker compose down -v
 
   deploy:
     name: Deploy to ${{ inputs.environment }}

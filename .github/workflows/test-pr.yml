@@ -34,10 +34,10 @@ jobs:
           EOF
       
       - name: Build Docker images
-        run: docker-compose build
+        run: docker compose build
       
       - name: Start services
-        run: docker-compose up -d
+        run: docker compose up -d
       
       - name: Wait for services to be ready
         run: |
@@ -45,13 +45,13 @@ jobs:
           sleep 30
       
       - name: Check services are running
-        run: docker-compose ps
+        run: docker compose ps
       
       - name: Run Django tests
-        run: docker-compose exec -T web python manage.py test --noinput || true
+        run: docker compose exec -T web python manage.py test --noinput || true
       
       - name: Check migrations
-        run: docker-compose exec -T web python manage.py makemigrations --check --dry-run
+        run: docker compose exec -T web python manage.py makemigrations --check --dry-run
       
       - name: Check health endpoint
         run: |
@@ -68,15 +68,15 @@ jobs:
           echo "Health check response: $response"
       
       - name: Run Django check
-        run: docker-compose exec -T web python manage.py check
+        run: docker compose exec -T web python manage.py check
       
       - name: Show logs on failure
         if: failure()
-        run: docker-compose logs
+        run: docker compose logs
       
       - name: Cleanup
         if: always()
-        run: docker-compose down -v
+        run: docker compose down -v
   
   lint:
     name: Code Quality

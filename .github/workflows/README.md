@@ -66,6 +66,13 @@ To switch to **deploy-production.yml** (Docker Swarm):
 
 ---
 
+## Recent Updates
+
+### Docker Compose V2 Fix
+All workflows updated to use `docker compose` (V2) instead of `docker-compose` (V1) for compatibility with GitHub Actions runners.
+
+---
+
 ## Documentation
 
 See [AUTOMATED_DEPLOYMENT.md](../../AUTOMATED_DEPLOYMENT.md) for complete guide.

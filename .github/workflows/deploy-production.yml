@@ -35,10 +35,10 @@ jobs:
           EOF
       
       - name: Build Docker images
-        run: docker-compose build
+        run: docker compose build
       
       - name: Start services
-        run: docker-compose up -d
+        run: docker compose up -d
       
       - name: Wait for services to be ready
         run: |
@@ -46,10 +46,10 @@ jobs:
           sleep 30
       
       - name: Check services are running
-        run: docker-compose ps
+        run: docker compose ps
       
       - name: Run Django tests
-        run: docker-compose exec -T web python manage.py test --noinput || true
+        run: docker compose exec -T web python manage.py test --noinput || true
       
       - name: Check health endpoint
         run: |
@@ -63,11 +63,11 @@ jobs:
       
       - name: Show logs on failure
         if: failure()
-        run: docker-compose logs
+        run: docker compose logs
       
       - name: Cleanup
         if: always()
-        run: docker-compose down -v
+        run: docker compose down -v
 
   deploy:
     name: Deploy to Production Swarm
@@ -122,7 +122,7 @@ jobs:
             
             # Build new images
             echo "🔨 Building Docker images..."
-            docker-compose -f docker-compose.swarm.yml build
+            docker compose -f docker-compose.swarm.yml build
             
             # Deploy the stack
             echo "📦 Deploying stack..."
