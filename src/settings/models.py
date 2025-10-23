@@ -86,25 +86,32 @@ class AIPrompts(models.Model):
     def get_combined_prompt(self):
         """
         Get combined prompt for AI response generation
-        Returns manual_prompt + auto_prompt (from GeneralSettings) combined
+        Returns auto_prompt + manual_prompt (auto first for priority!)
+        
+        ⚠️ IMPORTANT: Auto prompt MUST be first because:
+        - Contains core behavior rules (language, tone, length)
+        - Gets trimmed to 250 tokens, so first prompts have priority
+        - Manual prompt is secondary context (business info)
         """
         self.validate_for_ai_response()  # Ensure manual_prompt is not empty
         
         combined = ""
-        if self.manual_prompt and self.manual_prompt.strip():
-            combined += self.manual_prompt.strip()
         
-        # Get auto_prompt from GeneralSettings
+        # ✅ 1. AUTO PROMPT FIRST (highest priority - behavior rules)
         try:
             general_settings = GeneralSettings.get_settings()
             auto_prompt = general_settings.auto_prompt
             if auto_prompt and auto_prompt.strip():
-                if combined:
-                    combined += "\n\n"
                 combined += auto_prompt.strip()
         except Exception as e:
             # If GeneralSettings is not available, continue without auto_prompt
             pass
+        
+        # ✅ 2. MANUAL PROMPT SECOND (business context)
+        if self.manual_prompt and self.manual_prompt.strip():
+            if combined:
+                combined += "\n\n"
+            combined += self.manual_prompt.strip()
         
         return combined
 
