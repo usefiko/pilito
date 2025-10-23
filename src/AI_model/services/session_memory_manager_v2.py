@@ -307,6 +307,10 @@ class SessionMemoryManagerV2:
             return None
         
         try:
+            # ✅ Setup proxy before importing Gemini
+            from core.utils import setup_ai_proxy
+            setup_ai_proxy()
+            
             import google.generativeai as genai
             from settings.models import GeneralSettings
             
@@ -407,6 +411,10 @@ Brief overview (1-2 sentences):"""
             return []
         
         try:
+            # ✅ Setup proxy before importing Gemini
+            from core.utils import setup_ai_proxy
+            setup_ai_proxy()
+            
             import google.generativeai as genai
             from settings.models import GeneralSettings
             

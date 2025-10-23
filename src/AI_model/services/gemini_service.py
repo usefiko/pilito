@@ -4,6 +4,9 @@ import time
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 
+# ✅ Setup proxy BEFORE importing Gemini (required for Iran servers)
+from core.utils import setup_ai_proxy
+setup_ai_proxy()
 
 # Import Gemini AI library
 try:

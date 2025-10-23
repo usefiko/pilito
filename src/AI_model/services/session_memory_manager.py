@@ -208,6 +208,10 @@ class SessionMemoryManager:
         Target: ≤150 tokens
         """
         try:
+            # ✅ Setup proxy before importing Gemini
+            from core.utils import setup_ai_proxy
+            setup_ai_proxy()
+            
             import google.generativeai as genai
             from settings.models import GeneralSettings
             import json

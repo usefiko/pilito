@@ -51,6 +51,10 @@ class EmbeddingService:
     def _initialize_openai(self):
         """Initialize OpenAI embedding API"""
         try:
+            # ✅ Setup proxy before importing OpenAI
+            from core.utils import setup_ai_proxy
+            setup_ai_proxy()
+            
             from openai import OpenAI
             from settings.models import GeneralSettings
             
@@ -74,6 +78,10 @@ class EmbeddingService:
     def _initialize_gemini(self):
         """Initialize Gemini embedding model (fallback)"""
         try:
+            # ✅ Setup proxy before importing Gemini
+            from core.utils import setup_ai_proxy
+            setup_ai_proxy()
+            
             import google.generativeai as genai
             from settings.models import GeneralSettings
             

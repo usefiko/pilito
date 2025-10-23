@@ -32,6 +32,10 @@ class MediaProcessorService:
     def _initialize_gemini(self):
         """Initialize Gemini multimodal model"""
         try:
+            # ✅ Setup proxy before importing Gemini
+            from core.utils import setup_ai_proxy
+            setup_ai_proxy()
+            
             import google.generativeai as genai
             from settings.models import GeneralSettings
             from AI_model.models import AIGlobalConfig
@@ -106,6 +110,10 @@ class MediaProcessorService:
             }
         
         try:
+            # ✅ Setup proxy before importing Gemini
+            from core.utils import setup_ai_proxy
+            setup_ai_proxy()
+            
             import google.generativeai as genai
             
             # Read audio file as bytes
