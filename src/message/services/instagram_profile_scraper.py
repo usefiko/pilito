@@ -11,12 +11,12 @@ Legal & Ethical Considerations:
 - Falls back gracefully on errors
 """
 
-import http.client
 import json
 import logging
 from typing import Dict, Optional
 from django.core.cache import cache
 from django.conf import settings
+from core.utils import make_request_with_proxy
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +53,7 @@ class InstagramProfileScraper:
                 - followers_count
                 - following_count
                 - profile_pic_url
-                - fetch_status: "ok" | "not_found" | "error" | "rate_limited" | "no_api_key"
+                - fetch_status: "ok" | "not_found" | "error" | "rate_limited" | "no_api_key" | "geo_blocked"
                 - error_message: str (if error)
         """
         
@@ -72,23 +72,33 @@ class InstagramProfileScraper:
         
         # Fetch from API
         try:
-            logger.info(f"🔍 Fetching Instagram profile for @{username} via RapidAPI")
+            logger.info(f"🔍 Fetching Instagram profile for @{username} via RapidAPI (with proxy)")
             
-            conn = http.client.HTTPSConnection(cls.API_HOST)
+            # ✅ استفاده از make_request_with_proxy برای پشتیبانی از پروکسی و fallback
+            url = f"https://{cls.API_HOST}/profile"
             
             headers = {
                 'x-rapidapi-key': api_key,
                 'x-rapidapi-host': cls.API_HOST
             }
             
-            conn.request("GET", f"/profile?username={username}", headers=headers)
+            params = {
+                'username': username
+            }
             
-            res = conn.getresponse()
-            data = res.read()
+            # ✅ Send request with automatic proxy fallback
+            response = make_request_with_proxy(
+                'get', 
+                url, 
+                params=params,
+                headers=headers, 
+                timeout=15,
+                use_fallback=True
+            )
             
             # Parse response
-            if res.status == 200:
-                result = json.loads(data.decode("utf-8"))
+            if response.status_code == 200:
+                result = response.json()
                 
                 # Check if profile found
                 if not result.get('status'):
@@ -109,13 +119,18 @@ class InstagramProfileScraper:
                 
                 return profile
                 
-            elif res.status == 429:
+            elif response.status_code == 429:
                 logger.warning(f"⚠️ Rate limited by RapidAPI for @{username}")
                 return cls._error_response(username, "rate_limited", "API rate limit exceeded")
                 
+            elif response.status_code == 451:
+                logger.error(f"❌ Geographic restriction (451) for @{username} - proxy may be needed")
+                return cls._error_response(username, "geo_blocked", "Service unavailable in this region")
+                
             else:
-                error_msg = f"API returned status {res.status}"
+                error_msg = f"API returned status {response.status_code}"
                 logger.error(f"❌ Error fetching profile for @{username}: {error_msg}")
+                logger.error(f"Response body: {response.text[:200]}")
                 return cls._error_response(username, "error", error_msg)
                 
         except json.JSONDecodeError as e:
@@ -124,11 +139,8 @@ class InstagramProfileScraper:
             
         except Exception as e:
             logger.error(f"❌ Exception fetching profile for @{username}: {e}")
+            logger.error(f"    Error type: {type(e).__name__}")
             return cls._error_response(username, "error", str(e))
-            
-        finally:
-            if 'conn' in locals():
-                conn.close()
     
     @classmethod
     def _parse_profile(cls, data: Dict, username: str) -> Dict:
