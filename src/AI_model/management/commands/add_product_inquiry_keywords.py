@@ -48,6 +48,20 @@ class Command(BaseCommand):
             ('product', 'fa', 'به نام'),  # "محصولی به نام ممد"
             ('product', 'fa', 'اسم'),  # "محصول اسمش"
             
+            # Purchase/Link related (لینک خریدشو بده)
+            ('product', 'fa', 'لینک'),
+            ('product', 'fa', 'خرید'),
+            ('product', 'fa', 'خریدشو'),
+            ('product', 'fa', 'بده'),
+            ('product', 'fa', 'بفرست'),
+            ('product', 'fa', 'ارسال'),
+            ('product', 'fa', 'سفارش'),
+            ('product', 'fa', 'چطوری خرید'),
+            ('product', 'fa', 'کجا خرید'),
+            ('product', 'fa', 'چگونه تهیه'),
+            ('product', 'fa', 'آدرس'),
+            ('product', 'fa', 'صفحه خرید'),
+            
             # English - What products do you have?
             ('product', 'en', 'products'),
             ('product', 'en', 'what products'),
