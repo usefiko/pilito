@@ -83,29 +83,47 @@ class HybridRetriever:
         """
         BM25 keyword search using PostgreSQL Full-Text Search
         
+        For multilingual (esp. Persian/Arabic), falls back to simple text matching
+        
         Returns:
             List of (chunk_id, rank) tuples
         """
         try:
-            from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank
+            # Extract keywords from query (remove question marks, etc.)
+            keywords = query.replace('؟', '').replace('?', '').strip().split()
             
-            # Create search query (supports Persian, Arabic, Turkish)
-            search_query = SearchQuery(query, search_type='plain')
+            if not keywords:
+                return []
             
-            # Search in full_text and section_title
-            results = TenantKnowledge.objects.filter(
+            # Simple keyword matching for Persian/Arabic
+            # Count how many query keywords appear in each chunk
+            from django.db.models import Q, Value, IntegerField
+            from django.db.models.functions import Length
+            
+            chunks = TenantKnowledge.objects.filter(
                 user=user,
                 chunk_type=chunk_type
-            ).annotate(
-                rank=SearchRank(
-                    SearchVector('full_text', 'section_title'),
-                    search_query
-                )
-            ).filter(
-                rank__gt=0
-            ).order_by('-rank').values_list('id', 'rank')[:limit]
+            )
             
-            return list(results)
+            results = []
+            for chunk in chunks:
+                # Combine title and text for searching
+                searchable_text = f"{chunk.section_title or ''} {chunk.full_text}".lower()
+                
+                # Count keyword matches
+                match_count = 0
+                for keyword in keywords:
+                    if keyword.lower() in searchable_text:
+                        match_count += 1
+                
+                # Calculate rank (percentage of keywords matched)
+                if match_count > 0:
+                    rank = match_count / len(keywords)
+                    results.append((chunk.id, rank))
+            
+            # Sort by rank and return top results
+            results.sort(key=lambda x: x[1], reverse=True)
+            return results[:limit]
             
         except Exception as e:
             logger.warning(f"BM25 search failed: {e}, using fallback")
