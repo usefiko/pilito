@@ -26,8 +26,8 @@ class HybridRetriever:
     - Solves the "low similarity score" problem for exact matches
     """
     
-    BM25_WEIGHT = 0.6  # Higher weight for keyword matching (good for product names)
-    VECTOR_WEIGHT = 0.4  # Lower weight for semantic (good for questions)
+    BM25_WEIGHT = 0.7  # ✅ Increased for Persian (keyword matching more reliable)
+    VECTOR_WEIGHT = 0.3  # ✅ Decreased for Persian (embedding quality lower for RTL)
     RRF_K = 60  # Constant for Reciprocal Rank Fusion (industry standard)
     
     @classmethod
@@ -201,20 +201,28 @@ class HybridRetriever:
         if not hybrid_results:
             return []
         
-        # Get chunk IDs
+        # Get chunk IDs in ranked order
         chunk_ids = [chunk_id for chunk_id, _ in hybrid_results[:top_k]]
         
-        # Fetch chunks
-        chunks = TenantKnowledge.objects.filter(id__in=chunk_ids)
+        # Fetch chunks (Django doesn't preserve order in filter(id__in=...))
+        chunks_dict = {
+            chunk.id: chunk 
+            for chunk in TenantKnowledge.objects.filter(id__in=chunk_ids)
+        }
         
         # Create score mapping
         score_map = {chunk_id: score for chunk_id, score in hybrid_results}
         
-        # Format results
+        # Format results in correct order
         results = []
         total_tokens = 0
         
-        for chunk in chunks:
+        # Iterate in ranked order (from hybrid_results)
+        for chunk_id in chunk_ids:
+            chunk = chunks_dict.get(chunk_id)
+            if not chunk:
+                continue  # Skip if chunk not found
+            
             if total_tokens >= token_budget:
                 break
             
