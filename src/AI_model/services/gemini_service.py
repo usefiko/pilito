@@ -697,7 +697,29 @@ Provide a concise summary (max 100 words):"""
             # 4. Get conversation context (rolling summary + recent messages)
             conversation_context = ""
             if conversation:
-                conversation_context = SessionMemoryManagerV2.get_conversation_context(conversation)
+                context_data = SessionMemoryManagerV2.get_conversation_context(conversation)
+                
+                # V2 returns a dict, convert to string
+                if isinstance(context_data, dict):
+                    parts = []
+                    
+                    # Add recent verbatim messages (most important)
+                    if context_data.get('verbatim'):
+                        recent_msgs = []
+                        for msg in context_data['verbatim'][-5:]:  # Last 5 messages
+                            speaker = "Customer" if msg['type'] == 'customer' else "AI"
+                            recent_msgs.append(f"{speaker}: {msg['content']}")
+                        if recent_msgs:
+                            parts.append("Recent:\n" + "\n".join(recent_msgs))
+                    
+                    # Add summaries if available
+                    if context_data.get('recent_summary'):
+                        parts.append(f"Summary: {context_data['recent_summary']}")
+                    
+                    conversation_context = "\n\n".join(parts) if parts else ""
+                else:
+                    # Fallback: V1 compatibility (string)
+                    conversation_context = context_data or ""
             
             # 5. Retrieve relevant context from knowledge base
             retrieval_result = ContextRetriever.retrieve_context(
