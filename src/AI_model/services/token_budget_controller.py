@@ -1,6 +1,6 @@
 """
 Token Budget Controller
-Enforces strict 1500 token limit for Gemini input
+Enforces strict 1700 token limit for Gemini input (optimized for Persian)
 Uses tiktoken for accurate token counting
 """
 import logging
@@ -12,30 +12,30 @@ logger = logging.getLogger(__name__)
 class TokenBudgetController:
     """
     Strict token budget enforcement
-    Target: ≤ 1500 tokens total input to Gemini
+    Target: ≤ 1700 tokens total input to Gemini (optimized for Persian language)
     
     Uses tiktoken for accurate counting (not simple word count estimation)
     """
     
-    # Token budget allocation
+    # Token budget allocation (Optimized for Persian language)
     BUDGET = {
-        'system_prompt': 250,      # Concise system instructions
+        'system_prompt': 400,      # ✅ Increased for Persian (auto + manual prompts)
         'bio_context': 80,          # Instagram bio for personalization (multilingual)
         'customer_info': 30,        # Customer name, phone, source
-        'conversation': 340,        # Rolling summary + recent messages
-        'primary_context': 600,     # Main knowledge source
+        'conversation': 400,        # ✅ Increased for V2 multi-tier memory
+        'primary_context': 650,     # ✅ Increased - Main knowledge source
         'secondary_context': 200,   # Optional supplementary
-        # Total: 1500 tokens
+        # Total: 1760 tokens (max 1700 with safety margin)
     }
     
     # Safety margin
-    MAX_TOTAL_TOKENS = 1500
+    MAX_TOTAL_TOKENS = 1700  # ✅ Increased from 1500 for Persian language
     SAFETY_MARGIN = 50  # Reserve 50 tokens for safety
     
     @classmethod
     def trim_to_budget(cls, components: Dict) -> Dict:
         """
-        Trim components to fit within 1500 token budget
+        Trim components to fit within 1700 token budget
         
         Args:
             components: {

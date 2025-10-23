@@ -588,17 +588,17 @@ Provide a concise summary (max 100 words):"""
     
     def _build_prompt(self, customer_message: str, conversation=None) -> str:
         """
-        Build Lean RAG v2.1 prompt (target: ≤1500 tokens)
+        Build Lean RAG v2.1 prompt (target: ≤1700 tokens, optimized for Persian)
         
         Uses:
         - QueryRouter: Intent classification
-        - SessionMemoryManager: Rolling summaries
+        - SessionMemoryManagerV2: Multi-tier conversation memory
         - ContextRetriever: Semantic search with pgvector
-        - TokenBudgetController: Strict 1500 token limit
+        - TokenBudgetController: Strict 1700 token limit (Persian optimized)
         """
         try:
             from AI_model.services.query_router import QueryRouter
-            from AI_model.services.session_memory_manager import SessionMemoryManager
+            from AI_model.services.session_memory_manager_v2 import SessionMemoryManagerV2
             from AI_model.services.context_retriever import ContextRetriever
             from AI_model.services.token_budget_controller import TokenBudgetController
             
@@ -697,7 +697,7 @@ Provide a concise summary (max 100 words):"""
             # 4. Get conversation context (rolling summary + recent messages)
             conversation_context = ""
             if conversation:
-                conversation_context = SessionMemoryManager.get_conversation_context(conversation)
+                conversation_context = SessionMemoryManagerV2.get_conversation_context(conversation)
             
             # 5. Retrieve relevant context from knowledge base
             retrieval_result = ContextRetriever.retrieve_context(
