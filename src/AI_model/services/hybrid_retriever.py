@@ -124,9 +124,10 @@ class HybridRetriever:
             
             results = TenantKnowledge.objects.filter(
                 user=user,
-                chunk_type=chunk_type
+                chunk_type=chunk_type,
+                tldr_embedding__isnull=False  # Ensure embedding exists
             ).annotate(
-                distance=CosineDistance('embedding', query_embedding)
+                distance=CosineDistance('tldr_embedding', query_embedding)
             ).filter(
                 distance__lt=0.9  # Similarity > 0.1
             ).order_by('distance').values_list('id', 'distance')[:limit]
