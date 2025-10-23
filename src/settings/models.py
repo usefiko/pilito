@@ -283,7 +283,12 @@ class GeneralSettings(SingletonModel):
         default='''You are an AI customer service representative.
 Respond to customer inquiries professionally and helpfully.
 Always respond in the same language the customer uses.
-Keep your responses clear and concise.''',
+Keep your responses clear and concise.
+
+🔗 CRITICAL - Links & URLs:
+- Always include FULL URLs (e.g., https://fiko.net/pricing)
+- NEVER use placeholders like [link] or [URL]
+- Write complete clickable links in your responses''',
         help_text="Default auto prompt for AI responses - applies to all users"
     )
     
