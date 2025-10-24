@@ -122,6 +122,28 @@ def process_ai_response_async(self, message_id):
         except Exception as cache_err:
             logger.debug(f"AI control cache check failed for message {message_id}: {cache_err}")
 
+        # Send typing indicator for Instagram before processing
+        if message.conversation.source == 'instagram':
+            try:
+                import time
+                from message.services.instagram_service import InstagramService
+                
+                instagram_service = InstagramService.get_service_for_conversation(message.conversation)
+                if instagram_service:
+                    typing_result = instagram_service.send_typing_indicator_to_customer(
+                        message.conversation.customer,
+                        'typing_on'
+                    )
+                    if typing_result.get('success'):
+                        # Store the typing start time in cache for dynamic timing
+                        typing_start_key = f"typing_start_{message.conversation.id}"
+                        cache.set(typing_start_key, time.time(), timeout=60)
+                        logger.info(f"✍️ Typing indicator ON for Instagram conversation {message.conversation.id}")
+                    else:
+                        logger.debug(f"Could not send typing_on: {typing_result.get('error')}")
+            except Exception as typing_err:
+                logger.debug(f"Error sending typing_on indicator: {typing_err}")
+
         # Initialize integration service
         integration = MessageSystemIntegration(message.conversation.user)
         

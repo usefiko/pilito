@@ -153,6 +153,68 @@ class InstagramService:
         
         return self.send_message(customer.source_id, message_text)
     
+    def send_typing_indicator(self, recipient_id: str, action: str) -> Dict[str, Any]:
+        """
+        Send typing indicator to Instagram user
+        
+        Args:
+            recipient_id: Instagram user ID of the recipient
+            action: Either 'typing_on' or 'typing_off'
+            
+        Returns:
+            Dict containing API response
+        """
+        url = f"{self.BASE_URL}/{self.instagram_user_id}/messages"
+        
+        payload = {
+            'recipient': {
+                'id': recipient_id
+            },
+            'sender_action': action
+        }
+        
+        headers = {
+            'Authorization': f'Bearer {self.access_token}',
+            'Content-Type': 'application/json'
+        }
+        
+        try:
+            # ✅ Use proxy-aware request for typing indicator
+            response = make_request_with_proxy('post', url, json=payload, headers=headers, timeout=10)
+            
+            logger.debug(f"Instagram typing indicator ({action}) response status: {response.status_code}")
+            
+            response.raise_for_status()
+            
+            return {
+                'success': True,
+                'action': action,
+                'recipient_id': recipient_id
+            }
+                
+        except Exception as e:
+            logger.warning(f"Error sending typing indicator to Instagram: {e}")
+            return {'success': False, 'error': str(e)}
+    
+    def send_typing_indicator_to_customer(self, customer: Customer, action: str) -> Dict[str, Any]:
+        """
+        Send typing indicator to a customer via their Instagram ID
+        
+        Args:
+            customer: Customer instance with Instagram source
+            action: Either 'typing_on' or 'typing_off'
+            
+        Returns:
+            Dict containing send result
+        """
+        if customer.source != 'instagram':
+            return {'success': False, 'error': 'Customer is not from Instagram'}
+        
+        if not customer.source_id:
+            return {'success': False, 'error': 'Customer has no Instagram ID'}
+        
+        return self.send_typing_indicator(customer.source_id, action)
+    
     @classmethod
     def get_service_for_conversation(cls, conversation: Conversation) -> Optional['InstagramService']:
         """
