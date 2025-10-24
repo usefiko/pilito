@@ -453,7 +453,9 @@ class InstaWebhook(APIView):
                                     'fields': 'id,username',
                                     'access_token': candidate.access_token
                                 }
-                                resp = requests.get(url, params=params, timeout=10)
+                                # ✅ Use proxy-aware request
+                                from core.utils import make_request_with_proxy
+                                resp = make_request_with_proxy('get', url, params=params, timeout=10)
                                 if resp.status_code != 200:
                                     continue
                                 data = resp.json() if resp.content else {}
