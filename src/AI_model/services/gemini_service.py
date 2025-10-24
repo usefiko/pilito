@@ -855,24 +855,25 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
     def _build_lean_system_prompt(self, intent: str, conversation=None) -> str:
         """
         Build concise system prompt combining ALL prompts (target: ≤250 tokens)
-        Combines: Mother Prompt (auto_prompt) + Manual Prompt + Business Prompt
+        Combines: System Prompt (modular) + Manual Prompt + Business Prompt
+        Now uses modular approach from GeneralSettings!
         """
         try:
             from settings.models import GeneralSettings, AIPrompts, BusinessPrompt
             
             prompt_parts = []
             
-            # 1. Get Manual Prompt (which already includes Mother Prompt via get_combined_prompt)
+            # 1. Get Manual Prompt (which already includes System Prompt via get_combined_prompt)
             try:
                 ai_prompts = AIPrompts.objects.get(user=self.user)
-                combined = ai_prompts.get_combined_prompt()  # This includes auto_prompt + manual_prompt
+                combined = ai_prompts.get_combined_prompt()  # This includes system_prompt + manual_prompt
                 if combined:
                     prompt_parts.append(combined)
             except AIPrompts.DoesNotExist:
-                # Fallback to just Mother Prompt
-                mother = GeneralSettings.get_settings().auto_prompt
-                if mother:
-                    prompt_parts.append(mother)
+                # Fallback to just System Prompt
+                system_prompt = GeneralSettings.get_settings().get_combined_system_prompt()
+                if system_prompt:
+                    prompt_parts.append(system_prompt)
             
             # 2. Add Business/Industry Prompt if exists
             try:
@@ -972,12 +973,13 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
         """
         Fallback prompt when Lean RAG fails
         Simplified version of old method
+        Now uses modular system prompt!
         """
         try:
             from settings.models import GeneralSettings
             
-            # Basic system prompt
-            system_prompt = GeneralSettings.get_settings().auto_prompt or "You are a helpful AI assistant."
+            # Basic system prompt (now using modular approach)
+            system_prompt = GeneralSettings.get_settings().get_combined_system_prompt() or "You are a helpful AI assistant."
             
             # Recent conversation context (last 3 messages)
             conversation_context = ""

@@ -7,16 +7,116 @@ from settings.models import Settings, GeneralSettings, TelegramChannel, Instagra
 
 @admin.register(GeneralSettings)
 class GeneralSettingsAdmin(admin.ModelAdmin):
-    list_display = ("__str__", "gemini_api_key_status", "openai_api_key_status", "has_auto_prompt", "updated_at")
-    readonly_fields = ("created_at", "updated_at")
+    list_display = ("__str__", "gemini_api_key_status", "openai_api_key_status", "prompt_sections_configured", "updated_at")
+    readonly_fields = ("created_at", "updated_at", "preview_combined_prompt")
     
     fieldsets = (
-        ('AI Configuration', {
-            'fields': ('gemini_api_key', 'openai_api_key', 'auto_prompt'),
-            'description': 'Configure API keys and global prompts for AI services'
+        ('📌 SECTION 1: Core Identity & Behavior', {
+            'fields': ('ai_role',),
+            'description': (
+                '<div style="background: #e3f2fd; padding: 15px; border-radius: 5px; margin: 10px 0;">'
+                '<strong>🤖 هویت AI:</strong><br>'
+                'تعریف کنید هوش مصنوعی چه کسی است. مثلاً: "یک دستیار فروش دوستانه" یا "یک مشاور فنی"<br>'
+                '<em>این بخش شخصیت اصلی AI را شکل می‌دهد.</em>'
+                '</div>'
+            )
         }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
+        ('📌 SECTION 2: Language & Communication Style', {
+            'fields': ('language_rules', 'tone_and_style'),
+            'description': (
+                '<div style="background: #f3e5f5; padding: 15px; border-radius: 5px; margin: 10px 0;">'
+                '<strong>🌐 زبان و لحن:</strong><br>'
+                '<ul>'
+                '<li><strong>Language Rules:</strong> تعیین کنید AI به چه زبانی صحبت کند (مثلاً فارسی، انگلیسی)</li>'
+                '<li><strong>Tone & Style:</strong> سبک مکالمه را مشخص کنید (صمیمی، رسمی، حرفه‌ای، شاد)</li>'
+                '</ul>'
+                '<em>این بخش تعیین می‌کند AI چطور با مشتریان صحبت کند.</em>'
+                '</div>'
+            )
+        }),
+        ('📌 SECTION 3: Response Guidelines', {
+            'fields': ('response_length', 'response_guidelines'),
+            'description': (
+                '<div style="background: #fff3e0; padding: 15px; border-radius: 5px; margin: 10px 0;">'
+                '<strong>📝 راهنمای پاسخ‌دهی:</strong><br>'
+                '<ul>'
+                '<li><strong>Response Length:</strong> طول پاسخ‌ها (کوتاه برای اینستاگرام، بلند برای ایمیل)</li>'
+                '<li><strong>Guidelines:</strong> قوانین اضافی مثل "حداکثر 1 ایموجی" یا "بدون مقدمه طولانی"</li>'
+                '</ul>'
+                '<em>این بخش فرمت و ساختار پاسخ‌ها را کنترل می‌کند.</em>'
+                '</div>'
+            )
+        }),
+        ('📌 SECTION 4: Greeting & Name Usage', {
+            'fields': ('greeting_rules', 'welcome_back_threshold_hours'),
+            'description': (
+                '<div style="background: #e8f5e9; padding: 15px; border-radius: 5px; margin: 10px 0;">'
+                '<strong>👋 احوالپرسی:</strong><br>'
+                '<ul>'
+                '<li><strong>Greeting Rules:</strong> قوانین برای احوالپرسی و استفاده از نام مشتری</li>'
+                '<li><strong>Welcome Back Threshold:</strong> بعد از چند ساعت AI بگوید "خوش برگشتی"؟</li>'
+                '</ul>'
+                '<em>جلوگیری از تکرار مزاحم "سلام" و نام مشتری.</em>'
+                '</div>'
+            )
+        }),
+        ('📌 SECTION 5: Anti-Hallucination & Accuracy ⚠️ بسیار مهم', {
+            'fields': ('anti_hallucination_rules', 'knowledge_limitation_response'),
+            'description': (
+                '<div style="background: #ffebee; padding: 15px; border-radius: 5px; margin: 10px 0; border: 2px solid #f44336;">'
+                '<strong>🚨 قوانین ضد توهم‌زایی (بسیار مهم!):</strong><br>'
+                '<ul>'
+                '<li><strong>Anti-Hallucination Rules:</strong> جلوگیری از دروغ گفتن AI (مثلاً "الان می‌فرستم" وقتی اطلاعات ندارد)</li>'
+                '<li><strong>Knowledge Limitation:</strong> پاسخ پیش‌فرض وقتی AI اطلاعات ندارد</li>'
+                '</ul>'
+                '<em>⚠️ این بخش از اطلاعات نادرست جلوگیری می‌کند.</em>'
+                '</div>'
+            ),
+            'classes': ('wide',)
+        }),
+        ('📌 SECTION 6: Link & URL Handling ⚠️ بسیار مهم', {
+            'fields': ('link_handling_rules',),
+            'description': (
+                '<div style="background: #e1f5fe; padding: 15px; border-radius: 5px; margin: 10px 0; border: 2px solid #03a9f4;">'
+                '<strong>🔗 مدیریت لینک‌ها (بسیار مهم!):</strong><br>'
+                '<ul>'
+                '<li>همیشه URL کامل ارسال شود (مثلاً <code>https://example.com/pricing</code>)</li>'
+                '<li>هرگز از placeholder مثل <code>[link]</code> یا <code>[URL]</code> استفاده نشود</li>'
+                '<li>اگر لینک ندارد، صادقانه بگوید به جای جعل کردن</li>'
+                '</ul>'
+                '<em>⚠️ جلوگیری از لینک‌های ناقص یا جعلی.</em>'
+                '</div>'
+            ),
+            'classes': ('wide',)
+        }),
+        ('📌 SECTION 7: Advanced (Optional)', {
+            'fields': ('custom_instructions',),
+            'description': (
+                '<div style="background: #fce4ec; padding: 15px; border-radius: 5px; margin: 10px 0;">'
+                '<strong>⚡ دستورات سفارشی (اختیاری):</strong><br>'
+                'برای نیازهای خاص و منحصر به فرد که در بخش‌های بالا نگنجیده است.<br>'
+                '<em>اگر نیازی ندارید، خالی بگذارید.</em>'
+                '</div>'
+            ),
+            'classes': ('collapse',)
+        }),
+        ('⚠️ [DEPRECATED] Old Auto Prompt (منسوخ شده)', {
+            'fields': ('auto_prompt',),
+            'description': (
+                '<div style="background: #fff9c4; padding: 15px; border-radius: 5px; margin: 10px 0; border: 2px dashed #ff9800;">'
+                '<strong>⚠️ توجه:</strong> این فیلد منسوخ شده است (Deprecated).<br>'
+                'لطفاً از فیلدهای جدید بالا استفاده کنید. این فیلد فقط برای سازگاری با نسخه‌های قدیم نگه داشته شده.'
+                '</div>'
+            ),
+            'classes': ('collapse',)
+        }),
+        ('🔑 API Configuration', {
+            'fields': ('gemini_api_key', 'openai_api_key'),
+            'description': 'کلیدهای API برای سرویس‌های هوش مصنوعی',
+            'classes': ('collapse',)
+        }),
+        ('📊 Preview & Timestamps', {
+            'fields': ('preview_combined_prompt', 'created_at', 'updated_at'),
             'classes': ('collapse',)
         }),
     )
@@ -25,22 +125,55 @@ class GeneralSettingsAdmin(admin.ModelAdmin):
         if obj.gemini_api_key and len(obj.gemini_api_key.strip()) > 0:
             return f"✅ Configured ({len(obj.gemini_api_key)} chars)"
         return "❌ Not configured"
-    gemini_api_key_status.short_description = "Gemini API Key Status"
+    gemini_api_key_status.short_description = "Gemini API"
     
     def openai_api_key_status(self, obj):
         if obj.openai_api_key and len(obj.openai_api_key.strip()) > 0:
             return f"✅ Configured ({len(obj.openai_api_key)} chars)"
         return "❌ Not configured"
-    openai_api_key_status.short_description = "OpenAI API Key Status"
+    openai_api_key_status.short_description = "OpenAI API"
     
-    def has_auto_prompt(self, obj):
-        return bool(obj.auto_prompt and obj.auto_prompt.strip())
-    has_auto_prompt.boolean = True
-    has_auto_prompt.short_description = 'Auto Prompt'
+    def prompt_sections_configured(self, obj):
+        """Show how many prompt sections are configured"""
+        sections = []
+        if obj.ai_role and obj.ai_role.strip():
+            sections.append("Role")
+        if obj.language_rules and obj.language_rules.strip():
+            sections.append("Language")
+        if obj.tone_and_style and obj.tone_and_style.strip():
+            sections.append("Tone")
+        if obj.response_guidelines and obj.response_guidelines.strip():
+            sections.append("Guidelines")
+        if obj.greeting_rules and obj.greeting_rules.strip():
+            sections.append("Greeting")
+        if obj.anti_hallucination_rules and obj.anti_hallucination_rules.strip():
+            sections.append("Anti-Hallucination")
+        if obj.link_handling_rules and obj.link_handling_rules.strip():
+            sections.append("Links")
+        
+        return f"✅ {len(sections)}/7 sections" if sections else "❌ Not configured"
+    prompt_sections_configured.short_description = 'Prompt Sections'
+    
+    def preview_combined_prompt(self, obj):
+        """Preview the combined system prompt"""
+        try:
+            combined = obj.get_combined_system_prompt()
+            if combined:
+                preview = combined[:500] + "..." if len(combined) > 500 else combined
+                return f"<pre style='background: #f5f5f5; padding: 10px; border-radius: 5px;'>{preview}</pre>"
+            return "No prompt configured"
+        except Exception as e:
+            return f"Error: {e}"
+    preview_combined_prompt.short_description = "🔍 Preview Combined Prompt"
+    preview_combined_prompt.allow_tags = True
     
     def has_add_permission(self, request):
         # Only allow one instance (singleton pattern)
         return not GeneralSettings.objects.exists()
+    
+    def has_delete_permission(self, request, obj=None):
+        # Cannot delete singleton
+        return False
 
 
 @admin.register(Settings)
