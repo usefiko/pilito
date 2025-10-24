@@ -29,7 +29,7 @@ class Command(BaseCommand):
         self.stdout.write('=' * 80)
 
         # Build queryset
-        queryset = TenantKnowledge.objects.exclude(embedding__isnull=True)
+        queryset = TenantKnowledge.objects.exclude(full_embedding__isnull=True)
         
         if user_filter:
             from accounts.models import User
@@ -72,7 +72,7 @@ class Command(BaseCommand):
 
         # Clear embeddings
         self.stdout.write('\n🧹 Clearing embeddings...')
-        updated = queryset.update(embedding=None)
+        updated = queryset.update(full_embedding=None, tldr_embedding=None)
         
         self.stdout.write(self.style.SUCCESS(f'\n✅ Cleared {updated} embeddings'))
         self.stdout.write('\n📝 Next steps:')
