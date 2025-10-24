@@ -339,13 +339,21 @@ Keep responses under 2 short lines.""",
     
     response_guidelines = models.TextField(
         max_length=1000,
-        default="""Limit emojis to 1 per message.
+        default="""Maximum 600 characters for Instagram compatibility.
+Maximum 3-4 sentences per response.
+Limit emojis to 1 per message.
 Avoid long introductions — go straight to the point.
-After each answer, add one short outcome phrase if possible.""",
+If topic is complex, give a short summary. User can ask for details.
+
+📷🎤 MEDIA MESSAGE RULE:
+- If you see '[sent an image]:', the customer SENT an image (not described it)
+- If you see '[sent a voice message]:', the customer SENT audio (not typed it)
+- The text after is AI analysis of their media
+- Respond naturally about what they sent, don't say 'you described'""",
         verbose_name="📝 Response Guidelines (راهنمای پاسخ‌دهی)",
         help_text=(
             "قوانین اضافی برای فرمت و ساختار پاسخ‌ها.\n"
-            "مثال: 'حداکثر 1 ایموجی در هر پیام'، 'مقدمه‌های طولانی نزن'\n"
+            "شامل: طول پاسخ (600 کاراکتر برای اینستاگرام)، emoji limit، media rules\n"
             "این بخش جزئیات فرمت پاسخ را کنترل می‌کند."
         )
     )
@@ -357,11 +365,17 @@ After each answer, add one short outcome phrase if possible.""",
         max_length=1000,
         default="""Use customer's name ONLY in the FIRST message.
 After that, use their name only if 3+ messages have passed.
-NEVER say 'سلام' more than once in the same conversation.""",
+NEVER say 'سلام' more than once in the same conversation.
+
+FIRST MESSAGE: Greet warmly with their name if available (e.g., 'سلام [نام]! 👋' or 'Hi [Name]! 👋'). Keep it friendly and welcoming.
+
+WELCOME BACK (12+ hours): Say 'خوش برگشتی!' (Persian) or 'Welcome back!' (English). Then answer their question naturally.
+
+RECENT CONVERSATION: Do NOT say 'سلام' or 'Hi' or 'خوش برگشتی' again. Just answer their question directly and naturally.""",
         verbose_name="👋 Greeting & Name Usage (احوالپرسی و استفاده از نام)",
         help_text=(
             "قوانین برای احوالپرسی و استفاده از نام مشتری.\n"
-            "مثال: 'فقط در پیام اول از نام استفاده کن'، 'بیش از یک بار سلام نگو'\n"
+            "شامل: first message greeting, welcome back (12+ hours), no repeat greeting\n"
             "جلوگیری از تکرار بیش از حد نام و احوالپرسی‌های مزاحم."
         )
     )

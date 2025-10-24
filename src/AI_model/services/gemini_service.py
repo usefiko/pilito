@@ -883,7 +883,9 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
             except Exception:
                 pass
             
-            # 3. Add greeting rule (smart greeting based on time + message count)
+            # 3. Add dynamic greeting context (if applicable)
+            # Note: Greeting rules are now in GeneralSettings.greeting_rules
+            # But we still need to detect WHEN to apply them dynamically
             if conversation:
                 from message.models import Message
                 from django.utils import timezone
@@ -900,60 +902,25 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
                     type='AI'
                 ).order_by('-created_at').first()
                 
-                # Determine greeting strategy
-                should_greet = False
-                greeting_type = 'first'  # 'first' | 'welcome_back' | 'none'
+                # Get threshold from settings
+                settings = GeneralSettings.get_settings()
+                threshold_hours = getattr(settings, 'welcome_back_threshold_hours', 12)
                 
+                # Determine greeting context
                 if ai_message_count == 0:
-                    # First AI message ever in this conversation
-                    should_greet = True
-                    greeting_type = 'first'
+                    # First message - greeting rules apply (FIRST MESSAGE scenario)
+                    prompt_parts.append("CONTEXT: This is your FIRST response to this customer.")
                 elif last_ai_msg:
-                    # Check if 12+ hours since last AI message
                     hours_since_last = (timezone.now() - last_ai_msg.created_at).total_seconds() / 3600
-                    if hours_since_last >= 12:
-                        should_greet = True
-                        greeting_type = 'welcome_back'
-                
-                # Add appropriate greeting instruction
-                if should_greet:
-                    if greeting_type == 'first':
-                        prompt_parts.append(
-                            "GREETING RULE: This is your FIRST response to this customer. "
-                            "Greet warmly with their name if available (e.g., 'سلام [نام]! 👋' or 'Hi [Name]! 👋'). "
-                            "Keep it friendly and welcoming."
-                        )
-                    elif greeting_type == 'welcome_back':
-                        prompt_parts.append(
-                            "GREETING RULE: Customer returned after 12+ hours. "
-                            "Say 'خوش برگشتی!' (Persian) or 'Welcome back!' (English). "
-                            "Then answer their question naturally."
-                        )
-                else:
-                    # No greeting needed
-                    prompt_parts.append(
-                        "IMPORTANT: You've already greeted this customer recently. "
-                        "Do NOT say 'سلام' or 'Hi' or 'خوش برگشتی' again. "
-                        "Just answer their question directly and naturally."
-                    )
+                    if hours_since_last >= threshold_hours:
+                        # Welcome back scenario
+                        prompt_parts.append(f"CONTEXT: Customer returned after {threshold_hours}+ hours.")
+                    else:
+                        # Recent conversation - no greeting needed
+                        prompt_parts.append("CONTEXT: Recent conversation (already greeted).")
             
-            # 4. CRITICAL: Response length constraint (for ALL responses)
-            prompt_parts.append(
-                "⚠️ RESPONSE LENGTH RULE: Keep responses CONCISE and DIRECT.\n"
-                "- Maximum 600 characters for Instagram compatibility\n"
-                "- Maximum 3-4 sentences per response\n"
-                "- Be helpful but brief - no long explanations unless asked\n"
-                "- If topic is complex, give a short summary. User can ask for details."
-            )
-            
-            # 5. Media message context rule
-            prompt_parts.append(
-                "📷🎤 MEDIA MESSAGE RULE:\n"
-                "- If you see '[sent an image]:', the customer SENT an image (not described it)\n"
-                "- If you see '[sent a voice message]:', the customer SENT audio (not typed it)\n"
-                "- The text after is AI analysis of their media\n"
-                "- Respond naturally about what they sent, don't say 'you described'"
-            )
+            # Note: All other rules (response length, media, anti-hallucination, etc.)
+            # are now in GeneralSettings and included via get_combined_system_prompt()
             
             # Combine all parts
             full_prompt = "\n\n".join(prompt_parts)

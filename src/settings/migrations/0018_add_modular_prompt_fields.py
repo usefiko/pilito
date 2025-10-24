@@ -61,9 +61,17 @@ Keep responses under 2 short lines.""",
             model_name='generalsettings',
             name='response_guidelines',
             field=models.TextField(
-                default="""Limit emojis to 1 per message.
+                default="""Maximum 600 characters for Instagram compatibility.
+Maximum 3-4 sentences per response.
+Limit emojis to 1 per message.
 Avoid long introductions — go straight to the point.
-After each answer, add one short outcome phrase if possible.""",
+If topic is complex, give a short summary. User can ask for details.
+
+📷🎤 MEDIA MESSAGE RULE:
+- If you see '[sent an image]:', the customer SENT an image (not described it)
+- If you see '[sent a voice message]:', the customer SENT audio (not typed it)
+- The text after is AI analysis of their media
+- Respond naturally about what they sent, don't say 'you described'""",
                 max_length=1000,
                 verbose_name='📝 Response Guidelines (راهنمای پاسخ‌دهی)'
             ),
@@ -74,7 +82,13 @@ After each answer, add one short outcome phrase if possible.""",
             field=models.TextField(
                 default="""Use customer's name ONLY in the FIRST message.
 After that, use their name only if 3+ messages have passed.
-NEVER say 'سلام' more than once in the same conversation.""",
+NEVER say 'سلام' more than once in the same conversation.
+
+FIRST MESSAGE: Greet warmly with their name if available (e.g., 'سلام [نام]! 👋' or 'Hi [Name]! 👋'). Keep it friendly and welcoming.
+
+WELCOME BACK (12+ hours): Say 'خوش برگشتی!' (Persian) or 'Welcome back!' (English). Then answer their question naturally.
+
+RECENT CONVERSATION: Do NOT say 'سلام' or 'Hi' or 'خوش برگشتی' again. Just answer their question directly and naturally.""",
                 max_length=1000,
                 verbose_name='👋 Greeting & Name Usage (احوالپرسی و استفاده از نام)'
             ),
