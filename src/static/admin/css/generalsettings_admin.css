@@ -1,37 +1,42 @@
-/* Admin Panel CSS for GeneralSettings - Simple & Clean */
+/* General AI Settings Admin - Simple Clean Style */
 
-/* Make all help text visible - Simple style */
-.help, .helptext {
-    color: #666 !important;
-    font-size: 12px !important;
-    line-height: 1.5 !important;
-    display: block !important;
-    margin-top: 5px !important;
-}
-
-/* Section descriptions - Simple */
-fieldset.module .description {
-    color: #666 !important;
-    font-size: 12px !important;
-    margin-bottom: 15px !important;
-}
-
-/* Readonly field (preview) - Simple */
-.readonly {
+/* Help text styling - simple and readable */
+.aligned .helptext,
+.aligned .help,
+.form-row .help {
     color: #333 !important;
-    font-family: monospace !important;
-    white-space: pre-wrap !important;
-    display: block !important;
-}
-
-/* Ensure textarea and input text is visible */
-textarea, input[type="text"], select {
-    color: #000 !important;
-    background-color: #fff !important;
+    background: none !important;
+    padding: 8px 0 !important;
+    border: none !important;
+    margin: 5px 0 !important;
+    font-size: 13px !important;
+    line-height: 1.6 !important;
+    font-family: 'Segoe UI', Tahoma, Arial, sans-serif !important;
 }
 
 /* Persian text support */
-body, textarea, input, select {
-    font-family: Tahoma, Arial, sans-serif !important;
+.aligned .helptext[lang="fa"],
+.aligned .help[lang="fa"] {
+    font-family: 'Tahoma', 'Arial', sans-serif !important;
+    direction: rtl !important;
+    text-align: right !important;
 }
 
+/* Fieldset descriptions - simple */
+.aligned fieldset .description,
+.aligned .form-row .description {
+    color: #555 !important;
+    background: #f9f9f9 !important;
+    padding: 10px !important;
+    border-left: 3px solid #ddd !important;
+    margin: 10px 0 !important;
+    font-size: 13px !important;
+    line-height: 1.5 !important;
+}
+
+/* Ensure readability */
+.form-row label,
+.form-row input,
+.form-row textarea {
+    font-family: 'Segoe UI', Tahoma, Arial, sans-serif !important;
+}
