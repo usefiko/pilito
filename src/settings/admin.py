@@ -10,6 +10,11 @@ class GeneralSettingsAdmin(admin.ModelAdmin):
     list_display = ("__str__", "gemini_api_key_status", "openai_api_key_status", "prompt_sections_configured", "updated_at")
     readonly_fields = ("created_at", "updated_at", "preview_combined_prompt")
     
+    class Media:
+        css = {
+            'all': ('admin/css/generalsettings_admin.css',)
+        }
+    
     fieldsets = (
         ('📌 SECTION 1: Core Identity & Behavior', {
             'fields': ('ai_role',),

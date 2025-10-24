@@ -906,18 +906,15 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
                 settings = GeneralSettings.get_settings()
                 threshold_hours = getattr(settings, 'welcome_back_threshold_hours', 12)
                 
-                # Determine greeting context
+                # Determine greeting scenario (just add context marker, not instructions)
                 if ai_message_count == 0:
-                    # First message - greeting rules apply (FIRST MESSAGE scenario)
-                    prompt_parts.append("CONTEXT: This is your FIRST response to this customer.")
+                    prompt_parts.append("🔹 SCENARIO: FIRST_MESSAGE")
                 elif last_ai_msg:
                     hours_since_last = (timezone.now() - last_ai_msg.created_at).total_seconds() / 3600
                     if hours_since_last >= threshold_hours:
-                        # Welcome back scenario
-                        prompt_parts.append(f"CONTEXT: Customer returned after {threshold_hours}+ hours.")
+                        prompt_parts.append(f"🔹 SCENARIO: WELCOME_BACK (after {threshold_hours}+ hours)")
                     else:
-                        # Recent conversation - no greeting needed
-                        prompt_parts.append("CONTEXT: Recent conversation (already greeted).")
+                        prompt_parts.append("🔹 SCENARIO: RECENT_CONVERSATION (already greeted)")
             
             # Note: All other rules (response length, media, anti-hallucination, etc.)
             # are now in GeneralSettings and included via get_combined_system_prompt()

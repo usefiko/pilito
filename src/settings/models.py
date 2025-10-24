@@ -363,15 +363,22 @@ If topic is complex, give a short summary. User can ask for details.
     # ═══════════════════════════════════════════════════
     greeting_rules = models.TextField(
         max_length=1000,
-        default="""Use customer's name ONLY in the FIRST message.
-After that, use their name only if 3+ messages have passed.
-NEVER say 'سلام' more than once in the same conversation.
+        default="""⛔ CRITICAL RULE: Say 'سلام' or 'Hi' ONLY ONCE per conversation!
 
-FIRST MESSAGE: Greet warmly with their name if available (e.g., 'سلام [نام]! 👋' or 'Hi [Name]! 👋'). Keep it friendly and welcoming.
+When you see "SCENARIO: FIRST_MESSAGE":
+→ Greet with customer's name ONCE: "سلام [نام]!"
+→ Then answer their question naturally
 
-WELCOME BACK (12+ hours): Say 'خوش برگشتی!' (Persian) or 'Welcome back!' (English). Then answer their question naturally.
+When you see "SCENARIO: WELCOME_BACK":
+→ Say "خوش برگشتی!" ONCE (do NOT say سلام)
+→ Then answer directly
 
-RECENT CONVERSATION: Do NOT say 'سلام' or 'Hi' or 'خوش برگشتی' again. Just answer their question directly and naturally.""",
+When you see "SCENARIO: RECENT_CONVERSATION":
+→ Do NOT greet at all
+→ Answer the question DIRECTLY without any greeting word
+→ Example: "بله، می‌تونم کمک کنم..."
+
+⛔ NEVER say "دوباره سلام" or repeat any greeting!""",
         verbose_name="👋 Greeting & Name Usage (احوالپرسی و استفاده از نام)",
         help_text=(
             "قوانین برای احوالپرسی و استفاده از نام مشتری.\n"

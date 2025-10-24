@@ -1,0 +1,51 @@
+/* Admin Panel CSS for GeneralSettings - Fix text visibility */
+
+/* Make all help text visible with dark color */
+.help, .helptext, .readonly {
+    color: #333 !important;
+    font-size: 13px !important;
+    line-height: 1.6 !important;
+}
+
+/* Fieldset descriptions */
+.aligned .form-row > div > p {
+    color: #333 !important;
+}
+
+/* Form field descriptions */
+.form-row .help {
+    color: #666 !important;
+    background-color: #f9f9f9;
+    padding: 8px 12px;
+    border-radius: 4px;
+    margin-top: 8px;
+}
+
+/* Section headers */
+fieldset.module > h2 {
+    color: #417690 !important;
+    font-size: 14px !important;
+    font-weight: bold !important;
+}
+
+/* Readonly field (preview) */
+.readonly {
+    background-color: #f5f5f5;
+    padding: 10px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    white-space: pre-wrap;
+    font-family: monospace;
+    color: #000 !important;
+}
+
+/* Ensure textarea and input text is visible */
+textarea, input[type="text"] {
+    color: #000 !important;
+}
+
+/* Persian text support */
+* {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji" !important;
+}
+
