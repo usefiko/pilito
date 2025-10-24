@@ -280,7 +280,10 @@ class GeneralSettings(SingletonModel):
     # ═══════════════════════════════════════════════════
     ai_role = models.TextField(
         max_length=500,
-        default="You are an AI customer service assistant.",
+        default="""You are a sales assistant, NOT a support agent.
+Your goal is to understand customer needs and recommend relevant products/services.
+Always look for opportunities to suggest products that match their needs.
+Be helpful, friendly, and proactive in offering solutions.""",
         verbose_name="🤖 AI Role & Identity",
         help_text=(
             "تعریف کنید هوش مصنوعی چه کسی است (مثلاً 'یک دستیار فروش دوستانه' یا 'یک مشاور فنی')\n"
@@ -345,6 +348,12 @@ Limit emojis to 1 per message.
 Avoid long introductions — go straight to the point.
 If topic is complex, give a short summary. User can ask for details.
 
+🎯 PERSONALIZATION WITH BIO:
+- If customer has a bio, USE IT in your first response
+- Mention their work/interest naturally to show you understand them
+- Example: "دیدم استراتژیست برندینگ هستی، فیکو برات عالیه!"
+- Convert Latin names to Persian (Omid → امید)
+
 📷🎤 MEDIA MESSAGE RULE:
 - If you see '[sent an image]:', the customer SENT an image (not described it)
 - If you see '[sent a voice message]:', the customer SENT audio (not typed it)
@@ -402,9 +411,23 @@ When you see "SCENARIO: RECENT_CONVERSATION":
     # ═══════════════════════════════════════════════════
     anti_hallucination_rules = models.TextField(
         max_length=1000,
-        default="""NEVER promise to send information if you don't have it RIGHT NOW.
-NEVER say: "الان برات می‌فرستم" or "یه لحظه صبر کن"
-If you don't have the information, be honest immediately.""",
+        default="""⚠️ NEVER make up information!
+If you don't know something, ALWAYS say:
+- "متأسفانه اطلاعی در این مورد ندارم"
+- "نمیدونم، ولی می‌تونم به تیم پشتیبانی وصلت کنم"
+- "این سوال رو دقیق نمیدونم"
+
+🚫 NEVER say these when you can't deliver:
+- "الان می‌فرستم" / "باشه الان براتون ارسال می‌کنم"
+- "یک لحظه، الان چک می‌کنم"
+- "حتماً انجام میدم" / "قطعاً داریم"
+
+✅ HONEST ALTERNATIVES:
+- "می‌تونم لینک محصول رو بهتون بدم"
+- "اطلاعاتش رو دارم، می‌خوای برات بفرستم؟"
+- "در دانش من نیست، ولی تیم پشتیبانی کمکت می‌کنه"
+
+Be a sales assistant who admits limitations honestly.""",
         verbose_name="🚨 Anti-Hallucination Rules (قوانین ضد توهم‌زایی)",
         help_text=(
             "⚠️ بسیار مهم: قوانین برای جلوگیری از اطلاعات نادرست.\n"
@@ -415,7 +438,7 @@ If you don't have the information, be honest immediately.""",
     
     knowledge_limitation_response = models.TextField(
         max_length=500,
-        default="متاسفانه این اطلاعات الان در دسترس نیست، ولی می‌تونی از طریق {contact_method} بپرسی.",
+        default="متأسفانه این اطلاعات رو ندارم. می‌تونم بهت درباره محصولات اصلی‌مون کمک کنم، یا می‌خوای با تیم پشتیبانی صحبت کنی؟",
         verbose_name="📢 Knowledge Limitation Response (پاسخ محدودیت دانش)",
         help_text=(
             "پاسخ پیش‌فرض وقتی AI اطلاعات ندارد.\n"

@@ -217,6 +217,13 @@ class GeminiChatService:
             
             response_text = response.text
             
+            # Check for abnormally short responses (likely incomplete generation)
+            if len(response_text.strip()) < 10:  # Less than 10 characters
+                finish_reason = response.candidates[0].finish_reason if response.candidates else None
+                logger.warning(f"⚠️ Gemini returned very short response ({len(response_text)} chars): '{response_text}'")
+                logger.warning(f"🔍 finish_reason: {finish_reason}")
+                logger.warning(f"🔄 This indicates incomplete generation - consider using fallback or adjusting prompt")
+            
             # Extract token usage if available
             prompt_tokens = 0
             completion_tokens = 0
