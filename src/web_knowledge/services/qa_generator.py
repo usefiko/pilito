@@ -45,8 +45,8 @@ class QAGenerator:
             
             # Get AI config for model settings
             ai_config = AIGlobalConfig.get_config()
-            # ✅ ALWAYS use Pro for Q&A generation (high quality needed)
-            model_name = "gemini-2.5-pro"
+            # ✅ Use Flash for Q&A generation (10x cheaper, 3x faster than Pro)
+            model_name = "gemini-2.0-flash-exp"
             
             # Configure Gemini
             genai.configure(api_key=gemini_api_key)
@@ -218,7 +218,7 @@ class QAGenerator:
                         completion_tokens=completion_tokens,
                         response_time_ms=response_time_ms,
                         success=True,
-                        model_name='gemini-2.5-pro',
+                        model_name='gemini-2.0-flash-exp',
                         metadata={'page_title': page_title, 'content_length': len(content)}
                     )
                     logger.info(f"✅ AI usage tracked for Q&A generation (user: {self.user.username}, tokens: {prompt_tokens + completion_tokens})")
@@ -264,7 +264,7 @@ class QAGenerator:
                         completion_tokens=0,
                         response_time_ms=0,
                         success=False,
-                        model_name='gemini-2.5-pro',
+                        model_name='gemini-2.0-flash-exp',
                         error_message=error_msg,
                         metadata={'page_title': page_title, 'error': error_msg}
                     )

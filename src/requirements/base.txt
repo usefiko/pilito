@@ -35,6 +35,12 @@ openai>=1.12.0
 beautifulsoup4==4.12.2
 lxml==5.1.0
 rank-bm25==0.2.2
+# 🔥 Enhanced web crawling & content extraction
+trafilatura==1.12.2
+readability-lxml==0.8.1
+playwright==1.48.0
+# 🇮🇷 Persian language processing
+hazm==0.10.0
 stripe>=13.0.0
 pgvector==0.3.6
 tiktoken==0.8.0

@@ -26,8 +26,8 @@ class HybridRetriever:
     - Solves the "low similarity score" problem for exact matches
     """
     
-    BM25_WEIGHT = 0.7  # ✅ Increased for Persian (keyword matching more reliable)
-    VECTOR_WEIGHT = 0.3  # ✅ Decreased for Persian (embedding quality lower for RTL)
+    BM25_WEIGHT = 0.5  # ✅ Balanced (keyword matching)
+    VECTOR_WEIGHT = 0.5  # ✅ Balanced (semantic search with improved embeddings)
     RRF_K = 60  # Constant for Reciprocal Rank Fusion (industry standard)
     
     @classmethod
