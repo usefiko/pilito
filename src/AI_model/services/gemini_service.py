@@ -4,9 +4,6 @@ import time
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 
-# ✅ Setup proxy BEFORE importing Gemini (required for Iran servers)
-from core.utils import setup_ai_proxy
-setup_ai_proxy()
 
 # Import Gemini AI library
 try:
@@ -216,13 +213,6 @@ class GeminiChatService:
                     raise Exception(f"Gemini safety block and fallback failed - original finish_reason: {finish_reason}")
             
             response_text = response.text
-            
-            # Check for abnormally short responses (likely incomplete generation)
-            if len(response_text.strip()) < 10:  # Less than 10 characters
-                finish_reason = response.candidates[0].finish_reason if response.candidates else None
-                logger.warning(f"⚠️ Gemini returned very short response ({len(response_text)} chars): '{response_text}'")
-                logger.warning(f"🔍 finish_reason: {finish_reason}")
-                logger.warning(f"🔄 This indicates incomplete generation - consider using fallback or adjusting prompt")
             
             # Extract token usage if available
             prompt_tokens = 0
@@ -595,17 +585,17 @@ Provide a concise summary (max 100 words):"""
     
     def _build_prompt(self, customer_message: str, conversation=None) -> str:
         """
-        Build Lean RAG v2.1 prompt (target: ≤1700 tokens, optimized for Persian)
+        Build Lean RAG v2.1 prompt (target: ≤1500 tokens)
         
         Uses:
         - QueryRouter: Intent classification
-        - SessionMemoryManagerV2: Multi-tier conversation memory
+        - SessionMemoryManager: Rolling summaries
         - ContextRetriever: Semantic search with pgvector
-        - TokenBudgetController: Strict 1700 token limit (Persian optimized)
+        - TokenBudgetController: Strict 1500 token limit
         """
         try:
             from AI_model.services.query_router import QueryRouter
-            from AI_model.services.session_memory_manager_v2 import SessionMemoryManagerV2
+            from AI_model.services.session_memory_manager_v2 import SessionMemoryManagerV2 as SessionMemoryManager
             from AI_model.services.context_retriever import ContextRetriever
             from AI_model.services.token_budget_controller import TokenBudgetController
             
@@ -704,29 +694,7 @@ Provide a concise summary (max 100 words):"""
             # 4. Get conversation context (rolling summary + recent messages)
             conversation_context = ""
             if conversation:
-                context_data = SessionMemoryManagerV2.get_conversation_context(conversation)
-                
-                # V2 returns a dict, convert to string
-                if isinstance(context_data, dict):
-                    parts = []
-                    
-                    # Add recent verbatim messages (most important)
-                    if context_data.get('verbatim'):
-                        recent_msgs = []
-                        for msg in context_data['verbatim'][-5:]:  # Last 5 messages
-                            speaker = "Customer" if msg['type'] == 'customer' else "AI"
-                            recent_msgs.append(f"{speaker}: {msg['content']}")
-                        if recent_msgs:
-                            parts.append("Recent:\n" + "\n".join(recent_msgs))
-                    
-                    # Add summaries if available
-                    if context_data.get('recent_summary'):
-                        parts.append(f"Summary: {context_data['recent_summary']}")
-                    
-                    conversation_context = "\n\n".join(parts) if parts else ""
-                else:
-                    # Fallback: V1 compatibility (string)
-                    conversation_context = context_data or ""
+                conversation_context = SessionMemoryManager.get_conversation_context(conversation)
             
             # 5. Retrieve relevant context from knowledge base
             retrieval_result = ContextRetriever.retrieve_context(
@@ -862,25 +830,24 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
     def _build_lean_system_prompt(self, intent: str, conversation=None) -> str:
         """
         Build concise system prompt combining ALL prompts (target: ≤250 tokens)
-        Combines: System Prompt (modular) + Manual Prompt + Business Prompt
-        Now uses modular approach from GeneralSettings!
+        Combines: Mother Prompt (auto_prompt) + Manual Prompt + Business Prompt
         """
         try:
             from settings.models import GeneralSettings, AIPrompts, BusinessPrompt
             
             prompt_parts = []
             
-            # 1. Get Manual Prompt (which already includes System Prompt via get_combined_prompt)
+            # 1. Get Manual Prompt (which already includes Mother Prompt via get_combined_prompt)
             try:
                 ai_prompts = AIPrompts.objects.get(user=self.user)
-                combined = ai_prompts.get_combined_prompt()  # This includes system_prompt + manual_prompt
+                combined = ai_prompts.get_combined_prompt()  # This includes auto_prompt + manual_prompt
                 if combined:
                     prompt_parts.append(combined)
             except AIPrompts.DoesNotExist:
-                # Fallback to just System Prompt
-                system_prompt = GeneralSettings.get_settings().get_combined_system_prompt()
-                if system_prompt:
-                    prompt_parts.append(system_prompt)
+                # Fallback to just Mother Prompt
+                mother = GeneralSettings.get_settings().auto_prompt
+                if mother:
+                    prompt_parts.append(mother)
             
             # 2. Add Business/Industry Prompt if exists
             try:
@@ -890,9 +857,7 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
             except Exception:
                 pass
             
-            # 3. Add dynamic greeting context (if applicable)
-            # Note: Greeting rules are now in GeneralSettings.greeting_rules
-            # But we still need to detect WHEN to apply them dynamically
+            # 3. Add greeting rule (smart greeting based on time + message count)
             if conversation:
                 from message.models import Message
                 from django.utils import timezone
@@ -909,22 +874,60 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
                     type='AI'
                 ).order_by('-created_at').first()
                 
-                # Get threshold from settings
-                settings = GeneralSettings.get_settings()
-                threshold_hours = getattr(settings, 'welcome_back_threshold_hours', 12)
+                # Determine greeting strategy
+                should_greet = False
+                greeting_type = 'first'  # 'first' | 'welcome_back' | 'none'
                 
-                # Determine greeting scenario (just add context marker, not instructions)
                 if ai_message_count == 0:
-                    prompt_parts.append("🔹 SCENARIO: FIRST_MESSAGE")
+                    # First AI message ever in this conversation
+                    should_greet = True
+                    greeting_type = 'first'
                 elif last_ai_msg:
+                    # Check if 12+ hours since last AI message
                     hours_since_last = (timezone.now() - last_ai_msg.created_at).total_seconds() / 3600
-                    if hours_since_last >= threshold_hours:
-                        prompt_parts.append(f"🔹 SCENARIO: WELCOME_BACK (after {threshold_hours}+ hours)")
-                    else:
-                        prompt_parts.append("🔹 SCENARIO: RECENT_CONVERSATION (already greeted)")
+                    if hours_since_last >= 12:
+                        should_greet = True
+                        greeting_type = 'welcome_back'
+                
+                # Add appropriate greeting instruction
+                if should_greet:
+                    if greeting_type == 'first':
+                        prompt_parts.append(
+                            "GREETING RULE: This is your FIRST response to this customer. "
+                            "Greet warmly with their name if available (e.g., 'سلام [نام]! 👋' or 'Hi [Name]! 👋'). "
+                            "Keep it friendly and welcoming."
+                        )
+                    elif greeting_type == 'welcome_back':
+                        prompt_parts.append(
+                            "GREETING RULE: Customer returned after 12+ hours. "
+                            "Say 'خوش برگشتی!' (Persian) or 'Welcome back!' (English). "
+                            "Then answer their question naturally."
+                        )
+                else:
+                    # No greeting needed
+                    prompt_parts.append(
+                        "IMPORTANT: You've already greeted this customer recently. "
+                        "Do NOT say 'سلام' or 'Hi' or 'خوش برگشتی' again. "
+                        "Just answer their question directly and naturally."
+                    )
             
-            # Note: All other rules (response length, media, anti-hallucination, etc.)
-            # are now in GeneralSettings and included via get_combined_system_prompt()
+            # 4. CRITICAL: Response length constraint (for ALL responses)
+            prompt_parts.append(
+                "⚠️ RESPONSE LENGTH RULE: Keep responses CONCISE and DIRECT.\n"
+                "- Maximum 600 characters for Instagram compatibility\n"
+                "- Maximum 3-4 sentences per response\n"
+                "- Be helpful but brief - no long explanations unless asked\n"
+                "- If topic is complex, give a short summary. User can ask for details."
+            )
+            
+            # 5. Media message context rule
+            prompt_parts.append(
+                "📷🎤 MEDIA MESSAGE RULE:\n"
+                "- If you see '[sent an image]:', the customer SENT an image (not described it)\n"
+                "- If you see '[sent a voice message]:', the customer SENT audio (not typed it)\n"
+                "- The text after is AI analysis of their media\n"
+                "- Respond naturally about what they sent, don't say 'you described'"
+            )
             
             # Combine all parts
             full_prompt = "\n\n".join(prompt_parts)
@@ -944,13 +947,12 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
         """
         Fallback prompt when Lean RAG fails
         Simplified version of old method
-        Now uses modular system prompt!
         """
         try:
             from settings.models import GeneralSettings
             
-            # Basic system prompt (now using modular approach)
-            system_prompt = GeneralSettings.get_settings().get_combined_system_prompt() or "You are a helpful AI assistant."
+            # Basic system prompt
+            system_prompt = GeneralSettings.get_settings().auto_prompt or "You are a helpful AI assistant."
             
             # Recent conversation context (last 3 messages)
             conversation_context = ""
