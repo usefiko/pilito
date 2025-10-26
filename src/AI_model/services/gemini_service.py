@@ -861,28 +861,31 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
     
     def _build_lean_system_prompt(self, intent: str, conversation=None) -> str:
         """
-        Build concise system prompt combining ALL prompts (target: ≤250 tokens)
-        Combines: System Prompt (modular) + Manual Prompt + Business Prompt
-        Now uses modular approach from GeneralSettings!
+        Build concise system prompt (target: ≤400 tokens)
+        
+        ⚠️ IMPORTANT: Manual prompt is NOT included here!
+        Manual prompt is chunked and retrieved via RAG (TenantKnowledge with chunk_type='manual')
+        
+        This method ONLY includes:
+        1. GeneralSettings (11 modular fields: ai_role, language_rules, tone, etc.)
+        2. BusinessPrompt (optional industry-specific instructions)
+        3. Dynamic greeting context (FIRST_MESSAGE, WELCOME_BACK, RECENT_CONVERSATION)
+        
+        Returns:
+            str: System instructions WITHOUT manual prompt
         """
         try:
-            from settings.models import GeneralSettings, AIPrompts, BusinessPrompt
+            from settings.models import GeneralSettings, BusinessPrompt
             
             prompt_parts = []
             
-            # 1. Get Manual Prompt (which already includes System Prompt via get_combined_prompt)
-            try:
-                ai_prompts = AIPrompts.objects.get(user=self.user)
-                combined = ai_prompts.get_combined_prompt()  # This includes system_prompt + manual_prompt
-                if combined:
-                    prompt_parts.append(combined)
-            except AIPrompts.DoesNotExist:
-                # Fallback to just System Prompt
-                system_prompt = GeneralSettings.get_settings().get_combined_system_prompt()
-                if system_prompt:
-                    prompt_parts.append(system_prompt)
+            # 1. GeneralSettings system prompt (11 modular fields)
+            # This contains behavior rules that apply to ALL users
+            system_prompt = GeneralSettings.get_settings().get_combined_system_prompt()
+            if system_prompt and system_prompt.strip():
+                prompt_parts.append(system_prompt.strip())
             
-            # 2. Add Business/Industry Prompt if exists
+            # 2. BusinessPrompt (optional industry-specific instructions)
             try:
                 business = BusinessPrompt.objects.filter(ai_answer_prompt__isnull=False).first()
                 if business and business.ai_answer_prompt:
@@ -890,9 +893,9 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
             except Exception:
                 pass
             
-            # 3. Add dynamic greeting context (if applicable)
-            # Note: Greeting rules are now in GeneralSettings.greeting_rules
-            # But we still need to detect WHEN to apply them dynamically
+            # 3. Dynamic greeting context
+            # Greeting rules are in GeneralSettings.greeting_rules
+            # Here we just add scenario markers for the AI to know which scenario applies
             if conversation:
                 from message.models import Message
                 from django.utils import timezone
@@ -913,7 +916,7 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
                 settings = GeneralSettings.get_settings()
                 threshold_hours = getattr(settings, 'welcome_back_threshold_hours', 12)
                 
-                # Determine greeting scenario (just add context marker, not instructions)
+                # Determine greeting scenario (just add context marker, not full instructions)
                 if ai_message_count == 0:
                     prompt_parts.append("🔹 SCENARIO: FIRST_MESSAGE")
                 elif last_ai_msg:
@@ -923,16 +926,11 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
                     else:
                         prompt_parts.append("🔹 SCENARIO: RECENT_CONVERSATION (already greeted)")
             
-            # Note: All other rules (response length, media, anti-hallucination, etc.)
-            # are now in GeneralSettings and included via get_combined_system_prompt()
-            
             # Combine all parts
             full_prompt = "\n\n".join(prompt_parts)
             
-            # Trim if too long (max 250 tokens ~ 180 words)
-            words = full_prompt.split()
-            if len(words) > 180:
-                full_prompt = ' '.join(words[:180]) + '...'
+            # NO TRIMMING! Let TokenBudgetController handle token limits
+            # Manual prompt chunks will be added via RAG context retrieval
             
             return full_prompt
             
