@@ -52,10 +52,11 @@ class EmbeddingService:
         """Initialize OpenAI embedding API"""
         try:
             # ✅ Setup proxy before importing OpenAI
-            from core.utils import setup_ai_proxy
+            from core.utils import setup_ai_proxy, get_active_proxy
             setup_ai_proxy()
             
             from openai import OpenAI
+            import httpx
             from settings.models import GeneralSettings
             
             # Get API key from settings
@@ -66,8 +67,26 @@ class EmbeddingService:
                 logger.debug("OpenAI API key not configured")
                 return
             
-            # Initialize OpenAI client
-            self.openai_client = OpenAI(api_key=api_key)
+            # ✅ Get proxy configuration for OpenAI client
+            proxy_config = get_active_proxy()
+            
+            # Initialize OpenAI client with proxy support
+            if proxy_config and proxy_config.get('http'):
+                # Create httpx client with proxy
+                http_client = httpx.Client(
+                    proxies={
+                        "http://": proxy_config['http'],
+                        "https://": proxy_config['https']
+                    },
+                    timeout=60.0
+                )
+                self.openai_client = OpenAI(api_key=api_key, http_client=http_client)
+                logger.info("✅ OpenAI initialized with proxy")
+            else:
+                # Direct connection (no proxy)
+                self.openai_client = OpenAI(api_key=api_key)
+                logger.info("✅ OpenAI initialized (direct connection)")
+            
             self.openai_configured = True
             
         except ImportError:
