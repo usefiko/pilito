@@ -30,7 +30,7 @@ FROM system-deps as python-deps
 COPY src/requirements/*.txt /tmp/requirements/
 
 # Install Python packages (this layer will be cached)
-RUN pip install --upgrade pip && \
+RUN pip install --upgrade pip setuptools wheel && \
     pip install -r /tmp/requirements/base.txt
 
 # ─────────────────────────────────────────
