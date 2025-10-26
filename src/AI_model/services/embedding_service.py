@@ -51,12 +51,12 @@ class EmbeddingService:
     def _initialize_openai(self):
         """Initialize OpenAI embedding API"""
         try:
-            # ✅ Setup proxy before importing OpenAI
-            from core.utils import setup_ai_proxy, get_active_proxy
+            # ✅ Setup proxy via environment variables (HTTP_PROXY, HTTPS_PROXY)
+            # OpenAI library automatically uses these environment variables
+            from core.utils import setup_ai_proxy
             setup_ai_proxy()
             
             from openai import OpenAI
-            import httpx
             from settings.models import GeneralSettings
             
             # Get API key from settings
@@ -67,31 +67,15 @@ class EmbeddingService:
                 logger.debug("OpenAI API key not configured")
                 return
             
-            # ✅ Get proxy configuration for OpenAI client
-            proxy_config = get_active_proxy()
-            
-            # Initialize OpenAI client with proxy support
-            if proxy_config and proxy_config.get('http'):
-                # Create httpx client with proxy
-                http_client = httpx.Client(
-                    proxies=proxy_config,  # ✅ Correct format: {'http': '...', 'https': '...'}
-                    timeout=60.0
-                )
-                self.openai_client = OpenAI(api_key=api_key, http_client=http_client)
-                logger.info("✅✅✅ OpenAI initialized with httpx.Client proxy (FIX DEPLOYED!) ✅✅✅")
-            else:
-                # Direct connection (no proxy)
-                self.openai_client = OpenAI(api_key=api_key)
-                logger.info("✅ OpenAI initialized (direct connection)")
-            
+            # Initialize OpenAI client (uses HTTP_PROXY/HTTPS_PROXY env vars automatically)
+            self.openai_client = OpenAI(api_key=api_key)
             self.openai_configured = True
+            logger.info("✅ OpenAI initialized (proxy via environment variables)")
             
         except ImportError:
             logger.debug("openai library not installed")
         except Exception as e:
-            logger.error(f"❌❌❌ OpenAI initialization FAILED (OLD CODE!): {str(e)}")
-            logger.error(f"     Exception type: {type(e).__name__}")
-            logger.error(f"     If you see 'proxies' error, the fix hasn't deployed yet!")
+            logger.error(f"Failed to initialize OpenAI: {str(e)}")
     
     def _initialize_gemini(self):
         """Initialize Gemini embedding model (fallback)"""
