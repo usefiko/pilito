@@ -78,7 +78,7 @@ class EmbeddingService:
                     timeout=60.0
                 )
                 self.openai_client = OpenAI(api_key=api_key, http_client=http_client)
-                logger.info("✅ OpenAI initialized with proxy")
+                logger.info("✅✅✅ OpenAI initialized with httpx.Client proxy (FIX DEPLOYED!) ✅✅✅")
             else:
                 # Direct connection (no proxy)
                 self.openai_client = OpenAI(api_key=api_key)
@@ -89,7 +89,9 @@ class EmbeddingService:
         except ImportError:
             logger.debug("openai library not installed")
         except Exception as e:
-            logger.error(f"Failed to initialize OpenAI: {str(e)}")
+            logger.error(f"❌❌❌ OpenAI initialization FAILED (OLD CODE!): {str(e)}")
+            logger.error(f"     Exception type: {type(e).__name__}")
+            logger.error(f"     If you see 'proxies' error, the fix hasn't deployed yet!")
     
     def _initialize_gemini(self):
         """Initialize Gemini embedding model (fallback)"""
