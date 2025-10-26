@@ -22,7 +22,7 @@ class WebsiteCrawler:
     """
     
     def __init__(self, base_url: str, max_pages: int = 200, max_depth: int = 5, 
-                 include_external: bool = False, delay: float = 0.5):
+                 include_external: bool = False, delay: float = 0.1):
         self.base_url = base_url
         self.max_pages = max_pages
         self.max_depth = max_depth
@@ -78,7 +78,7 @@ class WebsiteCrawler:
                     
                     # Update progress
                     if progress_callback:
-                        progress_percentage = (len(self.crawled_pages) / self.max_pages) * 100
+                        progress_percentage = round((len(self.crawled_pages) / self.max_pages) * 100, 1)
                         progress_callback(progress_percentage, len(self.crawled_pages), current_url)
                     
                     # Extract new URLs to crawl

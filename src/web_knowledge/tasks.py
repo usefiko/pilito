@@ -49,7 +49,7 @@ def crawl_website_task(self, website_source_id: str) -> Dict[str, Any]:
             max_pages=website_source.max_pages,
             max_depth=website_source.crawl_depth,
             include_external=website_source.include_external_links,
-            delay=0.5  # ✅ Faster crawling (0.5s = 120 pages/min vs 2.0s = 30 pages/min)
+            delay=0.1  # ✅ Fast crawling for domestic servers (0.1s = 600 pages/min theoretical)
         )
         
         # Progress callback function
