@@ -121,7 +121,10 @@ class EmbeddingService:
     
     def get_embedding(self, text: str, task_type: str = "retrieval_document") -> Optional[List[float]]:
         """
-        Get embedding vector for text using OpenAI (primary) or Gemini (fallback)
+        Get embedding vector for text using OpenAI ONLY (no fallback to prevent dimension mismatch)
+        
+        ⚠️ IMPORTANT: Gemini fallback is DISABLED to ensure consistent embedding dimensions (1536)
+        All chunks must use the same embedding model to enable vector search
         
         Args:
             text: Text to embed
@@ -130,20 +133,20 @@ class EmbeddingService:
                 - "retrieval_query": For user queries
         
         Returns:
-            List of floats (embedding vector) or None if all methods failed
+            List of floats (embedding vector, 1536 dims) or None if OpenAI failed
         """
         if not text or not text.strip():
             logger.warning("⚠️ Empty text provided for embedding")
             return None
         
-        # Check cache first (works for both OpenAI and Gemini)
+        # Check cache first
         if self.use_cache:
             cached = self._get_from_cache(text, task_type)
             if cached:
                 logger.debug(f"✅ Cache hit for embedding (length: {len(text)})")
                 return cached
         
-        # Try OpenAI first (best for multilingual)
+        # Use OpenAI ONLY (no Gemini fallback to prevent dimension mismatch)
         if self.openai_configured:
             embedding = self._get_openai_embedding(text)
             if embedding:
@@ -152,19 +155,13 @@ class EmbeddingService:
                     self._save_to_cache(text, task_type, embedding)
                 return embedding
             else:
-                logger.info("🔄 OpenAI embedding failed, trying Gemini fallback...")
+                logger.error("❌ OpenAI embedding failed - returning None (will use BM25 fallback)")
+                return None
         
-        # Fallback to Gemini
-        if self.gemini_configured:
-            embedding = self._get_gemini_embedding(text, task_type)
-            if embedding:
-                # Cache it
-                if self.use_cache:
-                    self._save_to_cache(text, task_type, embedding)
-                return embedding
-        
-        # All methods failed
-        logger.warning("⚠️ All embedding methods failed, will fall back to BM25")
+        # OpenAI not configured
+        logger.error("❌ OpenAI embedding not configured - cannot generate embeddings")
+        logger.error("   Gemini fallback is DISABLED to prevent dimension mismatch (768 vs 1536)")
+        logger.error("   Please configure OpenAI API key in GeneralSettings")
         return None
     
     def _get_openai_embedding(self, text: str) -> Optional[List[float]]:
