@@ -1,8 +1,8 @@
-import requests
 import logging
 from typing import Optional, Dict, Any
 from settings.models import InstagramChannel
 from message.models import Message, Conversation, Customer
+from core.utils import make_request_with_proxy
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +47,8 @@ class InstagramService:
         }
         
         try:
-            response = requests.post(url, json=payload, headers=headers, timeout=30)
+            # ✅ Send Instagram message with automatic fallback proxy
+            response = make_request_with_proxy('post', url, json=payload, headers=headers, timeout=30)
             
             # Log the response for debugging
             logger.info(f"Instagram API response status: {response.status_code}")
@@ -74,8 +75,23 @@ class InstagramService:
                     'error': error_msg
                 }
                 
-        except requests.exceptions.Timeout:
-            logger.error(f"Timeout sending message to Instagram user {recipient_id}")
+        except Exception as e:
+            logger.error(f"Error sending message to Instagram user {recipient_id}: {e}")
+            # ✅ make_request_with_proxy already handles fallback automatically
+            try:
+                response = make_request_with_proxy('post', url, json=payload, headers=headers, timeout=30, use_fallback=True)
+                response.raise_for_status()
+                result = response.json()
+                if 'message_id' in result or 'recipient_id' in result:
+                    logger.info(f"✅ Message sent via fallback proxy to Instagram user {recipient_id}")
+                    return {
+                        'success': True,
+                        'message_id': result.get('message_id'),
+                        'recipient_id': result.get('recipient_id'),
+                        'data': result
+                    }
+            except Exception as fallback_error:
+                logger.error(f"Fallback proxy also failed: {fallback_error}")
             return {'success': False, 'error': 'Request timeout'}
             
         except requests.exceptions.HTTPError as e:
@@ -163,7 +179,8 @@ class InstagramService:
         }
         
         try:
-            response = requests.post(url, json=payload, headers=headers, timeout=10)
+            # ✅ Use proxy-aware request for typing indicator
+            response = make_request_with_proxy('post', url, json=payload, headers=headers, timeout=10)
             
             logger.debug(f"Instagram typing indicator ({action}) response status: {response.status_code}")
             
@@ -175,14 +192,6 @@ class InstagramService:
                 'recipient_id': recipient_id
             }
                 
-        except requests.exceptions.Timeout:
-            logger.warning(f"Timeout sending typing indicator to Instagram user {recipient_id}")
-            return {'success': False, 'error': 'Request timeout'}
-            
-        except requests.exceptions.HTTPError as e:
-            logger.warning(f"HTTP error sending typing indicator to Instagram: {e.response.status_code}")
-            return {'success': False, 'error': str(e)}
-            
         except Exception as e:
             logger.warning(f"Error sending typing indicator to Instagram: {e}")
             return {'success': False, 'error': str(e)}
@@ -259,7 +268,8 @@ class InstagramService:
         }
         
         try:
-            response = requests.get(url, params=params, headers=headers, timeout=10)
+            # ✅ Get Instagram user info with automatic fallback proxy
+            response = make_request_with_proxy('get', url, params=params, headers=headers, timeout=10)
             response.raise_for_status()
             result = response.json()
             
@@ -363,7 +373,8 @@ class InstagramService:
                 'access_token': short_lived_token
             }
             
-            response = requests.get(url, params=params, timeout=30)
+            # ✅ Token exchange with automatic fallback proxy
+            response = make_request_with_proxy('get', url, params=params, timeout=30)
             
             if response.status_code == 200:
                 data = response.json()
@@ -390,7 +401,8 @@ class InstagramService:
                 'access_token': current_token
             }
             
-            response = requests.get(url, params=params, timeout=10)
+            # ✅ Token refresh with automatic fallback proxy
+            response = make_request_with_proxy('get', url, params=params, timeout=10)
             
             if response.status_code == 200:
                 data = response.json()
