@@ -9,6 +9,7 @@ from urllib.parse import urljoin, urlparse, urlunparse
 from typing import List, Dict, Set, Optional, Tuple
 import time
 import re
+import threading
 from django.utils import timezone
 from django.conf import settings
 from concurrent.futures import ThreadPoolExecutor
@@ -51,51 +52,89 @@ class WebsiteCrawler:
             'Upgrade-Insecure-Requests': '1',
         })
     
-    def crawl(self, progress_callback=None) -> List[Dict]:
+    def crawl(self, progress_callback=None, max_workers: int = 5) -> List[Dict]:
         """
-        Start crawling the website
-        Returns list of crawled page data
+        🔥 IMPROVED: Concurrent website crawling with ThreadPoolExecutor
+        
+        Args:
+            progress_callback: Function to call with progress updates
+            max_workers: Number of concurrent requests (default: 5)
+        
+        Returns:
+            List of crawled page data
+        
+        Speed improvement:
+        - Sequential: 200 pages × 4s = 800s (13 min) ❌
+        - Concurrent (5 workers): 200 pages / 5 × 4s = 160s (2.7 min) ✅
         """
-        logger.info(f"Starting crawl of {self.base_url}")
+        logger.info(f"Starting concurrent crawl of {self.base_url} (workers={max_workers})")
         
         # Initialize with base URL
         urls_to_crawl = [(self.base_url, 0)]  # (url, depth)
+        crawl_lock = threading.Lock()  # Thread-safe operations
         
-        while urls_to_crawl and len(self.crawled_pages) < self.max_pages:
-            current_url, depth = urls_to_crawl.pop(0)
+        def crawl_single_url(url_depth_tuple):
+            """Crawl a single URL (thread-safe)"""
+            current_url, depth = url_depth_tuple
             
             # Skip if already visited or max depth reached
-            if current_url in self.visited_urls or depth > self.max_depth:
-                continue
+            with crawl_lock:
+                if current_url in self.visited_urls or depth > self.max_depth:
+                    return None
+                if len(self.crawled_pages) >= self.max_pages:
+                    return None
             
             try:
                 # Crawl current page
                 page_data = self._crawl_page(current_url, depth)
                 
                 if page_data:
-                    self.crawled_pages.append(page_data)
-                    logger.info(f"Crawled: {current_url} (Page {len(self.crawled_pages)}/{self.max_pages})")
-                    
-                    # Update progress
-                    if progress_callback:
-                        progress_percentage = round((len(self.crawled_pages) / self.max_pages) * 100, 1)
-                        progress_callback(progress_percentage, len(self.crawled_pages), current_url)
-                    
-                    # Extract new URLs to crawl
-                    if depth < self.max_depth and len(self.crawled_pages) < self.max_pages:
-                        new_urls = self._extract_urls(page_data['links'], depth + 1)
-                        urls_to_crawl.extend(new_urls)
-                
-                # Respectful delay
-                time.sleep(self.delay)
+                    with crawl_lock:
+                        # Thread-safe append
+                        if len(self.crawled_pages) < self.max_pages:
+                            self.crawled_pages.append(page_data)
+                            pages_count = len(self.crawled_pages)
+                            
+                            logger.info(f"Crawled: {current_url} (Page {pages_count}/{self.max_pages})")
+                            
+                            # Update progress
+                            if progress_callback:
+                                progress_percentage = round((pages_count / self.max_pages) * 100, 1)
+                                progress_callback(progress_percentage, pages_count, current_url)
+                            
+                            # Extract new URLs to crawl
+                            if depth < self.max_depth and pages_count < self.max_pages:
+                                new_urls = self._extract_urls(page_data['links'], depth + 1)
+                                urls_to_crawl.extend(new_urls)
+                            
+                            return page_data
                 
             except Exception as e:
                 logger.error(f"Error crawling {current_url}: {str(e)}")
-                self.failed_urls.append({
-                    'url': current_url,
-                    'error': str(e),
-                    'depth': depth
-                })
+                with crawl_lock:
+                    self.failed_urls.append({
+                        'url': current_url,
+                        'error': str(e),
+                        'depth': depth
+                    })
+            
+            return None
+        
+        # Concurrent crawling with ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            while urls_to_crawl and len(self.crawled_pages) < self.max_pages:
+                # Get batch of URLs to crawl
+                batch_size = min(max_workers * 2, len(urls_to_crawl))
+                if batch_size == 0:
+                    break
+                
+                batch = [urls_to_crawl.pop(0) for _ in range(min(batch_size, len(urls_to_crawl)))]
+                
+                # Crawl batch concurrently
+                list(executor.map(crawl_single_url, batch))
+                
+                # Small delay to avoid overwhelming server
+                time.sleep(self.delay)
         
         logger.info(f"Crawl completed. {len(self.crawled_pages)} pages crawled, {len(self.failed_urls)} failed")
         return self.crawled_pages
