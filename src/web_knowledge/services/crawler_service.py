@@ -21,8 +21,8 @@ class WebsiteCrawler:
     Advanced website crawler with respectful crawling practices
     """
     
-    def __init__(self, base_url: str, max_pages: int = 30, max_depth: int = 3, 
-                 include_external: bool = False, delay: float = 2.0):
+    def __init__(self, base_url: str, max_pages: int = 200, max_depth: int = 5, 
+                 include_external: bool = False, delay: float = 0.5):
         self.base_url = base_url
         self.max_pages = max_pages
         self.max_depth = max_depth

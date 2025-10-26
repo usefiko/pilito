@@ -29,8 +29,8 @@ class WebsiteSource(models.Model):
     description = models.TextField(blank=True, help_text="Optional description of the website")
     
     # Crawl settings
-    max_pages = models.PositiveIntegerField(default=30, help_text="Maximum number of pages to crawl")
-    crawl_depth = models.PositiveIntegerField(default=3, help_text="Maximum depth to crawl")
+    max_pages = models.PositiveIntegerField(default=200, help_text="Maximum number of pages to crawl")
+    crawl_depth = models.PositiveIntegerField(default=5, help_text="Maximum depth to crawl")
     include_external_links = models.BooleanField(default=False, help_text="Include links to external domains")
     
     # Auto-extraction settings
