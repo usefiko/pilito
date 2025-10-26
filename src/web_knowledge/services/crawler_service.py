@@ -100,16 +100,41 @@ class WebsiteCrawler:
         logger.info(f"Crawl completed. {len(self.crawled_pages)} pages crawled, {len(self.failed_urls)} failed")
         return self.crawled_pages
     
-    def _crawl_page(self, url: str, depth: int) -> Optional[Dict]:
+    def _crawl_page(self, url: str, depth: int, max_retries: int = 3) -> Optional[Dict]:
         """
-        Crawl a single page and extract content
+        Crawl a single page and extract content with retry logic
+        
+        Args:
+            url: URL to crawl
+            depth: Current depth level
+            max_retries: Number of retries for failed requests (default: 3)
         """
         self.visited_urls.add(url)
         
+        # Retry logic for timeout/connection errors
+        for attempt in range(max_retries):
+            try:
+                # Make request (increased timeout for slow connections)
+                timeout_value = 60 if attempt == 0 else 45  # First try 60s, retries 45s
+                response = self.session.get(url, timeout=timeout_value, allow_redirects=True)
+                response.raise_for_status()
+                break  # Success, exit retry loop
+                
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+                if attempt < max_retries - 1:
+                    wait_time = (attempt + 1) * 2  # 2s, 4s, 6s
+                    logger.warning(f"⚠️ Timeout/Connection error for {url} (attempt {attempt + 1}/{max_retries}): {str(e)}")
+                    logger.info(f"🔄 Retrying in {wait_time}s...")
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    logger.error(f"❌ Failed to crawl {url} after {max_retries} attempts: {str(e)}")
+                    raise
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Request error for {url}: {str(e)}")
+                raise
+        
         try:
-            # Make request
-            response = self.session.get(url, timeout=20, allow_redirects=True)
-            response.raise_for_status()
             
             # Check content type
             content_type = response.headers.get('content-type', '')
@@ -146,9 +171,6 @@ class WebsiteCrawler:
             
             return page_data
             
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Request error for {url}: {str(e)}")
-            raise
         except Exception as e:
             logger.error(f"Parsing error for {url}: {str(e)}")
             raise
