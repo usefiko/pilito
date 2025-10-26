@@ -74,10 +74,7 @@ class EmbeddingService:
             if proxy_config and proxy_config.get('http'):
                 # Create httpx client with proxy
                 http_client = httpx.Client(
-                    proxies={
-                        "http://": proxy_config['http'],
-                        "https://": proxy_config['https']
-                    },
+                    proxies=proxy_config,  # ✅ Correct format: {'http': '...', 'https': '...'}
                     timeout=60.0
                 )
                 self.openai_client = OpenAI(api_key=api_key, http_client=http_client)
