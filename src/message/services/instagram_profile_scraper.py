@@ -87,12 +87,13 @@ class InstagramProfileScraper:
             }
             
             # ✅ Send request with automatic proxy fallback
+            # Increased timeout to 30s for Iran proxy connections
             response = make_request_with_proxy(
                 'get', 
                 url, 
                 params=params,
                 headers=headers, 
-                timeout=15,
+                timeout=30,  # Increased from 15s to 30s for slow proxy connections
                 use_fallback=True
             )
             
