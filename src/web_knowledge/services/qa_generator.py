@@ -1,6 +1,6 @@
 """
 Q&A Generator Service
-Uses AI (Gemini) to generate question-answer pairs from website content
+Uses AI (OpenAI GPT-3.5-turbo) to generate question-answer pairs from website content
 Enhanced version with smart validation and quality control
 """
 import logging
@@ -9,81 +9,63 @@ import re
 from typing import List, Dict, Optional, Tuple
 from django.conf import settings
 
-# ✅ Setup proxy BEFORE importing Gemini (required for Iran servers)
+# ✅ Setup proxy BEFORE importing AI libraries (required for Iran servers)
 from core.utils import setup_ai_proxy
 setup_ai_proxy()
-
-import google.generativeai as genai
 
 logger = logging.getLogger(__name__)
 
 
 class QAGenerator:
     """
-    AI-powered Q&A generation service using Google Gemini
+    AI-powered Q&A generation service using OpenAI GPT-3.5-turbo
     Enhanced with smart validation and deduplication
     """
     
     def __init__(self, user=None):
-        self.user = user  # ✅ NEW: Track user for token consumption
-        self.model = None
-        self._initialize_gemini()
+        self.user = user  # ✅ Track user for token consumption
+        self.client = None
+        self._initialize_openai()
     
-    def _initialize_gemini(self):
-        """Initialize Gemini AI model"""
+    def _initialize_openai(self):
+        """Initialize OpenAI GPT-3.5-turbo for Q&A generation"""
         try:
-            # Get API key from GeneralSettings (where it's actually stored)
+            from openai import OpenAI
             from settings.models import GeneralSettings
-            from AI_model.models import AIGlobalConfig
             
             settings_obj = GeneralSettings.get_settings()
-            gemini_api_key = settings_obj.gemini_api_key
+            openai_api_key = settings_obj.openai_api_key
             
-            if not gemini_api_key or len(gemini_api_key) < 20:
-                logger.error("Gemini API key not found in GeneralSettings")
+            if not openai_api_key or len(openai_api_key) < 20:
+                logger.error("OpenAI API key not found in GeneralSettings")
                 return
             
-            # Get AI config for model settings
-            ai_config = AIGlobalConfig.get_config()
-            # ✅ Use Flash-Exp for Q&A generation (16x cheaper than Pro, faster, less safety blocks)
-            model_name = "gemini-2.0-flash-exp"
+            # ✅ Initialize OpenAI client
+            # Proxy is already configured via setup_ai_proxy() (line 13-14)
+            # OpenAI library automatically uses HTTP_PROXY/HTTPS_PROXY env vars
+            self.client = OpenAI(api_key=openai_api_key)
             
-            # Configure Gemini
-            genai.configure(api_key=gemini_api_key)
-            
-            # Initialize model with optimized settings for Q&A generation
-            # Using Flash-Exp for speed + cost-effectiveness
-            self.model = genai.GenerativeModel(
-                model_name=model_name,
-                generation_config={
-                    "temperature": 0.7,
-                    "top_p": 0.95,
-                    "top_k": 40,
-                    "max_output_tokens": 2048,
-                }
-            )
-            
-            logger.info(f"✅ Gemini AI model ({model_name}) initialized for Q&A generation (Flash-Exp: fast + cheap)")
+            logger.info("✅ OpenAI GPT-3.5-turbo initialized for Q&A generation (via proxy, better quality + less safety blocks)")
             
         except Exception as e:
-            logger.error(f"Failed to initialize Gemini AI model: {str(e)}")
-            self.model = None
+            logger.error(f"Failed to initialize OpenAI client: {str(e)}")
+            self.client = None
     
     def generate_qa_pairs(self, content: str, page_title: str = "", 
-                         max_pairs: int = 5) -> List[Dict]:
+                         max_pairs: int = 10) -> List[Dict]:
         """
-        Generate Q&A pairs from content
+        Generate Q&A pairs from content using OpenAI GPT-3.5-turbo
         
         Args:
             content: Text content to generate Q&A from
             page_title: Title of the page (for context)
-            max_pairs: Maximum number of Q&A pairs to generate
+            max_pairs: Maximum number of Q&A pairs to generate (default: 10)
             
         Returns:
             List of Q&A dictionaries with question, answer, context, and confidence
         """
-        if not self.model:
-            logger.error("Gemini model not initialized")
+        if not self.client:
+            logger.error("OpenAI client not initialized")
             return []
         
         if not content or len(content.strip()) < 100:
@@ -174,38 +156,32 @@ class QAGenerator:
     def _generate_qa_from_chunk(self, content: str, page_title: str, 
                                max_pairs: int) -> List[Dict]:
         """
-        Generate Q&A pairs from a single content chunk
+        Generate Q&A pairs from a single content chunk using OpenAI GPT-3.5-turbo
         """
         try:
             # Create prompt for Q&A generation
             prompt = self._create_qa_prompt(content, page_title, max_pairs)
             
-            # Configure safety settings to BLOCK_NONE (prevent false blocks on educational content)
-            safety_settings = [
-                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
-            ]
-            
             # Track timing
             import time
             start_time = time.time()
             
-            # Generate response with safety settings
-            response = self.model.generate_content(
-                prompt,
-                safety_settings=safety_settings
+            # Generate response using OpenAI GPT-3.5-turbo
+            response = self.client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "You are an expert Q&A generator. Generate natural, high-quality question-answer pairs in the same language as the content."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.7,
+                max_tokens=2048,
             )
             
             response_time_ms = int((time.time() - start_time) * 1000)
             
             # ✅ Extract token usage
-            prompt_tokens = 0
-            completion_tokens = 0
-            if hasattr(response, 'usage_metadata'):
-                prompt_tokens = getattr(response.usage_metadata, 'prompt_token_count', 0)
-                completion_tokens = getattr(response.usage_metadata, 'candidates_token_count', 0)
+            prompt_tokens = response.usage.prompt_tokens
+            completion_tokens = response.usage.completion_tokens
             
             # ✅ Track AI usage in AIUsageLog and AIUsageTracking
             if self.user:
@@ -218,7 +194,7 @@ class QAGenerator:
                         completion_tokens=completion_tokens,
                         response_time_ms=response_time_ms,
                         success=True,
-                        model_name='gemini-2.0-flash-exp',
+                        model_name='gpt-3.5-turbo',
                         metadata={'page_title': page_title, 'content_length': len(content)}
                     )
                     logger.info(f"✅ AI usage tracked for Q&A generation (user: {self.user.username}, tokens: {prompt_tokens + completion_tokens})")
@@ -239,12 +215,15 @@ class QAGenerator:
                 except Exception as token_error:
                     logger.error(f"Failed to consume tokens for Q&A generation: {token_error}")
             
-            if not response or not response.text:
-                logger.warning("Empty response from Gemini for Q&A generation")
+            # Extract response text
+            response_text = response.choices[0].message.content
+            
+            if not response_text:
+                logger.warning("Empty response from OpenAI for Q&A generation")
                 return []
             
             # Parse Q&A pairs from response
-            qa_pairs = self._parse_qa_response(response.text, content)
+            qa_pairs = self._parse_qa_response(response_text, content)
             
             return qa_pairs
             
@@ -264,7 +243,7 @@ class QAGenerator:
                         completion_tokens=0,
                         response_time_ms=0,
                         success=False,
-                        model_name='gemini-2.0-flash-exp',
+                        model_name='gpt-3.5-turbo',
                         error_message=error_msg,
                         metadata={'page_title': page_title, 'error': error_msg}
                     )
@@ -741,7 +720,7 @@ Generate only the JSON, no other text.
     
     def is_available(self) -> bool:
         """Check if the Q&A generator is available and properly configured"""
-        return self.model is not None
+        return self.client is not None
 
 
 class QAOptimizer:
