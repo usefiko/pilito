@@ -83,8 +83,13 @@ else:
     if chunks:
         print("\n🎯 Top 3 Results:")
         for i, chunk_data in enumerate(chunks[:3], 1):
-            chunk = chunk_data['chunk']
-            score = chunk_data.get('score', 0)
+            # Handle both dict and object formats
+            if isinstance(chunk_data, dict) and 'chunk' in chunk_data:
+                chunk = chunk_data['chunk']
+                score = chunk_data.get('score', 0)
+            else:
+                chunk = chunk_data
+                score = 0
             
             print(f"\n{i}. Score: {score:.3f}")
             print(f"   Title: {chunk.section_title}")

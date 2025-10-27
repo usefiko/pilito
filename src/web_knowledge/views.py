@@ -13,6 +13,10 @@ from django.utils import timezone
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
+# ✅ Setup proxy BEFORE any AI imports (required for Iran servers)
+from core.utils import setup_ai_proxy
+setup_ai_proxy()
+
 from .models import WebsiteSource, WebsitePage, QAPair, CrawlJob, Product
 from settings.models import GeneralSettings, BusinessPrompt
 from .serializers import (

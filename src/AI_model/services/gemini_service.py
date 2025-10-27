@@ -8,6 +8,9 @@ from typing import Dict, Any, Optional
 from core.utils import setup_ai_proxy
 setup_ai_proxy()
 
+# ✅ Feature flags for gradual rollout
+from AI_model.services.feature_flags import use_production_rag
+
 # Import Gemini AI library
 try:
     import google.generativeai as genai
@@ -729,15 +732,43 @@ Provide a concise summary (max 100 words):"""
                     conversation_context = context_data or ""
             
             # 5. Retrieve relevant context from knowledge base
-            retrieval_result = ContextRetriever.retrieve_context(
-                query=customer_message,
-                user=self.user,
-                primary_source=routing['primary_source'],
-                secondary_sources=routing['secondary_sources'],
-                primary_budget=routing['token_budgets']['primary'],
-                secondary_budget=routing['token_budgets']['secondary'],
-                routing_info=routing
-            )
+            # ✅ Use ProductionRAG if feature flag is enabled, otherwise ContextRetriever
+            if use_production_rag(user=self.user):
+                try:
+                    from AI_model.services.production_rag import ProductionRAG
+                    logger.info("🚀 Using ProductionRAG for advanced retrieval")
+                    
+                    retrieval_result = ProductionRAG.retrieve_context(
+                        query=customer_message,
+                        user=self.user,
+                        primary_source=routing['primary_source'],
+                        secondary_sources=routing['secondary_sources'],
+                        primary_budget=routing['token_budgets']['primary'],
+                        secondary_budget=routing['token_budgets']['secondary'],
+                        routing_info=routing
+                    )
+                except Exception as e:
+                    logger.error(f"❌ ProductionRAG failed: {e}, falling back to ContextRetriever")
+                    retrieval_result = ContextRetriever.retrieve_context(
+                        query=customer_message,
+                        user=self.user,
+                        primary_source=routing['primary_source'],
+                        secondary_sources=routing['secondary_sources'],
+                        primary_budget=routing['token_budgets']['primary'],
+                        secondary_budget=routing['token_budgets']['secondary'],
+                        routing_info=routing
+                    )
+            else:
+                logger.debug("Using ContextRetriever (ProductionRAG disabled)")
+                retrieval_result = ContextRetriever.retrieve_context(
+                    query=customer_message,
+                    user=self.user,
+                    primary_source=routing['primary_source'],
+                    secondary_sources=routing['secondary_sources'],
+                    primary_budget=routing['token_budgets']['primary'],
+                    secondary_budget=routing['token_budgets']['secondary'],
+                    routing_info=routing
+                )
             
             # 6. Apply strict token budget (1500 tokens max)
             components = {

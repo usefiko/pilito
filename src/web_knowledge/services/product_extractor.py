@@ -10,6 +10,10 @@ from decimal import Decimal, InvalidOperation
 from typing import List, Dict, Optional, Tuple
 from django.utils import timezone
 
+# ✅ Setup proxy BEFORE importing Gemini (required for Iran servers)
+from core.utils import setup_ai_proxy
+setup_ai_proxy()
+
 logger = logging.getLogger(__name__)
 
 

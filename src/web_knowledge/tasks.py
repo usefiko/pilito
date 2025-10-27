@@ -6,6 +6,11 @@ import logging
 from celery import shared_task
 from django.utils import timezone
 from typing import Optional, Dict, Any
+
+# ✅ Setup proxy BEFORE any AI imports (required for Iran servers)
+from core.utils import setup_ai_proxy
+setup_ai_proxy()
+
 from .models import WebsiteSource, WebsitePage, QAPair, CrawlJob
 from .services.crawler_service import WebsiteCrawler, ContentExtractor
 from .services.qa_generator import QAGenerator

@@ -49,3 +49,7 @@ prometheus-client==0.21.0
 celery-prometheus-exporter==1.7.0
 psutil==6.1.1
 kavenegar==1.1.2
+
+# 🎯 Advanced RAG: Cross-Encoder Reranking
+sentence-transformers>=2.2.0
+# Note: torch will be installed as dependency of sentence-transformers
