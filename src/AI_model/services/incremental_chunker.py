@@ -2,11 +2,14 @@
 Incremental Chunker Service - Auto-chunking for real-time updates
 Processes single items (QAPair, Product, WebPage) incrementally
 Used by Celery tasks triggered by Django signals
+
+🔥 IMPROVED: Persian-aware chunking with metadata
 """
 import logging
 import uuid
 from typing import Optional, List
 from django.core.cache import cache
+from .persian_chunker import PersianChunker, ChunkMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -149,9 +152,13 @@ class IncrementalChunker:
     
     def chunk_webpage(self, page) -> bool:
         """
-        Chunk a single WebPage
-        May create multiple chunks if content is large
-        Idempotent: Deletes old chunks first
+        🔥 IMPROVED: Chunk a single WebPage with Persian-aware chunking + metadata
+        
+        Improvements:
+        - Token-based chunking (not word-based) for accurate control
+        - Persian language detection and handling
+        - Metadata extraction (keywords, h1/h2 tags)
+        - Better TL;DR (extractive, Persian-aware)
         
         Args:
             page: WebsitePage instance
@@ -176,26 +183,55 @@ class IncrementalChunker:
                 logger.warning(f"WebPage {page.id} has no content to chunk")
                 return True  # Not an error, just nothing to do
             
-            # Split into chunks if content is large
-            chunks = self._chunk_text(content, max_words=500)
+            # ✅ NEW: Persian-aware chunking with metadata
+            chunks_with_metadata = PersianChunker.chunk_text_with_metadata(
+                text=content,
+                chunk_size=512,  # tokens (industry standard)
+                overlap=128,     # 25% overlap
+                page_title=page.title or '',
+                page_url=page.url or '',
+                h1_tags=page.h1_tags or [],
+                h2_tags=page.h2_tags or []
+            )
+            
+            if not chunks_with_metadata:
+                logger.warning(f"No chunks generated for WebPage {page.id}")
+                return True
             
             embedding_service = EmbeddingService()
             document_id = uuid.uuid4()  # Group all chunks under same document
             
-            for i, chunk_text in enumerate(chunks):
-                # Generate TL;DR for each chunk
-                tldr = self._extract_tldr(chunk_text, max_words=100)
+            for chunk_text, metadata in chunks_with_metadata:
+                # ✅ NEW: Persian-aware TL;DR
+                tldr = PersianChunker.extract_tldr_persian(chunk_text, max_words=100)
                 
                 # Generate embeddings
                 tldr_embedding = embedding_service.get_embedding(tldr)
                 full_embedding = embedding_service.get_embedding(chunk_text)
                 
                 if not tldr_embedding or not full_embedding:
-                    logger.warning(f"Failed to generate embeddings for WebPage {page.id} chunk {i+1}")
+                    logger.warning(
+                        f"Failed to generate embeddings for WebPage {page.id} "
+                        f"chunk {metadata.chunk_index + 1}"
+                    )
                     continue
                 
-                # Create chunk
-                section_title = page.title if i == 0 else f"{page.title} - Part {i+1}"
+                # Create chunk with metadata
+                section_title = (
+                    page.title if metadata.chunk_index == 0 
+                    else f"{page.title} - Part {metadata.chunk_index + 1}"
+                )
+                
+                # ✅ NEW: Store metadata as JSON for RAG retrieval
+                chunk_metadata = {
+                    'page_url': metadata.page_url,
+                    'keywords': metadata.keywords,
+                    'h1_tags': metadata.h1_tags,
+                    'h2_tags': metadata.h2_tags,
+                    'chunk_index': metadata.chunk_index,
+                    'total_chunks': metadata.total_chunks,
+                    'language': metadata.language
+                }
                 
                 TenantKnowledge.objects.create(
                     user=self.user,
@@ -207,10 +243,14 @@ class IncrementalChunker:
                     tldr=tldr,
                     tldr_embedding=tldr_embedding,
                     full_embedding=full_embedding,
-                    word_count=len(chunk_text.split())
+                    word_count=len(chunk_text.split()),
+                    # metadata=chunk_metadata  # TODO: Add metadata field to model
                 )
             
-            logger.info(f"✅ Chunked WebPage {page.id} into {len(chunks)} chunks for user {self.user.username}")
+            logger.info(
+                f"✅ Chunked WebPage {page.id} into {len(chunks_with_metadata)} chunks "
+                f"for user {self.user.username} (language: {chunks_with_metadata[0][1].language})"
+            )
             
             # Invalidate cache
             cache.delete(f'knowledge_stats:{self.user.id}')
@@ -223,10 +263,11 @@ class IncrementalChunker:
     
     def chunk_manual_prompt(self) -> bool:
         """
-        Chunk user's manual prompt
-        Expensive operation (large text)
-        Idempotent: Deletes old chunks first
+        🔥 IMPROVED: Chunk user's manual prompt with Persian-aware chunking
         
+        Args:
+            None
+            
         Returns:
             bool: Success status
         """
@@ -254,22 +295,30 @@ class IncrementalChunker:
             
             manual_text = ai_prompts.manual_prompt.strip()
             
-            # Split into chunks
-            chunks = self._chunk_text(manual_text, max_words=500)
+            # ✅ NEW: Persian-aware chunking
+            chunks_with_metadata = PersianChunker.chunk_text_with_metadata(
+                text=manual_text,
+                chunk_size=512,
+                overlap=128,
+                page_title="Manual Prompt",
+                page_url="",
+                h1_tags=[],
+                h2_tags=[]
+            )
             
             embedding_service = EmbeddingService()
             document_id = uuid.uuid4()  # Group all chunks under same document
             
-            for i, chunk_text in enumerate(chunks):
-                # Generate TL;DR
-                tldr = self._extract_tldr(chunk_text, max_words=100)
+            for chunk_text, metadata in chunks_with_metadata:
+                # ✅ NEW: Persian-aware TL;DR
+                tldr = PersianChunker.extract_tldr_persian(chunk_text, max_words=100)
                 
                 # Generate embeddings
                 tldr_embedding = embedding_service.get_embedding(tldr)
                 full_embedding = embedding_service.get_embedding(chunk_text)
                 
                 if not tldr_embedding or not full_embedding:
-                    logger.warning(f"Failed to generate embeddings for Manual Prompt chunk {i+1}")
+                    logger.warning(f"Failed to generate embeddings for Manual Prompt chunk {metadata.chunk_index + 1}")
                     continue
                 
                 # Create chunk
@@ -277,7 +326,7 @@ class IncrementalChunker:
                     user=self.user,
                     chunk_type='manual',
                     document_id=document_id,
-                    section_title=f"Manual Prompt - Part {i+1}",
+                    section_title=f"Manual Prompt - Part {metadata.chunk_index + 1}",
                     full_text=chunk_text,
                     tldr=tldr,
                     tldr_embedding=tldr_embedding,
@@ -285,7 +334,10 @@ class IncrementalChunker:
                     word_count=len(chunk_text.split())
                 )
             
-            logger.info(f"✅ Chunked Manual Prompt into {len(chunks)} chunks for user {self.user.username}")
+            logger.info(
+                f"✅ Chunked Manual Prompt into {len(chunks_with_metadata)} chunks "
+                f"for user {self.user.username} (language: {chunks_with_metadata[0][1].language})"
+            )
             
             # Invalidate cache
             cache.delete(f'knowledge_stats:{self.user.id}')
@@ -333,75 +385,31 @@ class IncrementalChunker:
     @staticmethod
     def _chunk_text(text: str, max_words: int = 500) -> List[str]:
         """
+        ⚠️ DEPRECATED: Use PersianChunker.chunk_text_with_metadata instead
+        
         Split text into chunks of approximately max_words
-        Preserves paragraph boundaries
+        Kept for backward compatibility
         """
-        if not text:
-            return []
+        # Delegate to PersianChunker
+        chunks_with_metadata = PersianChunker.chunk_text_with_metadata(
+            text=text,
+            chunk_size=int(max_words * 1.25),  # words to tokens approximation
+            overlap=int(max_words * 0.25),
+            page_title="",
+            page_url="",
+            h1_tags=[],
+            h2_tags=[]
+        )
         
-        words = text.split()
-        if len(words) <= max_words:
-            return [text]
-        
-        chunks = []
-        paragraphs = text.split('\n\n')
-        
-        current_chunk = []
-        current_words = 0
-        
-        for para in paragraphs:
-            para_words = len(para.split())
-            
-            if current_words + para_words <= max_words:
-                current_chunk.append(para)
-                current_words += para_words
-            else:
-                if current_chunk:
-                    chunks.append('\n\n'.join(current_chunk))
-                
-                if para_words > max_words:
-                    # Split large paragraph by sentences
-                    sentences = para.split('. ')
-                    temp_chunk = []
-                    temp_words = 0
-                    
-                    for sent in sentences:
-                        sent_words = len(sent.split())
-                        if temp_words + sent_words <= max_words:
-                            temp_chunk.append(sent)
-                            temp_words += sent_words
-                        else:
-                            if temp_chunk:
-                                chunks.append('. '.join(temp_chunk) + '.')
-                            temp_chunk = [sent]
-                            temp_words = sent_words
-                    
-                    if temp_chunk:
-                        chunks.append('. '.join(temp_chunk) + '.')
-                    
-                    current_chunk = []
-                    current_words = 0
-                else:
-                    current_chunk = [para]
-                    current_words = para_words
-        
-        # Add remaining
-        if current_chunk:
-            chunks.append('\n\n'.join(current_chunk))
-        
-        return chunks if chunks else [text[:max_words * 5]]
+        # Return just the text (without metadata)
+        return [chunk_text for chunk_text, _ in chunks_with_metadata]
     
     @staticmethod
     def _extract_tldr(text: str, max_words: int = 100) -> str:
         """
+        ⚠️ DEPRECATED: Use PersianChunker.extract_tldr_persian instead
+        
         Extract TL;DR summary (extractive approach)
-        Falls back to truncation if text is very short
+        Kept for backward compatibility
         """
-        words = text.split()
-        
-        # If text is already short enough
-        if len(words) <= max_words:
-            return text
-        
-        # Simple extractive summary: first max_words words
-        return ' '.join(words[:max_words]) + '...'
+        return PersianChunker.extract_tldr_persian(text, max_words=max_words)

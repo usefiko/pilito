@@ -261,9 +261,11 @@ def process_page_content_task(self, page_id: str) -> Dict[str, Any]:
         page.processed_at = timezone.now()
         page.save()
         
-        # Queue Q&A generation if content is substantial
-        if page.word_count >= 100:  # Only generate Q&A for pages with sufficient content
-            generate_qa_pairs_task.delay(str(page.id))
+        # ❌ DISABLED: Auto Q&A generation removed (industry standard: RAG-only approach)
+        # Q&A generation is now optional and can be triggered manually if needed
+        # Reason: Most companies (Intercom, Zendesk) use pure RAG without pre-generated Q&A
+        # if page.word_count >= 100:
+        #     generate_qa_pairs_task.delay(str(page.id))
         
         # ============ NEW: Auto Product Extraction (Optional) ============
         # This section is completely isolated and won't affect the main task if it fails

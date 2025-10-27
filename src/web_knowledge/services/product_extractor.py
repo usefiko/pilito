@@ -1,6 +1,6 @@
 """
 AI-Powered Product/Service Extractor
-Uses Gemini 1.5 Pro for high-accuracy extraction from website content
+Uses Gemini 2.0 Flash-Exp for fast and cost-effective extraction from website content
 """
 
 import logging
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class ProductExtractor:
     """
     Hybrid AI + Rule-based Product Extractor
-    Uses Gemini 1.5 Pro for maximum accuracy in product extraction
+    Uses Gemini 2.0 Flash-Exp for fast and cost-effective product extraction
     """
     
     # Rule-based indicators for pre-filtering
@@ -44,7 +44,7 @@ class ProductExtractor:
         self.gemini_model = self._init_gemini()
     
     def _init_gemini(self):
-        """Initialize Gemini 1.5 Pro model for maximum accuracy"""
+        """Initialize Gemini 2.0 Flash-Exp model for fast and cost-effective extraction"""
         try:
             # ✅ Setup proxy BEFORE importing Gemini (required for Iran servers)
             from core.utils import setup_ai_proxy
@@ -148,7 +148,7 @@ class ProductExtractor:
     
     def extract_products_ai(self, page) -> List[Dict]:
         """
-        AI-based product extraction using Gemini 1.5 Pro
+        AI-based product extraction using Gemini 2.0 Flash-Exp
         
         Args:
             page: WebsitePage instance
@@ -163,7 +163,7 @@ class ProductExtractor:
         # Prepare content (limit to 5000 chars for Pro model)
         content_preview = page.cleaned_content[:5000]
         
-        # Enhanced prompt for Gemini 1.5 Pro
+        # Enhanced prompt for Gemini 2.0 Flash-Exp
         prompt = f"""
 You are an expert AI assistant specialized in extracting product and service information from web pages with maximum accuracy.
 
@@ -298,7 +298,7 @@ IMPORTANT: Return ONLY valid JSON. No explanations, no markdown.
             
             if result.get('has_products') and result.get('products'):
                 products_count = len(result['products'])
-                logger.info(f"✅ Gemini 2.5 Pro extracted {products_count} products from {page.url}")
+                logger.info(f"✅ Gemini Flash extracted {products_count} products from {page.url}")
                 
                 # Validate each product
                 validated_products = []
