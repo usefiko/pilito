@@ -45,14 +45,14 @@ class QAGenerator:
             
             # Get AI config for model settings
             ai_config = AIGlobalConfig.get_config()
-            # ✅ Use Flash for Q&A generation (10x cheaper, 3x faster than Pro)
+            # ✅ Use Flash-Exp for Q&A generation (16x cheaper than Pro, faster, less safety blocks)
             model_name = "gemini-2.0-flash-exp"
             
             # Configure Gemini
             genai.configure(api_key=gemini_api_key)
             
             # Initialize model with optimized settings for Q&A generation
-            # Using Pro for superior quality in Q&A extraction
+            # Using Flash-Exp for speed + cost-effectiveness
             self.model = genai.GenerativeModel(
                 model_name=model_name,
                 generation_config={
@@ -63,7 +63,7 @@ class QAGenerator:
                 }
             )
             
-            logger.info(f"✅ Gemini AI model ({model_name}) initialized for Q&A generation (Pro for quality)")
+            logger.info(f"✅ Gemini AI model ({model_name}) initialized for Q&A generation (Flash-Exp: fast + cheap)")
             
         except Exception as e:
             logger.error(f"Failed to initialize Gemini AI model: {str(e)}")
@@ -180,12 +180,12 @@ class QAGenerator:
             # Create prompt for Q&A generation
             prompt = self._create_qa_prompt(content, page_title, max_pairs)
             
-            # Configure safety settings to reduce false blocks
+            # Configure safety settings to BLOCK_NONE (prevent false blocks on educational content)
             safety_settings = [
-                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
-                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
-                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
-                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"},
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
             ]
             
             # Track timing
@@ -698,12 +698,12 @@ Format as JSON: {{"question": "...", "answer": "...", "confidence": 0.95}}
 Generate only the JSON, no other text.
 """
             
-            # Configure safety settings to reduce false blocks
+            # Configure safety settings to BLOCK_NONE (prevent false blocks on educational content)
             safety_settings = [
-                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
-                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
-                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
-                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"},
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
             ]
             
             response = self.model.generate_content(

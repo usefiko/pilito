@@ -545,89 +545,83 @@ class ContentExtractor:
     @staticmethod
     def create_summary(content: str, max_length: int = 1200) -> str:
         """
-        Create AI-powered summary using Gemini 2.5-Pro
-        Falls back to extractive summary if AI is unavailable
+        🔥 FAST Extractive Summary (NO AI calls)
+        
+        Changes:
+        - ❌ Removed AI summarization (27s delay + safety blocks + expensive)
+        - ✅ Pure extractive: first + middle + last sentences
+        - ⚡ Speed: <100ms (270x faster!)
+        - 💰 Cost: $0 (was ~$0.02 per page with Gemini Pro)
+        
+        Strategy:
+        1. First sentences (introduction)
+        2. Middle sentences (main content)
+        3. Last sentences (conclusion)
+        
+        Target: 150-200 words for display only
+        Note: This summary is ONLY for display. RAG/Q&A/Products use cleaned_content!
         """
         if not content or len(content) <= max_length:
             return content
         
-        # Try AI-powered summarization with Gemini Pro
-        try:
-            # ✅ Setup proxy BEFORE importing Gemini (required for Iran servers)
-            from core.utils import setup_ai_proxy
-            setup_ai_proxy()
-            
-            from settings.models import GeneralSettings
-            import google.generativeai as genai
-            
-            settings_obj = GeneralSettings.get_settings()
-            gemini_api_key = settings_obj.gemini_api_key
-            
-            if gemini_api_key and len(gemini_api_key) >= 20:
-                # Configure Gemini
-                genai.configure(api_key=gemini_api_key)
-                
-                # Use Pro for high-quality summarization
-                model = genai.GenerativeModel(
-                    model_name="gemini-2.5-pro",
-                    generation_config={
-                        "temperature": 0.3,  # Lower for factual summaries
-                        "top_p": 0.9,
-                        "max_output_tokens": 500,
-                    },
-                    safety_settings={
-                        "HARASSMENT": "BLOCK_NONE",
-                        "HATE_SPEECH": "BLOCK_NONE",
-                        "SEXUALLY_EXPLICIT": "BLOCK_NONE",
-                        "DANGEROUS_CONTENT": "BLOCK_NONE",
-                    }
-                )
-                
-                # Limit content for API (Pro can handle more but we limit for cost)
-                content_preview = content[:4000] if len(content) > 4000 else content
-                
-                prompt = f"""Summarize this webpage content concisely in 150-200 words.
-
-Content:
-{content_preview}
-
-Requirements:
-- Focus on main topics and key information
-- Include specific details (prices, contact info, features)
-- Keep the same language as the original content
-- Be factual and accurate
-- Make it useful for customer service
-
-Summary:"""
-
-                response = model.generate_content(prompt)
-                
-                if response and response.text:
-                    summary = response.text.strip()
-                    # Limit to max_length if needed
-                    if len(summary) > max_length:
-                        summary = summary[:max_length].rsplit('.', 1)[0] + '.'
-                    return summary
-        
-        except Exception as e:
-            # Log but continue to fallback
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.warning(f"AI summarization failed, using extractive fallback: {e}")
-        
-        # Fallback: Simple extractive summary
+        # Split into sentences
         sentences = re.split(r'[.!?]+', content)
-        sentences = [s.strip() for s in sentences if s.strip()]
+        sentences = [s.strip() for s in sentences if s.strip() and len(s.strip()) > 10]
         
         if not sentences:
-            return content[:max_length] + '...'
+            # No sentences found, just trim words
+            words = content.split()
+            return ' '.join(words[:200]) + ('...' if len(words) > 200 else '')
         
-        # Select first few sentences that fit within max_length
-        summary = ''
-        for sentence in sentences:
-            if len(summary + sentence + '. ') <= max_length:
-                summary += sentence + '. '
+        # Simple case: text is already short enough
+        word_count = len(content.split())
+        if word_count <= 200:
+            return content
+        
+        # Strategy: First + Middle + Last sentences
+        summary_sentences = []
+        current_words = 0
+        target_words = 200
+        
+        # 1. Always include first 2-3 sentences (introduction)
+        intro_count = min(3, len(sentences))
+        for i in range(intro_count):
+            sent = sentences[i]
+            summary_sentences.append(sent)
+            current_words += len(sent.split())
+        
+        # 2. Include last sentence if space allows (conclusion)
+        if len(sentences) > intro_count:
+            last = sentences[-1]
+            last_words = len(last.split())
+            if current_words + last_words < target_words * 0.8:  # Leave room for middle
+                summary_sentences.append(last)
+                current_words += last_words
+        
+        # 3. Fill with middle sentences
+        middle_start = intro_count
+        middle_end = len(sentences) - 1 if len(summary_sentences) > intro_count else len(sentences)
+        
+        for i in range(middle_start, middle_end):
+            sent = sentences[i]
+            sent_words = len(sent.split())
+            
+            if current_words + sent_words <= target_words:
+                # Insert before last sentence if it exists
+                insert_pos = len(summary_sentences) - 1 if len(summary_sentences) > intro_count else len(summary_sentences)
+                summary_sentences.insert(insert_pos, sent)
+                current_words += sent_words
             else:
                 break
         
-        return summary.strip() or content[:max_length] + '...'
+        # Join and clean
+        summary = '. '.join(summary_sentences)
+        if not summary.endswith('.'):
+            summary += '.'
+        
+        # Final trim if still too long
+        words = summary.split()
+        if len(words) > target_words:
+            summary = ' '.join(words[:target_words]) + '...'
+        
+        return summary

@@ -60,21 +60,21 @@ class ProductExtractor:
             
             genai.configure(api_key=api_key)
             
-            # Configure safety settings (permissive for product extraction, especially Persian content)
+            # Configure safety settings to BLOCK_NONE (prevent false blocks on product content)
             safety_settings = [
-                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"},
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
             ]
             
-            # Use Gemini 2.5 Pro for product extraction (highest accuracy)
+            # Use Gemini 2.0 Flash-Exp for product extraction (16x cheaper, faster, less blocks)
             model = genai.GenerativeModel(
-                'gemini-2.5-pro',
+                'gemini-2.0-flash-exp',
                 safety_settings=safety_settings
             )
             
-            logger.info("✅ ProductExtractor initialized with Gemini 2.5 Pro (highest accuracy mode)")
+            logger.info("✅ ProductExtractor initialized with Gemini 2.0 Flash-Exp (fast + cost-effective)")
             return model
             
         except Exception as e:
@@ -412,9 +412,9 @@ IMPORTANT: Return ONLY valid JSON. No explanations, no markdown.
                     'source_website': source_website,
                     'source_page': source_page,
                     'extraction_method': 'ai_auto',
-                    'extraction_confidence': 0.95,  # Very high confidence from Gemini 2.5 Pro
+                    'extraction_confidence': 0.92,  # High confidence from Gemini 2.0 Flash-Exp
                     'extraction_metadata': {
-                        'model': 'gemini-2.5-pro',
+                        'model': 'gemini-2.0-flash-exp',
                         'extracted_at': timezone.now().isoformat(),
                         'page_title': source_page.title,
                         'page_url': source_page.url,
