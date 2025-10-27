@@ -13,7 +13,7 @@ from .services.qa_generator import QAGenerator
 logger = logging.getLogger(__name__)
 
 
-@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+@shared_task(bind=True, max_retries=3, default_retry_delay=60, time_limit=3600, soft_time_limit=3300)
 def crawl_website_task(self, website_source_id: str) -> Dict[str, Any]:
     """
     Async task to crawl a website and extract content
@@ -333,7 +333,7 @@ def process_page_content_task(self, page_id: str) -> Dict[str, Any]:
 
 
 @shared_task(bind=True, max_retries=5, default_retry_delay=10)  # ✅ Increased retries 2→5
-def generate_qa_pairs_task(self, page_id: str, max_pairs: int = 5) -> Dict[str, Any]:
+def generate_qa_pairs_task(self, page_id: str, max_pairs: int = 10) -> Dict[str, Any]:
     """
     🔥 IMPROVED: Async task to generate Q&A pairs using AI ONLY
     

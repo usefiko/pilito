@@ -131,7 +131,7 @@ class WebsitePageSerializer(serializers.ModelSerializer):
         model = WebsitePage
         fields = [
             'id', 'website', 'website_name', 'url', 'title',
-            'summary', 'meta_description', 'meta_keywords',
+            'meta_description', 'meta_keywords',
             'word_count', 'processing_status', 'processing_error',
             'h1_tags', 'h2_tags', 
             'qa_pairs_count', 'products_count',

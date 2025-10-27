@@ -52,6 +52,54 @@ class WebsiteCrawler:
             'Upgrade-Insecure-Requests': '1',
         })
     
+    def _should_skip_url(self, url: str) -> bool:
+        """
+        🔥 NEW: Skip problematic URLs that often timeout or return errors
+        
+        Skips:
+        - Admin/panel pages (/panel/, /admin/, /dashboard/)
+        - E-commerce actions (/cart/, /checkout/, /payment/)
+        - Authentication (/login/, /register/, /auth/)
+        - API endpoints (/api/, /wp-json/)
+        - File downloads (.pdf, .zip, .doc, etc.)
+        - Dynamic parameters (?page=, ?filter=, etc. with many values)
+        
+        Returns:
+            True if URL should be skipped, False otherwise
+        """
+        url_lower = url.lower()
+        
+        # Skip patterns (admin, cart, login, etc.)
+        skip_patterns = [
+            '/panel/', '/admin/', '/dashboard/', '/wp-admin/',
+            '/cart/', '/checkout/', '/payment/', '/order/',
+            '/login/', '/register/', '/signup/', '/auth/', '/logout/',
+            '/api/', '/wp-json/', '/graphql/', '/ajax/',
+            '/download/', '/uploads/', '/files/',
+            '/search?', '/filter?',  # Dynamic search/filter pages
+        ]
+        
+        for pattern in skip_patterns:
+            if pattern in url_lower:
+                logger.debug(f"⏭️ Skipping URL (matches pattern '{pattern}'): {url}")
+                return True
+        
+        # Skip file extensions
+        skip_extensions = [
+            '.pdf', '.zip', '.rar', '.tar', '.gz',
+            '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+            '.jpg', '.jpeg', '.png', '.gif', '.svg', '.ico',
+            '.mp3', '.mp4', '.avi', '.mov', '.wmv',
+            '.xml', '.json', '.csv',
+        ]
+        
+        for ext in skip_extensions:
+            if url_lower.endswith(ext):
+                logger.debug(f"⏭️ Skipping URL (file extension '{ext}'): {url}")
+                return True
+        
+        return False
+    
     def crawl(self, progress_callback=None, max_workers: int = 5) -> List[Dict]:
         """
         🔥 IMPROVED: Concurrent website crawling with ThreadPoolExecutor
@@ -76,6 +124,10 @@ class WebsiteCrawler:
         def crawl_single_url(url_depth_tuple):
             """Crawl a single URL (thread-safe)"""
             current_url, depth = url_depth_tuple
+            
+            # ✅ Skip problematic URLs early (before visiting)
+            if self._should_skip_url(current_url):
+                return None
             
             # Skip if already visited or max depth reached
             with crawl_lock:

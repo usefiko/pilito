@@ -290,6 +290,8 @@ class QAGenerator:
         prompt = f"""
 You are an expert customer service representative creating natural, helpful Q&A pairs from website content.
 
+🌐 LANGUAGE REQUIREMENT: Generate ALL questions and answers in the SAME language as the content below (Persian/فارسی if content is Persian, English if content is English).
+
 Website/Page Topic: {clean_title}
 
 Content to analyze:
@@ -305,6 +307,7 @@ CRITICAL RULES - MUST FOLLOW:
 3. DO NOT create questions if content doesn't have clear answers
 4. DO NOT use phrases like "for https://..." or "this website" or "this site"
 5. DO NOT copy-paste from content without making it conversational
+6. DO NOT mix languages - if content is Persian, questions/answers MUST be Persian
 
 ✅ ALWAYS DO:
 1. Create natural questions as if a real customer is asking
@@ -312,6 +315,7 @@ CRITICAL RULES - MUST FOLLOW:
 3. Use real information: prices, times, contact info, features, etc.
 4. Make questions conversational and friendly
 5. Ensure answers are actionable and helpful
+6. Match the language of the content exactly (Persian → Persian, English → English)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 GOOD vs BAD EXAMPLES:
