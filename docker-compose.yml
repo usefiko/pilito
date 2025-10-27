@@ -53,24 +53,34 @@ services:
     ports:
       - "6379:6379"
 
+  # ========================================
+  # 🚀 Celery Workers با Priority Queue
+  # ========================================
+  
+  # Worker اصلی: همه queue ها با اولویت
   celery_worker:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: celery_worker
-    command: bash /start_celery_with_metrics.sh
+    command: >
+      celery -A core worker
+      --loglevel=info
+      --concurrency=4
+      --prefetch-multiplier=1
+      --max-tasks-per-child=50
+      --queues=high_priority,default,low_priority
+      --hostname=worker_main@%h
     working_dir: /app
     volumes:
       - ./src:/app
-      - ./start_celery_with_metrics.sh:/start_celery_with_metrics.sh
       - media_volume:/app/media
     env_file:
       - .env
     environment:
       - REDIS_URL=redis://redis:6379
       - RAPIDAPI_KEY=${RAPIDAPI_KEY}
-    ports:
-      - "9808:9808"
+      - C_FORCE_ROOT=true
     depends_on:
       - db
       - redis
@@ -82,6 +92,43 @@ services:
           memory: 1536M
         reservations:
           memory: 512M
+  
+  # Worker اضافی فقط برای AI (High Priority)
+  # این worker فقط به AI tasks رسیدگی می‌کنه
+  celery_ai:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: celery_ai
+    command: >
+      celery -A core worker
+      --loglevel=info
+      --concurrency=2
+      --prefetch-multiplier=1
+      --max-tasks-per-child=30
+      --queues=high_priority
+      --hostname=worker_ai@%h
+    working_dir: /app
+    volumes:
+      - ./src:/app
+      - media_volume:/app/media
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - RAPIDAPI_KEY=${RAPIDAPI_KEY}
+      - C_FORCE_ROOT=true
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1024M
+        reservations:
+          memory: 256M
 
   celery_beat:
     build:

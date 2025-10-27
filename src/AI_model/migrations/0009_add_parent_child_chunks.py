@@ -7,19 +7,11 @@ import uuid
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('AI_model', '0008_auto_20241027_0000'),  # Update this to your latest migration
+        ('AI_model', '0005_rename_ai_usage_l_user_id_2a5e9d_idx_ai_usage_lo_user_id_a17394_idx_and_more'),
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='tenantknowledge',
-            name='document_id',
-            field=models.UUIDField(
-                blank=True,
-                null=True,
-                help_text='Groups related chunks from same document'
-            ),
-        ),
+        # document_id already exists in production, skip it
         migrations.AddField(
             model_name='tenantknowledge',
             name='parent_chunk_id',
