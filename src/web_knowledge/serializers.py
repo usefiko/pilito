@@ -122,6 +122,7 @@ class ProductCompactSerializer(serializers.ModelSerializer):
 class WebsitePageSerializer(serializers.ModelSerializer):
     """
     Serializer for WebsitePage model with product extraction info
+    Now includes cleaned_content for frontend display (summary generation removed)
     """
     website_name = serializers.CharField(source='website.name', read_only=True)
     qa_pairs_count = serializers.SerializerMethodField()
@@ -131,6 +132,7 @@ class WebsitePageSerializer(serializers.ModelSerializer):
         model = WebsitePage
         fields = [
             'id', 'website', 'website_name', 'url', 'title',
+            'cleaned_content',  # ✅ Added: Full cleaned content for display
             'meta_description', 'meta_keywords',
             'word_count', 'processing_status', 'processing_error',
             'h1_tags', 'h2_tags', 

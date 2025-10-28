@@ -258,8 +258,9 @@ def process_page_content_task(self, page_id: str) -> Dict[str, Any]:
         # Extract key information
         key_info = ContentExtractor.extract_key_information(page.cleaned_content)
         
-        # Create summary (longer)
-        page.summary = ContentExtractor.create_summary(page.cleaned_content, max_length=1200)
+        # ❌ REMOVED: Summary generation (no longer needed - was just extractive trimming)
+        # Frontend will use cleaned_content directly for display
+        # page.summary = ContentExtractor.create_summary(page.cleaned_content, max_length=1200)
         
         # Update processing status
         page.processing_status = 'completed'
