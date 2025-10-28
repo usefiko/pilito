@@ -77,15 +77,117 @@ app.conf.task_routes = {
         'queue': 'default',
         'routing_key': 'default.chunk',
     },
+    'ai_model.chunk_manual_prompt': {
+        'queue': 'default',
+        'routing_key': 'default.chunk',
+    },
+    'ai_model.delete_chunks_for_source': {
+        'queue': 'default',
+        'routing_key': 'default.chunk',
+    },
     
-    # 📊 Analytics & Cleanup → Low Priority
-    'AI_model.tasks.reconcile_knowledge_base_task': {
+    # 📸 Media Processing → High Priority (user waiting!)
+    'message.tasks_instagram_media.process_instagram_image': {
+        'queue': 'high_priority',
+        'routing_key': 'high.media',
+    },
+    'message.tasks_instagram_media.process_instagram_voice': {
+        'queue': 'high_priority',
+        'routing_key': 'high.media',
+    },
+    'message.tasks.process_telegram_image': {
+        'queue': 'high_priority',
+        'routing_key': 'high.media',
+    },
+    'message.tasks.process_telegram_voice': {
+        'queue': 'high_priority',
+        'routing_key': 'high.media',
+    },
+    
+    # 💬 Message Sync Tasks → Default Priority
+    'message.sync_conversation_to_intercom': {
+        'queue': 'default',
+        'routing_key': 'default.sync',
+    },
+    'message.sync_message_to_intercom': {
+        'queue': 'default',
+        'routing_key': 'default.sync',
+    },
+    
+    # ⚡ Workflow Tasks → Default Priority (user triggered)
+    'workflow.tasks.process_event': {
+        'queue': 'default',
+        'routing_key': 'default.workflow',
+    },
+    'workflow.tasks.execute_workflow_action': {
+        'queue': 'default',
+        'routing_key': 'default.workflow',
+    },
+    'workflow.tasks.waiting_node_timeout': {
+        'queue': 'default',
+        'routing_key': 'default.workflow',
+    },
+    'workflow.tasks.resume_node_workflow_after_delay': {
+        'queue': 'default',
+        'routing_key': 'default.workflow',
+    },
+    
+    # 📊 Scheduled Workflow Tasks → Low Priority
+    'workflow.tasks.process_scheduled_triggers': {
         'queue': 'low_priority',
-        'routing_key': 'low.maintenance',
+        'routing_key': 'low.workflow',
+    },
+    'workflow.tasks.execute_scheduled_workflow': {
+        'queue': 'low_priority',
+        'routing_key': 'low.workflow',
     },
     'workflow.tasks.process_scheduled_when_nodes': {
         'queue': 'low_priority',
         'routing_key': 'low.workflow',
+    },
+    'workflow.tasks.retry_failed_actions': {
+        'queue': 'low_priority',
+        'routing_key': 'low.workflow',
+    },
+    'workflow.tasks.cleanup_old_executions': {
+        'queue': 'low_priority',
+        'routing_key': 'low.workflow',
+    },
+    
+    # 💰 Billing Tasks → Low Priority
+    'billing.activate_queued_plans': {
+        'queue': 'low_priority',
+        'routing_key': 'low.billing',
+    },
+    
+    # 📊 AI Analytics & Maintenance → Low Priority
+    'AI_model.tasks.cleanup_old_usage_data': {
+        'queue': 'low_priority',
+        'routing_key': 'low.maintenance',
+    },
+    'AI_model.tasks.generate_usage_analytics': {
+        'queue': 'low_priority',
+        'routing_key': 'low.maintenance',
+    },
+    'AI_model.tasks.sync_conversation_ai_status': {
+        'queue': 'low_priority',
+        'routing_key': 'low.maintenance',
+    },
+    'AI_model.tasks.test_ai_configuration': {
+        'queue': 'low_priority',
+        'routing_key': 'low.maintenance',
+    },
+    'AI_model.tasks.ensure_global_config': {
+        'queue': 'low_priority',
+        'routing_key': 'low.maintenance',
+    },
+    'AI_model.tasks.reconcile_knowledge_base_task': {
+        'queue': 'low_priority',
+        'routing_key': 'low.maintenance',
+    },
+    'ai_model.reconcile_knowledge': {
+        'queue': 'low_priority',
+        'routing_key': 'low.maintenance',
     },
 }
 
