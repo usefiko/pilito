@@ -321,7 +321,19 @@ class SessionMemoryManagerV2:
                 return None
             
             genai.configure(api_key=settings.gemini_api_key)
-            model = genai.GenerativeModel('gemini-2.5-flash')
+            
+            # Configure safety settings - BLOCK_NONE for all business content
+            safety_settings = [
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+            ]
+            
+            model = genai.GenerativeModel(
+                'gemini-2.5-flash',
+                safety_settings=safety_settings
+            )
             
             # Build conversation text
             conversation_text = "\n".join([
@@ -363,22 +375,13 @@ Messages ({len(messages)} total):
 Brief overview (1-2 sentences):"""
                 max_tokens = 150
             
-            # Configure safety settings
-            safety_settings = {
-                "HARASSMENT": "BLOCK_ONLY_HIGH",
-                "HATE_SPEECH": "BLOCK_ONLY_HIGH",
-                "SEXUALLY_EXPLICIT": "BLOCK_ONLY_HIGH",
-                "DANGEROUS_CONTENT": "BLOCK_ONLY_HIGH"
-            }
-            
             response = model.generate_content(
                 prompt,
                 generation_config={
                     'temperature': 0.3,
                     'max_output_tokens': max_tokens,
                     'top_p': 0.8
-                },
-                safety_settings=safety_settings
+                }
             )
             
             summary = response.text.strip()
@@ -423,7 +426,19 @@ Brief overview (1-2 sentences):"""
                 return []
             
             genai.configure(api_key=settings.gemini_api_key)
-            model = genai.GenerativeModel('gemini-2.5-flash')
+            
+            # Configure safety settings - BLOCK_NONE for all business content
+            safety_settings = [
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+            ]
+            
+            model = genai.GenerativeModel(
+                'gemini-2.5-flash',
+                safety_settings=safety_settings
+            )
             
             # Build conversation text (sample from beginning, middle, end)
             total = len(messages)
@@ -456,20 +471,12 @@ Conversation sample:
 
 Key facts (3-7 bullet points):"""
             
-            safety_settings = {
-                "HARASSMENT": "BLOCK_ONLY_HIGH",
-                "HATE_SPEECH": "BLOCK_ONLY_HIGH",
-                "SEXUALLY_EXPLICIT": "BLOCK_ONLY_HIGH",
-                "DANGEROUS_CONTENT": "BLOCK_ONLY_HIGH"
-            }
-            
             response = model.generate_content(
                 prompt,
                 generation_config={
                     'temperature': 0.2,
                     'max_output_tokens': 200,
-                },
-                safety_settings=safety_settings
+                }
             )
             
             # Parse bullet points
