@@ -816,8 +816,10 @@ class RAGStatusAPIView(APIView):
                 # Add processing messages to issues
                 issues.extend(processing_message)
             elif total_chunks == 0:
-                health_status = "degraded"
-                issues.append("No knowledge base chunks found. Please populate the knowledge base.")
+                # ✅ FIX: Use "healthy" with info message when knowledge base is empty
+                # This is not an error - user just hasn't added data yet
+                health_status = "healthy"
+                issues.append("پایگاه دانش خالی است. لطفا محتوا اضافه کنید.")
             elif chunks_without_embedding > total_chunks * 0.1:  # More than 10% missing embeddings
                 health_status = "degraded"
             else:
