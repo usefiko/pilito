@@ -44,8 +44,9 @@ def process_instagram_image(self, message_id: str, media_url: str, access_token:
         
         logger.info(f"🔄 Processing Instagram image: {message_id}")
         
-        # Download image from Instagram URL
-        response = requests.get(media_url, timeout=30)
+        # Download image from Instagram URL (with proxy support)
+        from core.utils import make_request_with_proxy
+        response = make_request_with_proxy('get', media_url, timeout=30)
         response.raise_for_status()
         
         # Save media file
@@ -165,8 +166,9 @@ def process_instagram_voice(self, message_id: str, media_url: str, access_token:
         
         logger.info(f"🔄 Processing Instagram voice: {message_id}")
         
-        # Download voice from Instagram URL
-        response = requests.get(media_url, timeout=30)
+        # Download voice from Instagram URL (with proxy support)
+        from core.utils import make_request_with_proxy
+        response = make_request_with_proxy('get', media_url, timeout=30)
         response.raise_for_status()
         
         # Save media file
