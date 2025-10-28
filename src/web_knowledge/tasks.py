@@ -100,7 +100,7 @@ def crawl_website_task(self, website_source_id: str) -> Dict[str, Any]:
         saved_pages = 0
         failed_pages = 0
         
-        for page_data in crawled_pages:
+        for i, page_data in enumerate(crawled_pages):
             try:
                 # Check if page already exists
                 existing_page = WebsitePage.objects.filter(url=page_data['url']).first()
@@ -128,12 +128,34 @@ def crawl_website_task(self, website_source_id: str) -> Dict[str, Any]:
                 page.save()
                 saved_pages += 1
                 
-                # Queue content processing and Q&A generation
-                process_page_content_task.delay(str(page.id))
+                # ✅ Stagger processing tasks to prevent thundering herd
+                # Formula: (i * 1.5) seconds spreads 200 pages over ~5 minutes
+                # Example: page 0=0s, page 100=150s, page 200=300s
+                countdown = int(i * 1.5)
+                
+                process_page_content_task.apply_async(
+                    args=[str(page.id)],
+                    countdown=countdown
+                )
+                
+                # Log progress every 50 pages
+                if (i + 1) % 50 == 0:
+                    logger.info(
+                        f"⏳ Queued {i + 1}/{len(crawled_pages)} page processing tasks "
+                        f"(spread over ~{int(countdown / 60)} minutes)"
+                    )
                 
             except Exception as e:
                 logger.error(f"Error saving page {page_data.get('url', 'unknown')}: {str(e)}")
                 failed_pages += 1
+        
+        # Log completion with timing info
+        if saved_pages > 0:
+            total_time_minutes = int((saved_pages * 1.5) / 60)
+            logger.info(
+                f"✅ All {saved_pages} processing tasks queued "
+                f"(staggered over ~{total_time_minutes} minutes to prevent overload)"
+            )
         
         # Update website source status
         website_source.crawl_status = 'completed'

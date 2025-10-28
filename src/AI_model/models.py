@@ -312,6 +312,15 @@ class TenantKnowledge(models.Model):
             models.Index(fields=['user', 'document_id']),
             models.Index(fields=['created_at']),
         ]
+        # ✅ Prevent duplicate chunks from race conditions
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'source_id', 'chunk_type'],
+                condition=models.Q(source_id__isnull=False),
+                name='unique_chunk_per_source',
+                violation_error_message='این صفحه قبلاً chunk شده است'
+            )
+        ]
     
     def __str__(self):
         return f"{self.user.username} - {self.chunk_type} - {self.section_title or 'Chunk'}"

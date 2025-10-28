@@ -266,8 +266,12 @@ def on_product_deleted_cleanup_chunks(sender, instance, **kwargs):
 @receiver(post_save, sender='web_knowledge.WebsitePage')
 def on_webpage_saved_for_chunking(sender, instance, **kwargs):
     """
-    Auto-chunk WebPage when processing completes
-    Only queues chunking if page is completed AND not already chunked
+    Auto-chunk WebPage when processing completes (with staggered dispatch)
+    
+    Improvements:
+    - Random delay (10-60s) to prevent thundering herd
+    - Check if already chunked (idempotent)
+    - Better logging for monitoring
     """
     if instance.processing_status != 'completed':
         return
@@ -284,8 +288,19 @@ def on_webpage_saved_for_chunking(sender, instance, **kwargs):
         return
     
     from AI_model.tasks import chunk_webpage_async
-    chunk_webpage_async.apply_async(args=[str(instance.id)], countdown=10)
-    logger.debug(f"Queued chunking for WebPage {instance.id}")
+    import random
+    
+    # ✅ Stagger tasks: Random delay 10-60 seconds to prevent thundering herd
+    # When 200 pages complete simultaneously, this spreads them over 1 minute
+    countdown = random.randint(10, 60)
+    
+    chunk_webpage_async.apply_async(
+        args=[str(instance.id)],
+        countdown=countdown,
+        retry=False  # Don't auto-retry (signal will fire again if needed)
+    )
+    
+    logger.info(f"✅ Queued chunking for WebPage {instance.id} (delay: {countdown}s)")
 
 
 @receiver(pre_delete, sender='web_knowledge.WebsitePage')
