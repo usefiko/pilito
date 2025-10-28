@@ -64,6 +64,20 @@ app.conf.task_routes = {
         'routing_key': 'low.crawl',
     },
     
+    # 📦 Auto-Chunking Tasks → Default Priority (balanced)
+    'ai_model.chunk_webpage': {
+        'queue': 'default',
+        'routing_key': 'default.chunk',
+    },
+    'ai_model.chunk_qapair': {
+        'queue': 'default',
+        'routing_key': 'default.chunk',
+    },
+    'ai_model.chunk_product': {
+        'queue': 'default',
+        'routing_key': 'default.chunk',
+    },
+    
     # 📊 Analytics & Cleanup → Low Priority
     'AI_model.tasks.reconcile_knowledge_base_task': {
         'queue': 'low_priority',
