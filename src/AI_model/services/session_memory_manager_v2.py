@@ -375,14 +375,46 @@ Messages ({len(messages)} total):
 Brief overview (1-2 sentences):"""
                 max_tokens = 150
             
-            response = model.generate_content(
-                prompt,
-                generation_config={
-                    'temperature': 0.3,
-                    'max_output_tokens': max_tokens,
-                    'top_p': 0.8
-                }
-            )
+            # Try primary model (gemini-2.5-flash)
+            try:
+                response = model.generate_content(
+                    prompt,
+                    generation_config={
+                        'temperature': 0.3,
+                        'max_output_tokens': max_tokens,
+                        'top_p': 0.8
+                    }
+                )
+                
+                # Check for safety blocks
+                if not response.candidates or not response.candidates[0].content.parts:
+                    finish_reason = response.candidates[0].finish_reason if response.candidates else None
+                    logger.warning(f"⚠️ V2: gemini-2.5-flash blocked for {tier} summary (finish_reason: {finish_reason})")
+                    logger.warning(f"🔄 V2: Attempting fallback to gemini-2.0-flash-exp...")
+                    raise Exception(f"Primary model blocked: {finish_reason}")
+                
+            except Exception as primary_error:
+                # Fallback to gemini-2.0-flash-exp
+                logger.info(f"🔄 V2: Using fallback model for {tier} summary")
+                fallback_model = genai.GenerativeModel(
+                    'gemini-2.0-flash-exp',
+                    safety_settings=safety_settings
+                )
+                
+                response = fallback_model.generate_content(
+                    prompt,
+                    generation_config={
+                        'temperature': 0.3,
+                        'max_output_tokens': max_tokens,
+                        'top_p': 0.8
+                    }
+                )
+                
+                if not response.candidates or not response.candidates[0].content.parts:
+                    logger.error(f"❌ V2: Fallback model also blocked for {tier} summary")
+                    raise Exception(f"Both primary and fallback models blocked")
+                
+                logger.info(f"✅ V2: Fallback successful for {tier} summary")
             
             summary = response.text.strip()
             logger.debug(f"📝 V2: Generated {tier} summary: {len(summary)} chars")
@@ -471,13 +503,44 @@ Conversation sample:
 
 Key facts (3-7 bullet points):"""
             
-            response = model.generate_content(
-                prompt,
-                generation_config={
-                    'temperature': 0.2,
-                    'max_output_tokens': 200,
-                }
-            )
+            # Try primary model (gemini-2.5-flash)
+            try:
+                response = model.generate_content(
+                    prompt,
+                    generation_config={
+                        'temperature': 0.2,
+                        'max_output_tokens': 200,
+                    }
+                )
+                
+                # Check for safety blocks
+                if not response.candidates or not response.candidates[0].content.parts:
+                    finish_reason = response.candidates[0].finish_reason if response.candidates else None
+                    logger.warning(f"⚠️ V2: gemini-2.5-flash blocked for key facts (finish_reason: {finish_reason})")
+                    logger.warning(f"🔄 V2: Attempting fallback to gemini-2.0-flash-exp...")
+                    raise Exception(f"Primary model blocked: {finish_reason}")
+                
+            except Exception as primary_error:
+                # Fallback to gemini-2.0-flash-exp
+                logger.info(f"🔄 V2: Using fallback model for key facts extraction")
+                fallback_model = genai.GenerativeModel(
+                    'gemini-2.0-flash-exp',
+                    safety_settings=safety_settings
+                )
+                
+                response = fallback_model.generate_content(
+                    prompt,
+                    generation_config={
+                        'temperature': 0.2,
+                        'max_output_tokens': 200,
+                    }
+                )
+                
+                if not response.candidates or not response.candidates[0].content.parts:
+                    logger.error(f"❌ V2: Fallback model also blocked for key facts")
+                    raise Exception(f"Both primary and fallback models blocked")
+                
+                logger.info(f"✅ V2: Fallback successful for key facts extraction")
             
             # Parse bullet points
             facts_text = response.text.strip()

@@ -37,6 +37,11 @@ logger = logging.getLogger(__name__)
 class WebsiteSourceViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing website sources
+    
+    Pagination:
+    - Default: 10 items per page
+    - Customizable via ?page_size=N (max 100)
+    - Example: /api/v1/web-knowledge/websites/?page=1&page_size=50
     """
     permission_classes = [permissions.IsAuthenticated]
     
@@ -44,6 +49,13 @@ class WebsiteSourceViewSet(viewsets.ModelViewSet):
         if self.action == 'create':
             return WebsiteSourceCreateSerializer
         return WebsiteSourceSerializer
+    
+    def get_pagination_class(self):
+        """Use custom pagination that allows page_size control"""
+        from .pagination import WebsitesPagination
+        return WebsitesPagination
+    
+    pagination_class = property(fget=get_pagination_class)
     
     def get_queryset(self):
         """Filter to user's websites only"""
