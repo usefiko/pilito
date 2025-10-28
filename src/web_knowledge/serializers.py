@@ -158,12 +158,14 @@ class WebsitePageSerializer(serializers.ModelSerializer):
 class WebsitePageUpdateSerializer(serializers.ModelSerializer):
     """
     Serializer for updating WebsitePage objects
+    
+    Note: 'summary' field removed - not generated anymore, use cleaned_content instead
     """
     class Meta:
         model = WebsitePage
         fields = [
-            'title', 'summary', 'meta_description', 'meta_keywords',
-            'h1_tags', 'h2_tags', 'cleaned_content'
+            'title', 'cleaned_content', 'meta_description', 'meta_keywords',
+            'h1_tags', 'h2_tags'
         ]
     
     def validate_title(self, value):
