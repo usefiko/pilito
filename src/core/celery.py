@@ -13,17 +13,10 @@ app = Celery('fiko_backend')
 # the configuration object to child processes.
 app.config_from_object('django.conf:settings', namespace='CELERY')
 
-# Load task modules from all registered Django apps.
-app.autodiscover_tasks()
-
-# Also discover Instagram media tasks
-app.autodiscover_tasks(['message'], related_name='tasks_instagram_media')
-
-# Configure timezone
-app.conf.timezone = 'UTC'
-
 # ========================================
 # 🚀 Priority Queue Configuration
+# ⚠️ این تنظیمات باید بعد از config_from_object باشن
+# چون اون settings از common.py رو override میکنه
 # ========================================
 # تعریف Queue های جداگانه با اولویت
 app.conf.task_queues = [
@@ -96,6 +89,15 @@ app.conf.task_annotations = {
 app.conf.task_acks_late = True  # Task فقط بعد از اتمام acknowledge بشه
 app.conf.worker_prefetch_multiplier = 1  # هر worker فقط 1 task بگیره
 app.conf.worker_max_tasks_per_child = 50  # بعد از 50 task، worker restart بشه (memory leak جلوگیری)
+
+# Configure timezone
+app.conf.timezone = 'UTC'
+
+# Load task modules from all registered Django apps
+app.autodiscover_tasks()
+
+# Also discover Instagram media tasks
+app.autodiscover_tasks(['message'], related_name='tasks_instagram_media')
 
 # Periodic tasks schedule (Celery Beat)
 app.conf.beat_schedule = {

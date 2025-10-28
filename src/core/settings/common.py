@@ -383,15 +383,9 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TASK_TIME_LIMIT = 30 * 60
 CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60
 
-# ⚠️ Task routing moved to celery.py (Priority Queue System)
-# این تنظیمات در src/core/celery.py تعریف شده‌اند
-# اینجا فقط برای backwards compatibility نگه داشته شده
-CELERY_TASK_ROUTES = {
-    # Instagram tasks همچنان از queue جداگانه استفاده می‌کنند
-    'message.tasks.auto_refresh_instagram_tokens': {'queue': 'default'},
-    'message.tasks.refresh_single_instagram_token': {'queue': 'default'},
-    # باقی task ها در celery.py مدیریت می‌شوند
-}
+# ⚠️ CELERY_TASK_ROUTES به celery.py منتقل شده
+# همه routing ها در src/core/celery.py تعریف شده‌اند
+# این setting را اینجا نگذارید چون با celery.py conflict میکنه!
 
 # Timezone
 CELERY_TIMEZONE = TIME_ZONE
