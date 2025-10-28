@@ -383,24 +383,14 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TASK_TIME_LIMIT = 30 * 60
 CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60
 
-# Task routing
+# ⚠️ Task routing moved to celery.py (Priority Queue System)
+# این تنظیمات در src/core/celery.py تعریف شده‌اند
+# اینجا فقط برای backwards compatibility نگه داشته شده
 CELERY_TASK_ROUTES = {
-    'message.tasks.auto_refresh_instagram_tokens': {'queue': 'instagram_tokens'},
-    'message.tasks.refresh_single_instagram_token': {'queue': 'instagram_tokens'},
-    # AI tasks (updated to match actual task names)
-    'AI_model.tasks.process_ai_response_async': {'queue': 'ai_tasks'},
-    'AI_model.tasks.cleanup_old_usage_data': {'queue': 'ai_tasks'},
-    'AI_model.tasks.generate_usage_analytics': {'queue': 'ai_tasks'},
-    'AI_model.tasks.sync_conversation_ai_status': {'queue': 'ai_tasks'},
-    'AI_model.tasks.test_ai_configuration': {'queue': 'ai_tasks'},
-    # Workflow tasks
-    'workflow.tasks.process_event': {'queue': 'workflow_tasks'},
-    'workflow.tasks.execute_workflow_action': {'queue': 'workflow_tasks'},
-    'workflow.tasks.execute_scheduled_workflow': {'queue': 'workflow_tasks'},
-    'workflow.tasks.process_scheduled_triggers': {'queue': 'workflow_tasks'},
-    'workflow.tasks.process_scheduled_when_nodes': {'queue': 'workflow_tasks'},
-    'workflow.tasks.retry_failed_actions': {'queue': 'workflow_tasks'},
-    'workflow.tasks.cleanup_old_executions': {'queue': 'workflow_tasks'},
+    # Instagram tasks همچنان از queue جداگانه استفاده می‌کنند
+    'message.tasks.auto_refresh_instagram_tokens': {'queue': 'default'},
+    'message.tasks.refresh_single_instagram_token': {'queue': 'default'},
+    # باقی task ها در celery.py مدیریت می‌شوند
 }
 
 # Timezone
@@ -424,87 +414,52 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'message.tasks.auto_refresh_instagram_tokens',
         'schedule': crontab(hour=3, minute=0),  # Every day at 3:00 AM
         'kwargs': {'days_before_expiry': 7},  # Refresh tokens expiring within 7 days
-        'options': {
-            'queue': 'instagram_tokens',
-            'routing_key': 'instagram_tokens',
-        }
     },
     'emergency-refresh-instagram-tokens': {
         'task': 'message.tasks.auto_refresh_instagram_tokens',
         'schedule': crontab(hour='*/6'),  # Every 6 hours
         'kwargs': {'days_before_expiry': 1},  # Emergency refresh for tokens expiring within 1 day
-        'options': {
-            'queue': 'instagram_tokens',
-            'routing_key': 'instagram_tokens',
-        }
     },
-    # Billing Tasks
+    # Billing Tasks - از default queue استفاده می‌کند
     'activate-queued-plans': {
         'task': 'billing.activate_queued_plans',
         'schedule': crontab(hour=4, minute=0),  # Every day at 4:00 AM
-        'options': {
-            'queue': 'default',
-        }
     },
-    # AI Model Tasks (updated names)
+    # AI Model Tasks - از routing در celery.py استفاده می‌کنند
     'cleanup-old-usage-data': {
         'task': 'AI_model.tasks.cleanup_old_usage_data',
         'schedule': crontab(hour=2, minute=0),  # Every day at 2:00 AM
-        'options': {
-            'queue': 'ai_tasks',
-        }
     },
     'generate-usage-analytics': {
         'task': 'AI_model.tasks.generate_usage_analytics',
         'schedule': crontab(hour=1, minute=0),  # Every day at 1:00 AM
-        'options': {
-            'queue': 'ai_tasks',
-        }
     },
     'sync-conversation-ai-status': {
         'task': 'AI_model.tasks.sync_conversation_ai_status',
         'schedule': crontab(minute='*/30'),  # Every 30 minutes
-        'options': {
-            'queue': 'ai_tasks',
-        }
     },
     'test-ai-configuration': {
         'task': 'AI_model.tasks.test_ai_configuration',
         'schedule': crontab(hour='*/12'),  # Every 12 hours
-        'options': {
-            'queue': 'ai_tasks',
-        }
     },
-    # Workflow Tasks
+    # Workflow Tasks - از routing در celery.py استفاده می‌کنند
     'process-scheduled-triggers': {
         'task': 'workflow.tasks.process_scheduled_triggers',
         'schedule': crontab(minute='*/5'),  # Every 5 minutes
-        'options': {
-            'queue': 'workflow_tasks',
-        }
     },
     'retry-failed-workflow-actions': {
         'task': 'workflow.tasks.retry_failed_actions',
         'schedule': crontab(minute='*/15'),  # Every 15 minutes
-        'options': {
-            'queue': 'workflow_tasks',
-        }
     },
     'cleanup-old-workflow-executions': {
         'task': 'workflow.tasks.cleanup_old_executions',
         'schedule': crontab(hour=4, minute=0),  # Every day at 4:00 AM
         'kwargs': {'days': 30},  # Keep 30 days of data
-        'options': {
-            'queue': 'workflow_tasks',
-        }
     },
     # New: run scheduled When nodes every minute
     'process-scheduled-when-nodes': {
         'task': 'workflow.tasks.process_scheduled_when_nodes',
         'schedule': crontab(minute='*'),
-        'options': {
-            'queue': 'workflow_tasks',
-        }
     },
 }
 
