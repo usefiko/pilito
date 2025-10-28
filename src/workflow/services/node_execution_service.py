@@ -273,7 +273,7 @@ class NodeBasedWorkflowExecutionService:
                         logger.debug(f"User source '{source}' not in allowed channels: {when_node_obj.channels}")
                         return False
                 
-                # Check tags - filter by user tags
+                # Check tags - filter by customer tags (user_id in context is customer_id)
                 if when_node_obj.tags:
                     user_tags = context.get('user', {}).get('tags', [])
                     
@@ -281,30 +281,33 @@ class NodeBasedWorkflowExecutionService:
                     if not user_tags and context.get('event', {}).get('user_id'):
                         try:
                             from workflow.settings_adapters import get_model_class
+                            # Note: USER model is mapped to message.Customer in settings_adapters
                             UserModel = get_model_class('USER')
-                            user_id = context.get('event', {}).get('user_id')
-                            user = UserModel.objects.get(id=user_id)
+                            customer_id = context.get('event', {}).get('user_id')
+                            customer = UserModel.objects.get(id=customer_id)
                             
-                            # Try different tag field names
+                            # Try 'tag' first (as per FIELD_MAPPINGS), then 'tags' as fallback
                             try:
-                                user_tags = list(user.tag.values_list('name', flat=True))
+                                user_tags = list(customer.tag.values_list('name', flat=True))
                             except:
                                 try:
-                                    user_tags = list(user.tags.values_list('name', flat=True))
+                                    user_tags = list(customer.tags.values_list('name', flat=True))
                                 except:
                                     user_tags = []
+                            
+                            logger.info(f"🏷️ Loaded customer tags for filtering: customer_id={customer_id}, tags={user_tags}")
                         except Exception as e:
-                            logger.warning(f"Could not load user tags for tag filtering: {e}")
+                            logger.warning(f"Could not load customer tags for tag filtering: {e}")
                             user_tags = []
                     
-                    # Check if user has at least one of the required tags
+                    # Check if customer has at least one of the required tags
                     has_required_tag = any(tag in user_tags for tag in when_node_obj.tags)
                     
                     if not has_required_tag:
-                        logger.debug(f"User tags {user_tags} don't match required tags: {when_node_obj.tags}")
+                        logger.info(f"❌ Customer tags {user_tags} don't match required tags: {when_node_obj.tags}")
                         return False
                     else:
-                        logger.info(f"✅ User has required tag from: {when_node_obj.tags}")
+                        logger.info(f"✅ Customer has required tag from: {when_node_obj.tags}")
             
             elif when_node_obj.when_type == 'scheduled':
                 # Validate schedule by workflow owner's timezone (or conversation owner's if available)
