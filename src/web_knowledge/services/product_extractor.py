@@ -190,10 +190,10 @@ Analyze this webpage and determine if it presents products or services for sale.
 If YES, extract detailed information for EACH product/service:
 
 **Required Fields:**
-1. title: Exact product/service name (string)
+1. title: Exact product/service name (string, in the same language as the content)
 2. product_type: One of: service, product, software, consultation, course, tool, other
-3. short_description: Brief 1-2 sentence description (max 200 chars)
-4. description: Detailed description (2-4 sentences, max 500 chars)
+3. short_description: Brief 1-2 sentence description (max 200 chars, in the same language as the content)
+4. description: Detailed description (2-4 sentences, max 500 chars, in the same language as the content)
 
 **Pricing Fields:**
 5. price: Current selling price (number only, no currency symbols)
