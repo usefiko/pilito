@@ -95,7 +95,7 @@ app.conf.task_annotations = {
         'rate_limit': '5/m',  # فقط 5 crawl در دقیقه
     },
     'web_knowledge.tasks.process_page_content_task': {
-        'rate_limit': '30/m',  # 30 page process در دقیقه
+        'rate_limit': '100/m',  # 100 page process در دقیقه (افزایش یافته)
     },
 }
 
