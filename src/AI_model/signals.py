@@ -265,8 +265,22 @@ def on_product_deleted_cleanup_chunks(sender, instance, **kwargs):
 
 @receiver(post_save, sender='web_knowledge.WebsitePage')
 def on_webpage_saved_for_chunking(sender, instance, **kwargs):
-    """Auto-chunk WebPage when crawl completes"""
+    """
+    Auto-chunk WebPage when processing completes
+    Only queues chunking if page is completed AND not already chunked
+    """
     if instance.processing_status != 'completed':
+        return
+    
+    # Check if already chunked to avoid duplicate work (idempotent)
+    from AI_model.models import TenantKnowledge
+    already_chunked = TenantKnowledge.objects.filter(
+        source_id=instance.id,
+        chunk_type='website'
+    ).exists()
+    
+    if already_chunked:
+        logger.debug(f"WebPage {instance.id} already chunked, skipping")
         return
     
     from AI_model.tasks import chunk_webpage_async

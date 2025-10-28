@@ -356,8 +356,20 @@ class WebsiteSourceViewSet(viewsets.ModelViewSet):
 class WebsitePageViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing website pages (view, edit, delete)
+    
+    Pagination:
+    - Default: 20 items per page
+    - Customizable via ?page_size=N (max 100)
+    - Example: /api/v1/web-knowledge/pages/?website=<id>&page=1&page_size=50
     """
     permission_classes = [permissions.IsAuthenticated]
+    
+    def get_pagination_class(self):
+        """Use custom pagination for pages list"""
+        from .pagination import WebsitesPagination
+        return WebsitesPagination
+    
+    pagination_class = property(fget=get_pagination_class)
     
     def get_serializer_class(self):
         if self.action == 'retrieve':
