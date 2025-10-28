@@ -81,6 +81,8 @@ services:
       - REDIS_URL=redis://redis:6379
       - RAPIDAPI_KEY=${RAPIDAPI_KEY}
       - C_FORCE_ROOT=true
+    ports:
+      - "9808:9808"
     depends_on:
       - db
       - redis
