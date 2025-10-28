@@ -17,7 +17,7 @@ LOGGING = {
         'console': {
             'class': 'logging.StreamHandler',
             'formatter': 'production',
-            'level': 'WARNING'  # Only warnings and errors in production console
+            'level': 'INFO'  # Show INFO logs for debugging Instagram webhook
         },
         'file': {
             'level': 'INFO',
