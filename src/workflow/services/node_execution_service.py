@@ -276,6 +276,7 @@ class NodeBasedWorkflowExecutionService:
                 # Check tags - filter by customer tags (user_id in context is customer_id)
                 if when_node_obj.tags:
                     user_tags = context.get('user', {}).get('tags', [])
+                    logger.info(f"🔍 Tag check: when_node.tags={when_node_obj.tags}, user_tags_from_context={user_tags}, user_id_in_event={context.get('event', {}).get('user_id')}")
                     
                     # If tags not in context, try to fetch from database
                     if not user_tags and context.get('event', {}).get('user_id'):
