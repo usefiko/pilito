@@ -824,6 +824,9 @@ class RAGStatusAPIView(APIView):
                 health_status = "degraded"
             else:
                 health_status = "healthy"
+                # ✅ Add success message when everything is working
+                if total_chunks > 0:
+                    issues.append(f"✅ سیستم آماده است. پایگاه دانش شامل {total_chunks} بخش می‌باشد.")
             
             # 11. RAG enabled check
             rag_enabled = (
