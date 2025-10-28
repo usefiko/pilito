@@ -275,11 +275,9 @@ class NodeBasedWorkflowExecutionService:
                 
                 # Check tags - filter by customer tags (user_id in context is customer_id)
                 if when_node_obj.tags:
-                    user_tags = context.get('user', {}).get('tags', [])
-                    logger.info(f"🔍 Tag check: when_node.tags={when_node_obj.tags}, user_tags_from_context={user_tags}, user_id_in_event={context.get('event', {}).get('user_id')}")
-                    
-                    # If tags not in context, try to fetch from database
-                    if not user_tags and context.get('event', {}).get('user_id'):
+                    # Always fetch from database to ensure we have the latest tags
+                    user_tags = []
+                    if context.get('event', {}).get('user_id'):
                         try:
                             from workflow.settings_adapters import get_model_class
                             # Note: USER model is mapped to message.Customer in settings_adapters
@@ -299,7 +297,8 @@ class NodeBasedWorkflowExecutionService:
                             logger.info(f"🏷️ Loaded customer tags for filtering: customer_id={customer_id}, tags={user_tags}")
                         except Exception as e:
                             logger.warning(f"Could not load customer tags for tag filtering: {e}")
-                            user_tags = []
+                            # Fallback to context tags if database fetch fails
+                            user_tags = context.get('user', {}).get('tags', [])
                     
                     # Check if customer has at least one of the required tags
                     has_required_tag = any(tag in user_tags for tag in when_node_obj.tags)
