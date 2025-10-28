@@ -114,6 +114,16 @@ app.conf.task_routes = {
         'routing_key': 'default.sync',
     },
     
+    # 🔄 Instagram Token Refresh → Low Priority (scheduled background task)
+    'message.tasks.auto_refresh_instagram_tokens': {
+        'queue': 'low_priority',
+        'routing_key': 'low.maintenance',
+    },
+    'message.tasks.refresh_single_instagram_token': {
+        'queue': 'low_priority',
+        'routing_key': 'low.maintenance',
+    },
+    
     # ⚡ Workflow Tasks → Default Priority (user triggered)
     'workflow.tasks.process_event': {
         'queue': 'default',
