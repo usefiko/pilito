@@ -541,7 +541,11 @@ class TriggerService:
                     # Original behavior: trigger when a specific tag is added
                     if when_node.tags:
                         added_tag = event_data.get('tag_name', '')
-                        if added_tag not in when_node.tags:
+                        # Normalize for case-insensitive comparison
+                        normalized_added_tag = str(added_tag).lower().strip() if added_tag else ''
+                        normalized_when_tags = [str(tag).lower().strip() for tag in when_node.tags if tag]
+                        
+                        if normalized_added_tag not in normalized_when_tags:
                             logger.debug(f"Added tag '{added_tag}' not in required tags: {when_node.tags}")
                             return False
                 
@@ -553,11 +557,16 @@ class TriggerService:
                         logger.info(f"   User tags: {user_tags}")
                         logger.info(f"   Required tags: {when_node.tags}")
                         
-                        # Check if user has at least one of the required tags
-                        has_required_tag = any(tag in user_tags for tag in when_node.tags)
+                        # Normalize tags for case-insensitive comparison
+                        normalized_user_tags = [str(tag).lower().strip() for tag in user_tags if tag]
+                        normalized_when_tags = [str(tag).lower().strip() for tag in when_node.tags if tag]
+                        
+                        # Check if user has at least one of the required tags (case-insensitive)
+                        has_required_tag = any(tag in normalized_user_tags for tag in normalized_when_tags)
                         
                         if not has_required_tag:
                             logger.info(f"❌ User tags {user_tags} don't match required tags: {when_node.tags}")
+                            logger.debug(f"   Normalized: user_tags={normalized_user_tags}, when_tags={normalized_when_tags}")
                             return False
                         else:
                             logger.info(f"✅ User has required tag from: {when_node.tags}")

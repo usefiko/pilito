@@ -300,11 +300,17 @@ class NodeBasedWorkflowExecutionService:
                             # Fallback to context tags if database fetch fails
                             user_tags = context.get('user', {}).get('tags', [])
                     
-                    # Check if customer has at least one of the required tags
-                    has_required_tag = any(tag in user_tags for tag in when_node_obj.tags)
+                    # Normalize tags for case-insensitive comparison
+                    # Convert to lowercase and strip whitespace for both sides
+                    normalized_user_tags = [str(tag).lower().strip() for tag in user_tags if tag]
+                    normalized_when_tags = [str(tag).lower().strip() for tag in when_node_obj.tags if tag]
+                    
+                    # Check if customer has at least one of the required tags (case-insensitive)
+                    has_required_tag = any(tag in normalized_user_tags for tag in normalized_when_tags)
                     
                     if not has_required_tag:
                         logger.info(f"❌ Customer tags {user_tags} don't match required tags: {when_node_obj.tags}")
+                        logger.debug(f"   Normalized: user_tags={normalized_user_tags}, when_tags={normalized_when_tags}")
                         return False
                     else:
                         logger.info(f"✅ Customer has required tag from: {when_node_obj.tags}")
@@ -409,7 +415,11 @@ class NodeBasedWorkflowExecutionService:
                     # Original behavior: trigger when a specific tag is added
                     if when_node_obj.tags:
                         added_tag = event_data.get('tag_name', '')
-                        if added_tag not in when_node_obj.tags:
+                        # Normalize for case-insensitive comparison
+                        normalized_added_tag = str(added_tag).lower().strip() if added_tag else ''
+                        normalized_when_tags = [str(tag).lower().strip() for tag in when_node_obj.tags if tag]
+                        
+                        if normalized_added_tag not in normalized_when_tags:
                             logger.debug(f"Added tag '{added_tag}' not in required tags: {when_node_obj.tags}")
                             return False
                 
@@ -438,11 +448,16 @@ class NodeBasedWorkflowExecutionService:
                                 logger.warning(f"Could not load user tags for add_tag filtering: {e}")
                                 user_tags = []
                         
-                        # Check if user has at least one of the required tags
-                        has_required_tag = any(tag in user_tags for tag in when_node_obj.tags)
+                        # Normalize tags for case-insensitive comparison
+                        normalized_user_tags = [str(tag).lower().strip() for tag in user_tags if tag]
+                        normalized_when_tags = [str(tag).lower().strip() for tag in when_node_obj.tags if tag]
+                        
+                        # Check if user has at least one of the required tags (case-insensitive)
+                        has_required_tag = any(tag in normalized_user_tags for tag in normalized_when_tags)
                         
                         if not has_required_tag:
                             logger.debug(f"🏷️  User tags {user_tags} don't match required tags: {when_node_obj.tags}")
+                            logger.debug(f"   Normalized: user_tags={normalized_user_tags}, when_tags={normalized_when_tags}")
                             return False
                         else:
                             logger.info(f"✅ 🏷️  User has required tag from: {when_node_obj.tags} (add_tag as filter)")

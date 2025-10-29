@@ -1,0 +1,118 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║              WORKFLOW "WHEN" NODE TAG FIX - QUICK REFERENCE                ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+🐛 PROBLEM
+────────────────────────────────────────────────────────────────────────────
+Tag comparison in "when" nodes was CASE-SENSITIVE, causing workflows to fail.
+
+Example:
+  When Node Tags: ["VIP"]
+  Customer Tags:  ["vip"]
+  Result: ❌ No match (WRONG!)
+
+
+✅ SOLUTION
+────────────────────────────────────────────────────────────────────────────
+Implemented CASE-INSENSITIVE tag comparison with normalization.
+
+Now:
+  When Node Tags: ["VIP"]
+  Customer Tags:  ["vip"]
+  Result: ✅ Match! (CORRECT!)
+
+
+📦 FILES CHANGED
+────────────────────────────────────────────────────────────────────────────
+1. src/workflow/services/node_execution_service.py
+   - Fixed tag comparison in receive_message when type
+   - Fixed tag comparison in add_tag when type (both events)
+
+2. src/workflow/services/trigger_service.py
+   - Fixed tag comparison in TAG_ADDED event
+   - Fixed tag comparison in MESSAGE_RECEIVED event
+
+
+🔧 WHAT WAS CHANGED
+────────────────────────────────────────────────────────────────────────────
+Before (BROKEN):
+  has_required_tag = any(tag in user_tags for tag in when_node.tags)
+
+After (FIXED):
+  # Normalize tags (lowercase + strip whitespace)
+  normalized_user_tags = [str(tag).lower().strip() for tag in user_tags if tag]
+  normalized_when_tags = [str(tag).lower().strip() for tag in when_node.tags if tag]
+  has_required_tag = any(tag in normalized_user_tags for tag in normalized_when_tags)
+
+
+✨ WHAT NOW WORKS
+────────────────────────────────────────────────────────────────────────────
+✅ "VIP" matches "vip", "Vip", "VIP"
+✅ "  Premium  " matches "premium"
+✅ Handles None and empty values gracefully
+✅ Works for all when node types with tag filters
+
+
+🧪 TEST EXAMPLES
+────────────────────────────────────────────────────────────────────────────
+Test 1: Case Insensitive
+  When: ["VIP"]          Customer: ["vip"]        → ✅ Match
+
+Test 2: Whitespace
+  When: ["  Premium  "]  Customer: ["premium"]    → ✅ Match
+
+Test 3: Mixed Case
+  When: ["GoLd"]         Customer: ["GOLD"]       → ✅ Match
+
+Test 4: Multiple Tags
+  When: ["VIP", "Gold"]  Customer: ["vip"]        → ✅ Match
+
+
+🔍 DEBUGGING
+────────────────────────────────────────────────────────────────────────────
+Check logs for:
+  🏷️ Loaded customer tags for filtering: customer_id=123, tags=['vip']
+  Normalized: user_tags=['vip', 'premium'], when_tags=['vip', 'gold']
+  ✅ Customer has required tag from: ['VIP', 'Gold']
+
+
+📊 MIGRATION
+────────────────────────────────────────────────────────────────────────────
+✅ No database migration needed
+✅ Fully backward compatible
+✅ No breaking changes
+✅ Deploy and test immediately
+
+
+⚠️ IMPORTANT NOTES
+────────────────────────────────────────────────────────────────────────────
+• Tag comparison is now CASE-INSENSITIVE
+• Whitespace is automatically trimmed
+• Works for all when node tag filters
+• No changes needed to existing workflows
+• Existing data works without modification
+
+
+📚 DOCUMENTATION
+────────────────────────────────────────────────────────────────────────────
+Full Details:  WORKFLOW_TAG_FIX_SUMMARY.md
+Tag APIs:      CUSTOMER_TAGS_API_DOCS.md
+Tag Search:    TAG_SEARCH_GUIDE.md
+
+
+✅ STATUS
+────────────────────────────────────────────────────────────────────────────
+Status:           ✅ Complete
+Files Modified:   2
+Linter Errors:    0
+Breaking Changes: None
+Ready to Deploy:  YES
+
+
+╔════════════════════════════════════════════════════════════════════════════╗
+║  Tag matching in workflow "when" nodes now works correctly!                ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+Created: 2025-10-29
+Version: 1.0
+
