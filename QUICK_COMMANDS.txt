@@ -1,0 +1,116 @@
+╔════════════════════════════════════════════════════════════════════╗
+║                 PILITO DEPLOYMENT QUICK COMMANDS                   ║
+╚════════════════════════════════════════════════════════════════════╝
+
+🚀 QUICK FIX (Most Common)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+./fix_mixed_deployment.sh           # Fix all deployment issues
+
+
+📊 MONITORING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+./check_deployment_health.sh        # Quick health check
+./monitor_swarm.sh                  # Live status (auto-refresh)
+docker stack ps pilito              # Task status
+docker service ls                   # Service list
+
+
+📋 VIEW LOGS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+./quick_swarm_logs.sh web           # Web service logs
+./quick_swarm_logs.sh celery_beat   # Celery beat logs
+./quick_swarm_logs.sh celery_worker # Celery worker logs
+./quick_swarm_logs.sh db            # Database logs
+
+docker service logs -f pilito_web   # Follow web logs in real-time
+
+
+🔄 DEPLOYMENT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Full deployment
+docker build -t pilito_web:latest .
+docker stack deploy -c docker-compose.swarm.yml pilito
+
+# Remove stack
+docker stack rm pilito
+
+
+⚙️ SERVICE MANAGEMENT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Scale services
+docker service scale pilito_web=3
+docker service scale pilito_celery_worker=2
+
+# Restart service (zero downtime)
+docker service update --force pilito_web
+
+# Update image
+docker service update --image pilito_web:latest pilito_web
+
+# Rollback
+docker service rollback pilito_web
+
+
+🔍 TROUBLESHOOTING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Check failed tasks
+docker stack ps pilito | grep -i "failed\|rejected"
+
+# Detailed task info
+docker stack ps pilito --no-trunc
+
+# Test DB connection
+docker exec -it $(docker ps -q -f name=pilito_web) nc -zv db 5432
+
+# Test Redis connection
+docker exec -it $(docker ps -q -f name=pilito_web) nc -zv redis 6379
+
+# Check networks
+docker network ls | grep pilito
+
+
+🚨 EMERGENCY FIX
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# If services can't communicate:
+docker-compose down                 # Stop Compose
+docker stack rm pilito              # Remove Swarm
+sleep 30                            # Wait
+./fix_mixed_deployment.sh           # Redeploy
+
+
+🌐 SERVICE URLS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Web App:     http://localhost:8000
+Grafana:     http://localhost:3001  (admin/admin)
+Prometheus:  http://localhost:9090
+Redis:       localhost:6379
+
+
+💡 COMMON ISSUES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Issue: "Name or service not known"
+Fix:   ./fix_mixed_deployment.sh
+
+Issue: Port already in use
+Fix:   docker-compose down && ./fix_mixed_deployment.sh
+
+Issue: Service keeps restarting
+Fix:   ./quick_swarm_logs.sh <service_name>
+       Check logs and fix config
+
+Issue: Celery not processing
+Fix:   docker service update --force pilito_celery_worker
+
+
+📞 HELP
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+./quick_swarm_logs.sh               # Show available services
+./check_deployment_health.sh        # Diagnose issues
+cat SWARM_FIX_GUIDE.md              # Detailed documentation
+cat DEPLOYMENT_SCRIPTS_REFERENCE.md # Script reference
+
+
+╔════════════════════════════════════════════════════════════════════╗
+║  Pro Tip: Run ./check_deployment_health.sh before making changes  ║
+╚════════════════════════════════════════════════════════════════════╝
+
