@@ -21,17 +21,18 @@ class CustomOpenAPISchemaGenerator(OpenAPISchemaGenerator):
 
 schema_view = get_schema_view(
     openapi.Info(
-        title="Fiko APIs",
+        title="Pilito APIs",
         default_version='v1',
-        description="API documentation",
+        description="Pilito API documentation",
         terms_of_service="https://www.google.com/policies/terms/",
         contact=openapi.Contact(email="contact@pilito.com"),
-        license=openapi.License(name="Fiko License"),
+        license=openapi.License(name="Pilito License"),
     ),
     public=True,
     permission_classes=(AllowAny,),
     generator_class=CustomOpenAPISchemaGenerator,
 )
+
 
 urlpatterns = [
     path('docs/', schema_view.with_ui('swagger',cache_timeout=0),name='schema-swagger-ui'),

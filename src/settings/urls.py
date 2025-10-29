@@ -29,10 +29,8 @@ urlpatterns = [
     #path("ai", PricesAPIView.as_view(), name="ai"),
     # prices
     path("prices", PricesAPIView.as_view(), name="prices"),
-    
     # UpToPro
     path("uptopro/latest/", LatestUpToProAPIView.as_view(), name="uptopro-latest"),
-    
     # Support System
     path("support/tickets/", SupportTicketListCreateAPIView.as_view(), name="support-tickets"),
     path("support/tickets/<int:pk>/", SupportTicketDetailAPIView.as_view(), name="support-ticket-detail"),
@@ -40,7 +38,6 @@ urlpatterns = [
     path("support/tickets/<int:ticket_id>/messages/", SupportMessageListCreateAPIView.as_view(), name="support-messages"),
     path("support/admin/tickets/", SupportStaffTicketListAPIView.as_view(), name="support-admin-tickets"),
     path("support/stats/", SupportStatsAPIView.as_view(), name="support-stats"),
-    
     # Intercom Webhooks (for two-way sync)
     path("webhooks/intercom/", intercom_webhook_handler, name="intercom-webhook"),
 ]

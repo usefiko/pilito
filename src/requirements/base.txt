@@ -35,11 +35,9 @@ openai>=1.12.0
 beautifulsoup4==4.12.2
 lxml==5.1.0
 rank-bm25==0.2.2
-# 🔥 Enhanced web crawling & content extraction
-trafilatura>=1.8.0  # ✅ Flexible version (let pip resolve)
+trafilatura>=1.8.0
 readability-lxml>=0.8.1
 # playwright>=1.40.0  # ⏳ Phase 2 - commented for now (large dependency)
-# 🇮🇷 Persian language processing
 hazm>=0.9.0
 stripe>=13.0.0
 pgvector==0.3.6
@@ -49,7 +47,4 @@ prometheus-client==0.21.0
 celery-prometheus-exporter==1.7.0
 psutil==6.1.1
 kavenegar==1.1.2
-
-# 🎯 Advanced RAG: Cross-Encoder Reranking
 sentence-transformers>=2.2.0
-# Note: torch will be installed as dependency of sentence-transformers

@@ -8,7 +8,9 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator, MaxValueValidator
+
 logger = logging.getLogger(__name__)
+
 
 class EventType(models.Model):
     """
