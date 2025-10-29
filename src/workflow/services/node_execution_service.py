@@ -259,22 +259,34 @@ class NodeBasedWorkflowExecutionService:
             
             # Check when type specific conditions
             if when_node_obj.when_type == 'receive_message':
+                logger.info(f"🔍 Checking receive_message when node conditions:")
+                logger.info(f"   Keywords configured: {when_node_obj.keywords}")
+                logger.info(f"   Channels configured: {when_node_obj.channels}")
+                logger.info(f"   Tags configured: {when_node_obj.tags}")
+                
                 # Check keywords
                 if when_node_obj.keywords:
                     message_content = event_data.get('content', '').lower()
+                    logger.info(f"   Message content: '{message_content}'")
                     if not any(keyword.lower() in message_content for keyword in when_node_obj.keywords):
-                        logger.debug(f"Message content '{message_content}' doesn't contain any keywords: {when_node_obj.keywords}")
+                        logger.info(f"❌ Message content '{message_content}' doesn't contain any keywords: {when_node_obj.keywords}")
                         return False
+                    else:
+                        logger.info(f"✅ Keyword match found")
                 
                 # Check channels
                 if when_node_obj.channels and 'all' not in when_node_obj.channels:
                     source = context.get('user', {}).get('source', '')
+                    logger.info(f"   User source: '{source}'")
                     if source not in when_node_obj.channels:
-                        logger.debug(f"User source '{source}' not in allowed channels: {when_node_obj.channels}")
+                        logger.info(f"❌ User source '{source}' not in allowed channels: {when_node_obj.channels}")
                         return False
+                    else:
+                        logger.info(f"✅ Channel match found")
                 
                 # Check tags - filter by customer tags (user_id in context is customer_id)
-                if when_node_obj.tags:
+                if when_node_obj.tags and len(when_node_obj.tags) > 0:
+                    logger.info(f"🏷️  Tag filtering enabled - required tags: {when_node_obj.tags}")
                     # Always fetch from database to ensure we have the latest tags
                     user_tags = []
                     if context.get('event', {}).get('user_id'):
@@ -309,11 +321,13 @@ class NodeBasedWorkflowExecutionService:
                     has_required_tag = any(tag in normalized_user_tags for tag in normalized_when_tags)
                     
                     if not has_required_tag:
-                        logger.info(f"❌ Customer tags {user_tags} don't match required tags: {when_node_obj.tags}")
-                        logger.debug(f"   Normalized: user_tags={normalized_user_tags}, when_tags={normalized_when_tags}")
+                        logger.info(f"❌ WORKFLOW BLOCKED: Customer tags {user_tags} don't match required tags: {when_node_obj.tags}")
+                        logger.info(f"   Normalized: user_tags={normalized_user_tags}, when_tags={normalized_when_tags}")
                         return False
                     else:
-                        logger.info(f"✅ Customer has required tag from: {when_node_obj.tags}")
+                        logger.info(f"✅ Tag match found - Customer has required tag from: {when_node_obj.tags}")
+                else:
+                    logger.info(f"ℹ️  No tag filtering - tags field is empty or not configured")
             
             elif when_node_obj.when_type == 'scheduled':
                 # Validate schedule by workflow owner's timezone (or conversation owner's if available)
