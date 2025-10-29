@@ -26,6 +26,12 @@ GET /api/v1/msg/customer/123/tags/
 Authorization: Bearer YOUR_TOKEN
 ```
 
+**With Search & Ordering:**
+```http
+GET /api/v1/msg/customer/123/tags/?search=vip&ordering=name
+Authorization: Bearer YOUR_TOKEN
+```
+
 **Response:**
 ```json
 {
@@ -33,9 +39,14 @@ Authorization: Bearer YOUR_TOKEN
     "tags": [
         {"id": 1, "name": "VIP", "created_at": "2024-01-15T10:30:00Z"},
         {"id": 2, "name": "Premium", "created_at": "2024-01-16T14:20:00Z"}
-    ]
+    ],
+    "count": 2
 }
 ```
+
+**Search Parameters:**
+- `search` - Search by tag name (case-insensitive)
+- `ordering` - Order by: `name`, `-name`, `created_at`, `-created_at`
 
 ---
 
@@ -244,7 +255,8 @@ curl -X PUT http://localhost:8000/api/v1/msg/customer/123/tags/ \
 ---
 
 ## 📚 Full Documentation
-See [CUSTOMER_TAGS_API_DOCS.md](./CUSTOMER_TAGS_API_DOCS.md) for complete API documentation.
+- [CUSTOMER_TAGS_API_DOCS.md](./CUSTOMER_TAGS_API_DOCS.md) - Complete API documentation
+- [TAG_SEARCH_GUIDE.md](./TAG_SEARCH_GUIDE.md) - Search & filter guide
 
 ---
 

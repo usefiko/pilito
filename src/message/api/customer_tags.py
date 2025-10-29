@@ -36,7 +36,7 @@ class CustomerTagsAPIView(APIView):
             )
     
     @swagger_auto_schema(
-        operation_description="Get all tags for a specific customer",
+        operation_description="Get all tags for a specific customer with search and ordering support",
         manual_parameters=[
             openapi.Parameter(
                 'customer_id',
@@ -44,6 +44,20 @@ class CustomerTagsAPIView(APIView):
                 description="Customer ID",
                 type=openapi.TYPE_INTEGER,
                 required=True
+            ),
+            openapi.Parameter(
+                'search',
+                openapi.IN_QUERY,
+                description="Search tags by name (case-insensitive partial match). Example: ?search=vip",
+                type=openapi.TYPE_STRING,
+                required=False
+            ),
+            openapi.Parameter(
+                'ordering',
+                openapi.IN_QUERY,
+                description="Order results by field. Options: name, -name (descending). Example: ?ordering=name",
+                type=openapi.TYPE_STRING,
+                required=False
             )
         ],
         responses={
@@ -61,7 +75,8 @@ class CustomerTagsAPIView(APIView):
                                 'created_at': openapi.Schema(type=openapi.TYPE_STRING),
                             }
                         )
-                    )
+                    ),
+                    'count': openapi.Schema(type=openapi.TYPE_INTEGER, description='Total number of tags returned')
                 }
             ),
             403: "Permission denied",
@@ -69,18 +84,32 @@ class CustomerTagsAPIView(APIView):
         }
     )
     def get(self, request, customer_id):
-        """Get all tags for a specific customer"""
+        """Get all tags for a specific customer with search and ordering"""
         customer, error_response = self._get_customer_and_check_permission(customer_id, request.user)
         if error_response:
             return error_response
         
         # Exclude system tags (Instagram, Telegram, Whatsapp)
-        tags = customer.tag.exclude(name__in=["Telegram", "Whatsapp", "Instagram"]).order_by('name')
+        tags = customer.tag.exclude(name__in=["Telegram", "Whatsapp", "Instagram"])
+        
+        # Apply search filter if provided
+        search = request.query_params.get('search', None)
+        if search:
+            tags = tags.filter(name__icontains=search)
+        
+        # Apply ordering
+        ordering = request.query_params.get('ordering', 'name')
+        if ordering in ['name', '-name', 'created_at', '-created_at']:
+            tags = tags.order_by(ordering)
+        else:
+            tags = tags.order_by('name')
+        
         serializer = TagSerializer(tags, many=True)
         
         return Response({
             'customer_id': customer.id,
-            'tags': serializer.data
+            'tags': serializer.data,
+            'count': len(serializer.data)
         }, status=status.HTTP_200_OK)
     
     @swagger_auto_schema(
