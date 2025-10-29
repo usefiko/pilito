@@ -2,6 +2,7 @@ from django.urls import path
 from message.api import FullUserConversationsAPIView,UserConversationsAPIView,ConversationItemAPIView,TagsAPIView,\
     CustomersListAPIView,CustomerItemAPIView,UserMessagesAPIView,SupportAnswerAPIView
 from message.api.customer import CustomerBulkDeleteAPIView, CustomerBulkExportAPIView
+from message.api.customer_tags import CustomerTagsAPIView, CustomerSingleTagAPIView
 from message.api.instagram_callback import (
     InstagramAuthURLAPIView,
     InstagramAuthURLWizardAPIView,
@@ -27,6 +28,11 @@ urlpatterns = [
     path("customer-item/<int:id>/", CustomerItemAPIView.as_view(), name="customer-item"),
     path("customers/bulk-delete/", CustomerBulkDeleteAPIView.as_view(), name="customers-bulk-delete"),
     path("customers/bulk-export/", CustomerBulkExportAPIView.as_view(), name="customers-bulk-export"),
+    
+    # Customer Tags Management
+    path("customer/<int:customer_id>/tags/", CustomerTagsAPIView.as_view(), name="customer-tags"),
+    path("customer/<int:customer_id>/tags/<int:tag_id>/", CustomerSingleTagAPIView.as_view(), name="customer-single-tag"),
+    
     path("user-messages", UserMessagesAPIView.as_view(), name="user-messages"),
     path("support-answer/<str:id>/", SupportAnswerAPIView.as_view(), name="support-answer"),
     
