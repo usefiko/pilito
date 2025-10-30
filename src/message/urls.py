@@ -3,6 +3,7 @@ from message.api import FullUserConversationsAPIView,UserConversationsAPIView,Co
     CustomersListAPIView,CustomerItemAPIView,UserMessagesAPIView,SupportAnswerAPIView
 from message.api.customer import CustomerBulkDeleteAPIView, CustomerBulkExportAPIView
 from message.api.customer_tags import CustomerTagsAPIView, CustomerSingleTagAPIView
+from message.api.tag import TagItemAPIView, TagBulkDeleteAPIView
 from message.api.instagram_callback import (
     InstagramAuthURLAPIView,
     InstagramAuthURLWizardAPIView,
@@ -19,8 +20,12 @@ from message.api.intercom_webhook import IntercomWebhookView
 
 
 urlpatterns = [
-    # Message APIs
+    # Tag Management APIs
     path("tags", TagsAPIView.as_view(), name="tags"),
+    path("tags/<int:tag_id>/", TagItemAPIView.as_view(), name="tag-item"),
+    path("tags/bulk-delete/", TagBulkDeleteAPIView.as_view(), name="tags-bulk-delete"),
+    
+    # Message APIs
     path("user-conversation", UserConversationsAPIView.as_view(), name="user-conversation"),
     path("user-conversation-full", FullUserConversationsAPIView.as_view(), name="user-conversation-full"),
     path("conversation-item/<str:id>/", ConversationItemAPIView.as_view(), name="conversation-item"),
