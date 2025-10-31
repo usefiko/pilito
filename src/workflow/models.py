@@ -968,9 +968,9 @@ class WhenNode(WorkflowNode):
     ]
     
     when_type = models.CharField(max_length=30, choices=WHEN_TYPE_CHOICES)
-    keywords = models.JSONField(default=list, help_text="Keywords for message triggers")
-    tags = models.JSONField(default=list, help_text="Tags for tag triggers")
-    channels = models.JSONField(default=list, help_text="Channels to monitor (instagram, telegram, all)")
+    keywords = models.JSONField(default=list, blank=True, help_text="Keywords for message triggers")
+    tags = models.JSONField(default=list, blank=True, help_text="Tags for tag triggers - filters customers by these tags")
+    channels = models.JSONField(default=list, blank=True, help_text="Channels to monitor (instagram, telegram, all)")
     
     # Scheduling fields
     schedule_frequency = models.CharField(
@@ -988,6 +988,13 @@ class WhenNode(WorkflowNode):
     
     def save(self, *args, **kwargs):
         self.node_type = 'when'
+        # Ensure JSONField lists are never None
+        if self.keywords is None:
+            self.keywords = []
+        if self.tags is None:
+            self.tags = []
+        if self.channels is None:
+            self.channels = []
         super().save(*args, **kwargs)
 
 

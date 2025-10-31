@@ -265,7 +265,7 @@ class NodeBasedWorkflowExecutionService:
                 logger.info(f"   Tags configured: {when_node_obj.tags}")
                 
                 # Check keywords
-                if when_node_obj.keywords:
+                if when_node_obj.keywords and len(when_node_obj.keywords) > 0:
                     message_content = event_data.get('content', '').lower()
                     logger.info(f"   Message content: '{message_content}'")
                     if not any(keyword.lower() in message_content for keyword in when_node_obj.keywords):
@@ -275,7 +275,7 @@ class NodeBasedWorkflowExecutionService:
                         logger.info(f"✅ Keyword match found")
                 
                 # Check channels
-                if when_node_obj.channels and 'all' not in when_node_obj.channels:
+                if when_node_obj.channels and len(when_node_obj.channels) > 0 and 'all' not in when_node_obj.channels:
                     source = context.get('user', {}).get('source', '')
                     logger.info(f"   User source: '{source}'")
                     if source not in when_node_obj.channels:
@@ -285,25 +285,27 @@ class NodeBasedWorkflowExecutionService:
                         logger.info(f"✅ Channel match found")
                 
                 # Check tags - filter by customer tags (user_id in context is customer_id)
-                if when_node_obj.tags and len(when_node_obj.tags) > 0:
-                    logger.info(f"🏷️  Tag filtering enabled - required tags: {when_node_obj.tags}")
+                # IMPORTANT: Ensure tags is not None and is a list with elements
+                node_tags = when_node_obj.tags if when_node_obj.tags is not None else []
+                if isinstance(node_tags, list) and len(node_tags) > 0:
+                    logger.info(f"🏷️  Tag filtering enabled - required tags: {node_tags}")
                     # Always fetch from database to ensure we have the latest tags
                     user_tags = []
-                    if context.get('event', {}).get('user_id'):
+                    customer_id = context.get('event', {}).get('user_id')
+                    if customer_id:
                         try:
                             from workflow.settings_adapters import get_model_class
                             # Note: USER model is mapped to message.Customer in settings_adapters
                             UserModel = get_model_class('USER')
-                            customer_id = context.get('event', {}).get('user_id')
                             customer = UserModel.objects.get(id=customer_id)
                             
                             # Try 'tag' first (as per FIELD_MAPPINGS), then 'tags' as fallback
                             try:
                                 user_tags = list(customer.tag.values_list('name', flat=True))
-                            except:
+                            except AttributeError:
                                 try:
                                     user_tags = list(customer.tags.values_list('name', flat=True))
-                                except:
+                                except AttributeError:
                                     user_tags = []
                             
                             logger.info(f"🏷️ Loaded customer tags for filtering: customer_id={customer_id}, tags={user_tags}")
@@ -311,23 +313,27 @@ class NodeBasedWorkflowExecutionService:
                             logger.warning(f"Could not load customer tags for tag filtering: {e}")
                             # Fallback to context tags if database fetch fails
                             user_tags = context.get('user', {}).get('tags', [])
+                    else:
+                        logger.warning(f"⚠️  No customer_id found in context for tag filtering")
                     
                     # Normalize tags for case-insensitive comparison
                     # Convert to lowercase and strip whitespace for both sides
                     normalized_user_tags = [str(tag).lower().strip() for tag in user_tags if tag]
-                    normalized_when_tags = [str(tag).lower().strip() for tag in when_node_obj.tags if tag]
+                    normalized_when_tags = [str(tag).lower().strip() for tag in node_tags if tag]
+                    
+                    logger.info(f"🏷️  Comparing tags - Customer: {normalized_user_tags} | Required: {normalized_when_tags}")
                     
                     # Check if customer has at least one of the required tags (case-insensitive)
                     has_required_tag = any(tag in normalized_user_tags for tag in normalized_when_tags)
                     
                     if not has_required_tag:
-                        logger.info(f"❌ WORKFLOW BLOCKED: Customer tags {user_tags} don't match required tags: {when_node_obj.tags}")
+                        logger.info(f"❌ WORKFLOW BLOCKED: Customer tags {user_tags} don't match required tags: {node_tags}")
                         logger.info(f"   Normalized: user_tags={normalized_user_tags}, when_tags={normalized_when_tags}")
                         return False
                     else:
-                        logger.info(f"✅ Tag match found - Customer has required tag from: {when_node_obj.tags}")
+                        logger.info(f"✅ Tag match found - Customer has required tag from: {node_tags}")
                 else:
-                    logger.info(f"ℹ️  No tag filtering - tags field is empty or not configured")
+                    logger.info(f"ℹ️  No tag filtering - tags field is empty, None, or not configured")
             
             elif when_node_obj.when_type == 'scheduled':
                 # Validate schedule by workflow owner's timezone (or conversation owner's if available)
@@ -439,42 +445,50 @@ class NodeBasedWorkflowExecutionService:
                 
                 elif event_type == 'MESSAGE_RECEIVED':
                     # New behavior: filter by user tags when message is received
-                    if when_node_obj.tags:
-                        user_tags = context.get('user', {}).get('tags', [])
-                        
-                        # If tags not in context, try to fetch from database
-                        if not user_tags and context.get('event', {}).get('user_id'):
+                    # IMPORTANT: Ensure tags is not None and is a list with elements
+                    node_tags = when_node_obj.tags if when_node_obj.tags is not None else []
+                    if isinstance(node_tags, list) and len(node_tags) > 0:
+                        logger.info(f"🏷️  add_tag node acting as tag filter - required tags: {node_tags}")
+                        # Always fetch from database to ensure we have the latest tags
+                        user_tags = []
+                        customer_id = context.get('event', {}).get('user_id')
+                        if customer_id:
                             try:
                                 from workflow.settings_adapters import get_model_class
                                 UserModel = get_model_class('USER')
-                                user_id = context.get('event', {}).get('user_id')
-                                user = UserModel.objects.get(id=user_id)
+                                customer = UserModel.objects.get(id=customer_id)
                                 
                                 # Try different tag field names
                                 try:
-                                    user_tags = list(user.tag.values_list('name', flat=True))
-                                except:
+                                    user_tags = list(customer.tag.values_list('name', flat=True))
+                                except AttributeError:
                                     try:
-                                        user_tags = list(user.tags.values_list('name', flat=True))
-                                    except:
+                                        user_tags = list(customer.tags.values_list('name', flat=True))
+                                    except AttributeError:
                                         user_tags = []
+                                
+                                logger.info(f"🏷️  Loaded customer tags: customer_id={customer_id}, tags={user_tags}")
                             except Exception as e:
-                                logger.warning(f"Could not load user tags for add_tag filtering: {e}")
+                                logger.warning(f"Could not load customer tags for add_tag filtering: {e}")
                                 user_tags = []
+                        else:
+                            logger.warning(f"⚠️  No customer_id found in context for add_tag filtering")
                         
                         # Normalize tags for case-insensitive comparison
                         normalized_user_tags = [str(tag).lower().strip() for tag in user_tags if tag]
-                        normalized_when_tags = [str(tag).lower().strip() for tag in when_node_obj.tags if tag]
+                        normalized_when_tags = [str(tag).lower().strip() for tag in node_tags if tag]
+                        
+                        logger.info(f"🏷️  Comparing tags (add_tag) - Customer: {normalized_user_tags} | Required: {normalized_when_tags}")
                         
                         # Check if user has at least one of the required tags (case-insensitive)
                         has_required_tag = any(tag in normalized_user_tags for tag in normalized_when_tags)
                         
                         if not has_required_tag:
-                            logger.debug(f"🏷️  User tags {user_tags} don't match required tags: {when_node_obj.tags}")
-                            logger.debug(f"   Normalized: user_tags={normalized_user_tags}, when_tags={normalized_when_tags}")
+                            logger.info(f"❌ WORKFLOW BLOCKED (add_tag): Customer tags {user_tags} don't match required tags: {node_tags}")
+                            logger.info(f"   Normalized: user_tags={normalized_user_tags}, when_tags={normalized_when_tags}")
                             return False
                         else:
-                            logger.info(f"✅ 🏷️  User has required tag from: {when_node_obj.tags} (add_tag as filter)")
+                            logger.info(f"✅ Tag match found (add_tag) - Customer has required tag from: {node_tags}")
                     
                     # Also check keywords if configured (just like receive_message)
                     if when_node_obj.keywords:
