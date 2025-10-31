@@ -130,7 +130,7 @@ class CustomerTagsAPIView(APIView):
                 'tag_ids': openapi.Schema(
                     type=openapi.TYPE_ARRAY,
                     items=openapi.Schema(type=openapi.TYPE_INTEGER),
-                    description='List of tag IDs to add to the customer. Example: [1, 2, 3]'
+                    description='List of tag IDs to add to the customer. Use empty array [] to clear all tags. Example: [1, 2, 3] or []'
                 )
             }
         ),
@@ -158,12 +158,19 @@ class CustomerTagsAPIView(APIView):
         }
     )
     def post(self, request, customer_id):
-        """Add tags to a customer (without removing existing tags)"""
+        """Add tags to a customer (without removing existing tags). Use empty array [] to clear all tags."""
         customer, error_response = self._get_customer_and_check_permission(customer_id, request.user)
         if error_response:
             return error_response
         
-        tag_ids = request.data.get('tag_ids', [])
+        tag_ids = request.data.get('tag_ids', None)
+        
+        # Allow None to mean "don't change tags", but require explicit list for operations
+        if tag_ids is None:
+            return Response(
+                {"error": "tag_ids is required. Use empty array [] to clear all tags, or provide tag IDs to add"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
         if not isinstance(tag_ids, list):
             return Response(
@@ -171,11 +178,21 @@ class CustomerTagsAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
+        # Allow empty list to clear all tags (except system tags)
         if not tag_ids:
-            return Response(
-                {"error": "tag_ids cannot be empty"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            # Keep system tags (Instagram, Telegram, Whatsapp)
+            system_tags = customer.tag.filter(name__in=["Telegram", "Whatsapp", "Instagram"])
+            customer.tag.set(system_tags)
+            
+            # Send websocket notification
+            from message.websocket_utils import notify_customer_updated
+            notify_customer_updated(customer)
+            
+            return Response({
+                'message': 'Successfully cleared all tags from customer',
+                'customer_id': customer.id,
+                'tags': []
+            }, status=status.HTTP_200_OK)
         
         # Validate all IDs are integers
         try:

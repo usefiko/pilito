@@ -100,8 +100,16 @@ class CustomerUpdateSerializer(serializers.ModelSerializer):
         
         # Handle tag updates
         if tag_ids is not None:
-            # Set the tags (validation already done in validate_tag_ids)
-            instance.tag.set(tag_ids)
+            # If empty list, preserve system tags and clear all user tags
+            if not tag_ids:
+                system_tags = instance.tag.filter(name__in=["Telegram", "Whatsapp", "Instagram"])
+                instance.tag.set(system_tags)
+            else:
+                # Add system tags to the provided tag_ids to ensure they're kept
+                system_tags = instance.tag.filter(name__in=["Telegram", "Whatsapp", "Instagram"])
+                system_tag_ids = list(system_tags.values_list('id', flat=True))
+                all_tag_ids = list(set(tag_ids + system_tag_ids))  # Combine and deduplicate
+                instance.tag.set(all_tag_ids)
         
         instance.save()
         return instance
