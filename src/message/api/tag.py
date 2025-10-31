@@ -229,6 +229,8 @@ class TagItemAPIView(APIView):
             return error_response
         
         tag_name = tag.name
+        # Clear tag relationships from all customers before deleting
+        tag.customers.clear()
         tag.delete()
         
         return Response(
@@ -322,6 +324,10 @@ class TagBulkDeleteAPIView(APIView):
         missing_ids = set(tag_ids) - existing_ids
         if missing_ids:
             skipped_tag_names.append(f"Tag IDs not found or not owned: {list(missing_ids)}")
+        
+        # Clear tag relationships from all customers before deleting
+        for tag in deletable_tags:
+            tag.customers.clear()
         
         # Delete the tags
         deleted_count = deletable_tags.delete()[0]
