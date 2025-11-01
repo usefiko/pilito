@@ -75,9 +75,18 @@ class SendOTPSerializer(serializers.Serializer):
             # Remove + from phone number for Kavenegar
             recipient = phone_number.replace('+', '')
             
+            # Log sender info for debugging
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"Attempting to send OTP via Kavenegar:")
+            logger.info(f"  Sender: {settings.KAVENEGAR_SENDER}")
+            logger.info(f"  Receptor: {recipient}")
+            logger.info(f"  Message length: {len(message)} chars")
+            
             # Kavenegar expects parameters as keyword arguments, not a dictionary
             params = {
                 'sender': settings.KAVENEGAR_SENDER,
+                "template": "otp-verify",
                 'receptor': recipient,
                 'message': message,
             }
@@ -94,12 +103,38 @@ class SendOTPSerializer(serializers.Serializer):
             # Log the error with more details
             import logging
             logger = logging.getLogger(__name__)
-            logger.error(f"Kavenegar API error: {str(e)}")
+            
+            # Decode Persian error message
+            error_msg = str(e)
+            try:
+                # Try to decode if it's bytes
+                if isinstance(e, bytes):
+                    error_msg = e.decode('utf-8')
+                elif hasattr(e, 'args') and e.args:
+                    error_msg = str(e.args[0])
+                    if isinstance(error_msg, bytes):
+                        error_msg = error_msg.decode('utf-8')
+            except:
+                pass
+            
+            logger.error(f"Kavenegar API error: {error_msg}")
+            logger.error(f"Sender used: {settings.KAVENEGAR_SENDER}")
             logger.error(f"Error details: {e.__dict__ if hasattr(e, '__dict__') else 'No details'}")
-            print(f"Kavenegar error: {str(e)}")
+            print(f"Kavenegar error: {error_msg}")
             print(f"Error type: {type(e)}")
+            
+            # Provide user-friendly error messages based on error code
+            if '412' in error_msg or 'نامعتبر' in error_msg:
+                user_msg = 'Sender number is invalid. Please contact support.'
+            elif '401' in error_msg:
+                user_msg = 'Invalid API key. Please contact support.'
+            elif '402' in error_msg:
+                user_msg = 'Insufficient credit. Please contact support.'
+            else:
+                user_msg = f'Failed to send OTP: {error_msg}'
+            
             raise serializers.ValidationError({
-                'detail': f'Failed to send OTP: {str(e)}'
+                'detail': user_msg
             })
         except Exception as e:
             # Log unexpected errors
