@@ -29,7 +29,6 @@ class CustomerUpdateSerializer(serializers.ModelSerializer):
         write_only=True,
         required=False,
         allow_empty=True,
-        allow_null=True,
         help_text="List of tag IDs to assign to the customer. Example: [1, 2, 3]. Send empty array [] to clear all user tags."
     )
     tag = serializers.SerializerMethodField()
@@ -103,7 +102,7 @@ class CustomerUpdateSerializer(serializers.ModelSerializer):
         return TagSerializer(user_tags, many=True).data
 
     def update(self, instance, validated_data):
-        # Extract tag_ids if provided
+        # Extract tag_ids if provided (None means not provided, [] means clear tags)
         tag_ids = validated_data.pop('tag_ids', None)
         
         # Update regular fields
@@ -116,8 +115,8 @@ class CustomerUpdateSerializer(serializers.ModelSerializer):
             system_tags = instance.tag.filter(name__in=["Telegram", "Whatsapp", "Instagram"])
             system_tag_ids = list(system_tags.values_list('id', flat=True))
             
-            # If empty list or empty array, clear all user tags but keep system tags
-            if not tag_ids or tag_ids == []:
+            # If empty list, clear all user tags but keep system tags
+            if len(tag_ids) == 0:
                 instance.tag.set(system_tag_ids)
             else:
                 # Combine user-provided tags with system tags
