@@ -68,6 +68,10 @@ swarm_*.sh
 health_check*.sh
 continuous_monitoring.sh
 
+# Explicitly include essential files
+!entrypoint.sh
+!start_celery_with_metrics.sh
+
 # CI/CD
 .github/
 .gitlab-ci.yml
