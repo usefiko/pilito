@@ -1,5 +1,5 @@
 # Optimized multi-stage Dockerfile with better caching
-FROM python:3.11-slim as base
+FROM python:3.11-slim AS base
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -12,7 +12,7 @@ WORKDIR /app
 # ─────────────────────────────────────────
 # Stage 1: System dependencies (cached unless Dockerfile changes)
 # ─────────────────────────────────────────
-FROM base as system-deps
+FROM base AS system-deps
 
 RUN apt-get update && apt-get install -y \
     build-essential \
@@ -24,7 +24,7 @@ RUN apt-get update && apt-get install -y \
 # ─────────────────────────────────────────
 # Stage 2: Python dependencies (cached unless requirements change)
 # ─────────────────────────────────────────
-FROM system-deps as python-deps
+FROM system-deps AS python-deps
 
 # Copy only requirements first (for better layer caching)
 COPY src/requirements/*.txt /tmp/requirements/
@@ -36,7 +36,7 @@ RUN pip install --upgrade pip setuptools wheel && \
 # ─────────────────────────────────────────
 # Stage 3: Final application (only rebuilds when code changes)
 # ─────────────────────────────────────────
-FROM python-deps as final
+FROM python-deps AS final
 
 # Now copy application code (this layer changes frequently)
 COPY ./src /app
