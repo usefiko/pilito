@@ -39,15 +39,21 @@ class SendOTPAPIView(APIView):
                 }
             ),
             400: openapi.Response(
-                description="Invalid phone number or rate limit exceeded",
+                description="Invalid phone number format",
                 examples={
                     "application/json": {
-                        "detail": "Please wait 4 minute(s) and 30 second(s) before requesting a new OTP.",
-                        "retry_after": 270
+                        "phone_number": ["Please provide a valid Iranian phone number"]
                     }
                 }
             ),
-            429: "Too many requests"
+            429: openapi.Response(
+                description="Rate limit exceeded - Too many OTP requests",
+                examples={
+                    "application/json": {
+                        "detail": "Too many OTP requests. Please wait 4 minute(s) and 30 second(s) before requesting a new OTP."
+                    }
+                }
+            )
         },
         tags=['Authentication - OTP']
     )
@@ -59,11 +65,28 @@ class SendOTPAPIView(APIView):
                 result = serializer.save()
                 return Response(result, status=status.HTTP_200_OK)
             except Exception as e:
+                # Log the actual error for debugging
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error sending OTP: {str(e)}")
+                
                 return Response(
-                    {'detail': 'Failed to send OTP. Please try again.'},
+                    {'detail': 'Failed to send OTP. Please try again later.'},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Handle validation errors (including rate limiting)
+        # Check if it's a rate limit error (non_field_errors)
+        errors = serializer.errors
+        if 'non_field_errors' in errors:
+            # Rate limit error - return with clear message
+            return Response(
+                {'detail': errors['non_field_errors'][0]},
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
+        
+        # Other validation errors
+        return Response(errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 

@@ -30,14 +30,13 @@ class SendOTPSerializer(serializers.Serializer):
         
         return phone_number
     
-    def create(self, validated_data):
-        """Create and send OTP"""
+    def validate(self, attrs):
+        """Validate rate limiting before creating OTP"""
         from django.conf import settings
-        from kavenegar import KavenegarAPI, APIException, HTTPException
         from django.utils import timezone
         from datetime import timedelta
         
-        phone_number = validated_data['phone_number']
+        phone_number = attrs['phone_number']
         
         # Check for rate limiting - only allow 1 OTP per 5 minutes
         # Get the most recent OTP for this phone number
@@ -58,14 +57,21 @@ class SendOTPSerializer(serializers.Serializer):
                 remaining_secs = int(remaining_seconds % 60)
                 
                 if remaining_minutes > 0:
-                    wait_msg = f'Please wait {remaining_minutes} minute(s) and {remaining_secs} second(s) before requesting a new OTP.'
+                    error_msg = f'Too many OTP requests. Please wait {remaining_minutes} minute(s) and {remaining_secs} second(s) before requesting a new OTP.'
                 else:
-                    wait_msg = f'Please wait {remaining_secs} second(s) before requesting a new OTP.'
+                    error_msg = f'Too many OTP requests. Please wait {remaining_secs} second(s) before requesting a new OTP.'
                 
-                raise serializers.ValidationError({
-                    'detail': wait_msg,
-                    'retry_after': int(remaining_seconds)
-                })
+                # Raise as non_field_errors so it shows clearly
+                raise serializers.ValidationError(error_msg)
+        
+        return attrs
+    
+    def create(self, validated_data):
+        """Create and send OTP"""
+        from django.conf import settings
+        from kavenegar import KavenegarAPI, APIException, HTTPException
+        
+        phone_number = validated_data['phone_number']
         
         # Invalidate all previous unused OTPs for this phone number
         OTPToken.objects.filter(
