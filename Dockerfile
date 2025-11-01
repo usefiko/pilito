@@ -40,7 +40,7 @@ FROM python-deps as final
 
 # Now copy application code (this layer changes frequently)
 COPY ./src /app
-COPY entrypoint.sh /entrypoint.sh
+COPY ./entrypoint.sh /entrypoint.sh
 
 # Setup and cleanup
 RUN chmod +x /entrypoint.sh && \
