@@ -890,7 +890,8 @@ def process_scheduled_when_nodes():
                                 except Exception:
                                     if isinstance(getattr(customer, 'tags', []), list):
                                         tag_names = getattr(customer, 'tags', [])
-                            if not any(t in tag_names for t in wn.tags):
+                            # Check if customer has ALL of the required tags
+                            if not all(t in tag_names for t in wn.tags):
                                 continue
 
                         # Per-conversation de-dup (last minute)

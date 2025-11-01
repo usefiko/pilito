@@ -561,15 +561,15 @@ class TriggerService:
                         normalized_user_tags = [str(tag).lower().strip() for tag in user_tags if tag]
                         normalized_when_tags = [str(tag).lower().strip() for tag in when_node.tags if tag]
                         
-                        # Check if user has at least one of the required tags (case-insensitive)
-                        has_required_tag = any(tag in normalized_user_tags for tag in normalized_when_tags)
+                        # Check if user has ALL of the required tags (case-insensitive)
+                        has_required_tag = all(tag in normalized_user_tags for tag in normalized_when_tags)
                         
                         if not has_required_tag:
-                            logger.info(f"❌ User tags {user_tags} don't match required tags: {when_node.tags}")
+                            logger.info(f"❌ User does not have all required tags: {when_node.tags}")
                             logger.debug(f"   Normalized: user_tags={normalized_user_tags}, when_tags={normalized_when_tags}")
                             return False
                         else:
-                            logger.info(f"✅ User has required tag from: {when_node.tags}")
+                            logger.info(f"✅ User has ALL required tags: {when_node.tags}")
                     
                     # Also check keywords if configured (just like receive_message)
                     if when_node.keywords:

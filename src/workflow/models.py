@@ -969,7 +969,7 @@ class WhenNode(WorkflowNode):
     
     when_type = models.CharField(max_length=30, choices=WHEN_TYPE_CHOICES)
     keywords = models.JSONField(default=list, blank=True, help_text="Keywords for message triggers")
-    tags = models.JSONField(default=list, blank=True, help_text="Tags for tag triggers - filters customers by these tags")
+    tags = models.JSONField(default=list, blank=True, help_text="Tags for tag triggers - workflow executes only if customer has ALL of these tags")
     channels = models.JSONField(default=list, blank=True, help_text="Channels to monitor (instagram, telegram, all)")
     
     # Scheduling fields

@@ -323,15 +323,15 @@ class NodeBasedWorkflowExecutionService:
                     
                     logger.info(f"🏷️  Comparing tags - Customer: {normalized_user_tags} | Required: {normalized_when_tags}")
                     
-                    # Check if customer has at least one of the required tags (case-insensitive)
-                    has_required_tag = any(tag in normalized_user_tags for tag in normalized_when_tags)
+                    # Check if customer has ALL of the required tags (case-insensitive)
+                    has_required_tag = all(tag in normalized_user_tags for tag in normalized_when_tags)
                     
                     if not has_required_tag:
-                        logger.info(f"❌ WORKFLOW BLOCKED: Customer tags {user_tags} don't match required tags: {node_tags}")
+                        logger.info(f"❌ WORKFLOW BLOCKED: Customer does not have all required tags: {node_tags}")
                         logger.info(f"   Normalized: user_tags={normalized_user_tags}, when_tags={normalized_when_tags}")
                         return False
                     else:
-                        logger.info(f"✅ Tag match found - Customer has required tag from: {node_tags}")
+                        logger.info(f"✅ Tag match found - Customer has ALL required tags: {node_tags}")
                 else:
                     logger.info(f"ℹ️  No tag filtering - tags field is empty, None, or not configured")
             
@@ -480,15 +480,15 @@ class NodeBasedWorkflowExecutionService:
                         
                         logger.info(f"🏷️  Comparing tags (add_tag) - Customer: {normalized_user_tags} | Required: {normalized_when_tags}")
                         
-                        # Check if user has at least one of the required tags (case-insensitive)
-                        has_required_tag = any(tag in normalized_user_tags for tag in normalized_when_tags)
+                        # Check if user has ALL of the required tags (case-insensitive)
+                        has_required_tag = all(tag in normalized_user_tags for tag in normalized_when_tags)
                         
                         if not has_required_tag:
-                            logger.info(f"❌ WORKFLOW BLOCKED (add_tag): Customer tags {user_tags} don't match required tags: {node_tags}")
+                            logger.info(f"❌ WORKFLOW BLOCKED (add_tag): Customer does not have all required tags: {node_tags}")
                             logger.info(f"   Normalized: user_tags={normalized_user_tags}, when_tags={normalized_when_tags}")
                             return False
                         else:
-                            logger.info(f"✅ Tag match found (add_tag) - Customer has required tag from: {node_tags}")
+                            logger.info(f"✅ Tag match found (add_tag) - Customer has ALL required tags: {node_tags}")
                     
                     # Also check keywords if configured (just like receive_message)
                     if when_node_obj.keywords:
