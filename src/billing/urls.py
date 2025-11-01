@@ -1,5 +1,5 @@
 from django.urls import path
-from billing.api import CurrentPlanAPIView,Payment,PaymentVerify,PaymentHistory
+from billing.api import CurrentPlanAPIView,Payment,PaymentVerify,PaymentHistory,ZPPayment,ZPVerify
 from .views import (
     TokenPlanListView, FullPlanListView, PlanListView, PurchasePlanView, CurrentSubscriptionView,
     ConsumeTokensView, UserPaymentHistoryView, UserSubscriptionHistoryView,
@@ -27,10 +27,12 @@ urlpatterns = [
     path('overview/', BillingOverviewView.as_view(), name='billing-overview'),
     path('legacy/purchases/', LegacyPurchasesListView.as_view(), name='legacy-purchases'),
     path('legacy/purchases/<int:pk>/', LegacyPurchaseDetailView.as_view(), name='legacy-purchase-detail'),
-    
     # Legacy endpoints (keep for backward compatibility)
     path("current-plan", CurrentPlanAPIView.as_view(), name="current-plan"),
     path("payment", Payment.as_view(), name="payment"),
     path("payment-verify/<int:id>/", PaymentVerify.as_view(), name="payment-verify"),
     path("payment-history", PaymentHistory.as_view(), name="pay-history"),
+    #Zarinpal
+    path("zp-pay", ZPPayment.as_view(), name="zp-payment"),
+    path("zp-verify/<int:id>/", ZPVerify.as_view(), name="zp-verify"),
 ]
