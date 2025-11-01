@@ -11,8 +11,9 @@ from django.db import transaction
 from django.shortcuts import redirect
 
 
+''' 
 class Payment(APIView):
-    serializer_class = PurchasesSerializer
+    serializer_class = PurchasesSerializer  
     permission_classes = [IsAuthenticated]
 
     def post(self, *args, **kwargs):
@@ -25,11 +26,11 @@ class Payment(APIView):
         serializer = self.serializer_class(data=data, partial=True)
         if serializer.is_valid():
             serializer.save()
-            purchase = Purchases.objects.get(id=serializer.data['id'])
+            purchase = Purchases.objects.get(id=serializer.data['id'])  
 
             data = {
                 "MerchantID": settings.ZARRINPAL_MERCHANT_ID,  # betterme zarinpal merchent
-                "Amount": purchase.price,
+                "Amount": purchase.price,  
                 "Description": purchase.description,
                 "Authority": authority,
                 "Phone": str(self.request.user.phone_number),
@@ -117,3 +118,5 @@ class PaymentVerify(APIView):
             else:
                 return SuccessResponse(data={'status': False, 'details': 'purchase already paid' })
         return SuccessResponse(data=response.content)
+        
+'''
