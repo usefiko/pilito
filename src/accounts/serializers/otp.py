@@ -75,6 +75,7 @@ class SendOTPSerializer(serializers.Serializer):
             # Remove + from phone number for Kavenegar
             recipient = phone_number.replace('+', '')
             
+            # Kavenegar expects parameters as keyword arguments, not a dictionary
             params = {
                 'sender': settings.KAVENEGAR_SENDER,
                 'receptor': recipient,
@@ -90,15 +91,28 @@ class SendOTPSerializer(serializers.Serializer):
             }
             
         except (APIException, HTTPException) as e:
-            # Log the error but don't expose details to user
+            # Log the error with more details
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Kavenegar API error: {str(e)}")
+            logger.error(f"Error details: {e.__dict__ if hasattr(e, '__dict__') else 'No details'}")
             print(f"Kavenegar error: {str(e)}")
+            print(f"Error type: {type(e)}")
             raise serializers.ValidationError({
-                'detail': 'Failed to send OTP. Please try again later.'
+                'detail': f'Failed to send OTP: {str(e)}'
             })
         except Exception as e:
+            # Log unexpected errors
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Unexpected error sending OTP: {str(e)}")
+            logger.error(f"Error type: {type(e).__name__}")
             print(f"Unexpected error sending OTP: {str(e)}")
+            print(f"Error type: {type(e).__name__}")
+            import traceback
+            print(traceback.format_exc())
             raise serializers.ValidationError({
-                'detail': 'An error occurred. Please try again.'
+                'detail': f'An error occurred: {str(e)}'
             })
 
 
