@@ -69,29 +69,43 @@ class SendOTPSerializer(serializers.Serializer):
             
             api = KavenegarAPI(api_key)
             
-            # Prepare SMS message
-            message = f"کد تایید شما: {otp_token.code}\n\nاین کد تا {settings.OTP_EXPIRY_TIME // 60} دقیقه اعتبار دارد."
-            
             # Remove + from phone number for Kavenegar
             recipient = phone_number.replace('+', '')
             
-            # Log sender info for debugging
+            # Log OTP sending attempt
             import logging
             logger = logging.getLogger(__name__)
-            logger.info(f"Attempting to send OTP via Kavenegar:")
-            logger.info(f"  Sender: {settings.KAVENEGAR_SENDER}")
+            logger.info(f"Attempting to send OTP via Kavenegar Verify:")
             logger.info(f"  Receptor: {recipient}")
-            logger.info(f"  Message length: {len(message)} chars")
+            logger.info(f"  Template: otp-verify")
+            logger.info(f"  Token: {otp_token.code}")
             
-            # Kavenegar expects parameters as keyword arguments, not a dictionary
+            # Use Kavenegar's Verify/Lookup service (better for OTP, no sender required!)
+            # Template 'verify' should exist in your Kavenegar panel
+            # Go to: https://panel.kavenegar.com/client/verification/add
+            # Create a template named "verify" with pattern like: "کد تایید شما: %token%"
             params = {
-                'sender': settings.KAVENEGAR_SENDER,
-                "template": "otp-verify",
                 'receptor': recipient,
-                'message': message,
+                'token': otp_token.code,
+                'template': 'otp-verify',  # Template name from Kavenegar panel
             }
             
-            response = api.sms_send(params)
+            try:
+                response = api.verify_lookup(params)
+                logger.info(f"OTP sent successfully via Verify service")
+            except Exception as verify_error:
+                # If verify_lookup fails (e.g., template not found), fallback to regular SMS
+                logger.warning(f"Verify lookup failed: {verify_error}")
+                logger.info("Falling back to regular SMS send...")
+                
+                # Fallback to regular SMS (requires sender number)
+                message = f"کد تایید شما: {otp_token.code}\n\nاین کد تا {settings.OTP_EXPIRY_TIME // 60} دقیقه اعتبار دارد."
+                params = {
+                    'sender': settings.KAVENEGAR_SENDER,
+                    'receptor': recipient,
+                    'message': message,
+                }
+                response = api.sms_send(params)
             
             return {
                 'phone_number': phone_number,

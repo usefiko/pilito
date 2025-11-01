@@ -65,6 +65,8 @@ class SendOTPAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+
+
 class VerifyOTPAPIView(APIView):
     """
     API endpoint to verify OTP code and authenticate user.
