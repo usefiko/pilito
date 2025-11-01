@@ -29,7 +29,8 @@ class CustomerUpdateSerializer(serializers.ModelSerializer):
         write_only=True,
         required=False,
         allow_empty=True,
-        help_text="List of tag IDs to assign to the customer. Example: [1, 2, 3]"
+        allow_null=True,
+        help_text="List of tag IDs to assign to the customer. Example: [1, 2, 3]. Send empty array [] to clear all user tags."
     )
     tag = serializers.SerializerMethodField()
     
@@ -40,11 +41,19 @@ class CustomerUpdateSerializer(serializers.ModelSerializer):
         
     def validate_tag_ids(self, value):
         """Custom validation for tag_ids"""
+        # Explicitly handle None - field not provided
         if value is None:
-            return value
+            return None
+        
+        # Explicitly handle empty list - clear all user tags
+        if value == [] or value == '':
+            return []
         
         # Handle string input (when using form-data)
         if isinstance(value, str):
+            # Check for empty string
+            if value.strip() == '':
+                return []
             try:
                 import json
                 value = json.loads(value)
@@ -61,6 +70,10 @@ class CustomerUpdateSerializer(serializers.ModelSerializer):
                 "Example: [1, 2, 3] or \"[1, 2, 3]\" when using form-data"
             )
         
+        # Handle empty list again after type conversion
+        if len(value) == 0:
+            return []
+        
         # Validate each item is an integer
         for i, item in enumerate(value):
             if not isinstance(item, int):
@@ -75,13 +88,12 @@ class CustomerUpdateSerializer(serializers.ModelSerializer):
         if len(value) != len(set(value)):
             raise serializers.ValidationError("Duplicate tag IDs are not allowed")
         
-        # Validate that all tag IDs exist
-        if value:  # Only check if list is not empty
-            existing_tags = Tag.objects.filter(id__in=value)
-            if len(existing_tags) != len(value):
-                existing_ids = set(existing_tags.values_list('id', flat=True))
-                invalid_ids = set(value) - existing_ids
-                raise serializers.ValidationError(f'Invalid tag IDs: {sorted(list(invalid_ids))}. Please provide valid tag IDs.')
+        # Validate that all tag IDs exist (only for non-empty lists)
+        existing_tags = Tag.objects.filter(id__in=value)
+        if len(existing_tags) != len(value):
+            existing_ids = set(existing_tags.values_list('id', flat=True))
+            invalid_ids = set(value) - existing_ids
+            raise serializers.ValidationError(f'Invalid tag IDs: {sorted(list(invalid_ids))}. Please provide valid tag IDs.')
         
         return value
     
@@ -98,16 +110,17 @@ class CustomerUpdateSerializer(serializers.ModelSerializer):
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         
-        # Handle tag updates
+        # Handle tag updates - only if tag_ids was explicitly provided in the request
         if tag_ids is not None:
-            # If empty list, preserve system tags and clear all user tags
-            if not tag_ids:
-                system_tags = instance.tag.filter(name__in=["Telegram", "Whatsapp", "Instagram"])
-                instance.tag.set(system_tags)
+            # Get system tags that should always be preserved
+            system_tags = instance.tag.filter(name__in=["Telegram", "Whatsapp", "Instagram"])
+            system_tag_ids = list(system_tags.values_list('id', flat=True))
+            
+            # If empty list or empty array, clear all user tags but keep system tags
+            if not tag_ids or tag_ids == []:
+                instance.tag.set(system_tag_ids)
             else:
-                # Add system tags to the provided tag_ids to ensure they're kept
-                system_tags = instance.tag.filter(name__in=["Telegram", "Whatsapp", "Instagram"])
-                system_tag_ids = list(system_tags.values_list('id', flat=True))
+                # Combine user-provided tags with system tags
                 all_tag_ids = list(set(tag_ids + system_tag_ids))  # Combine and deduplicate
                 instance.tag.set(all_tag_ids)
         
