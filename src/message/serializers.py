@@ -40,23 +40,32 @@ class CustomerUpdateSerializer(serializers.ModelSerializer):
         
     def validate_tag_ids(self, value):
         """Custom validation for tag_ids"""
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"🔍 validate_tag_ids called with value: {value!r} (type: {type(value).__name__})")
+        
         # Explicitly handle None - field not provided
         if value is None:
+            logger.info("✅ tag_ids is None - returning None (no change)")
             return None
         
         # Explicitly handle empty list - clear all user tags
         if value == [] or value == '':
+            logger.info("✅ tag_ids is empty - returning [] (will clear tags)")
             return []
         
         # Handle string input (when using form-data)
         if isinstance(value, str):
             # Check for empty string
             if value.strip() == '':
+                logger.info("✅ tag_ids is empty string - returning [] (will clear tags)")
                 return []
             try:
                 import json
                 value = json.loads(value)
+                logger.info(f"✅ Parsed string to: {value}")
             except (json.JSONDecodeError, ValueError):
+                logger.error(f"❌ Failed to parse tag_ids string: {value}")
                 raise serializers.ValidationError(
                     "tag_ids must be a valid JSON array of integers. "
                     "Example: [1, 2, 3] or \"[1, 2, 3]\" when using form-data"
@@ -64,6 +73,7 @@ class CustomerUpdateSerializer(serializers.ModelSerializer):
             
         # Ensure it's a list
         if not isinstance(value, list):
+            logger.error(f"❌ tag_ids is not a list: {type(value).__name__}")
             raise serializers.ValidationError(
                 "tag_ids must be a list of integers. "
                 "Example: [1, 2, 3] or \"[1, 2, 3]\" when using form-data"
@@ -71,6 +81,7 @@ class CustomerUpdateSerializer(serializers.ModelSerializer):
         
         # Handle empty list again after type conversion
         if len(value) == 0:
+            logger.info("✅ tag_ids is empty list after conversion - returning [] (will clear tags)")
             return []
         
         # Validate each item is an integer
@@ -79,12 +90,14 @@ class CustomerUpdateSerializer(serializers.ModelSerializer):
                 try:
                     value[i] = int(item)
                 except (ValueError, TypeError):
+                    logger.error(f"❌ Invalid tag ID at index {i}: {item}")
                     raise serializers.ValidationError(
                         f"All tag IDs must be integers. Item at index {i} is not a valid integer: {item}"
                     )
         
         # Check for duplicates
         if len(value) != len(set(value)):
+            logger.error(f"❌ Duplicate tag IDs found: {value}")
             raise serializers.ValidationError("Duplicate tag IDs are not allowed")
         
         # Validate that all tag IDs exist (only for non-empty lists)
@@ -92,8 +105,10 @@ class CustomerUpdateSerializer(serializers.ModelSerializer):
         if len(existing_tags) != len(value):
             existing_ids = set(existing_tags.values_list('id', flat=True))
             invalid_ids = set(value) - existing_ids
+            logger.error(f"❌ Invalid tag IDs: {sorted(list(invalid_ids))}")
             raise serializers.ValidationError(f'Invalid tag IDs: {sorted(list(invalid_ids))}. Please provide valid tag IDs.')
         
+        logger.info(f"✅ tag_ids validated successfully: {value}")
         return value
     
     def get_tag(self, obj):
@@ -102,8 +117,12 @@ class CustomerUpdateSerializer(serializers.ModelSerializer):
         return TagSerializer(user_tags, many=True).data
 
     def update(self, instance, validated_data):
+        import logging
+        logger = logging.getLogger(__name__)
+        
         # Extract tag_ids if provided (None means not provided, [] means clear tags)
         tag_ids = validated_data.pop('tag_ids', None)
+        logger.info(f"🔄 Updating customer {instance.id} - tag_ids from validated_data: {tag_ids}")
         
         # Update regular fields
         for attr, value in validated_data.items():
@@ -114,16 +133,22 @@ class CustomerUpdateSerializer(serializers.ModelSerializer):
             # Get system tags that should always be preserved
             system_tags = instance.tag.filter(name__in=["Telegram", "Whatsapp", "Instagram"])
             system_tag_ids = list(system_tags.values_list('id', flat=True))
+            logger.info(f"🔄 System tag IDs to preserve: {system_tag_ids}")
             
             # If empty list, clear all user tags but keep system tags
             if len(tag_ids) == 0:
+                logger.info(f"🔄 Clearing all user tags, keeping only system tags: {system_tag_ids}")
                 instance.tag.set(system_tag_ids)
             else:
                 # Combine user-provided tags with system tags
                 all_tag_ids = list(set(tag_ids + system_tag_ids))  # Combine and deduplicate
+                logger.info(f"🔄 Setting tags: user_tags={tag_ids}, system_tags={system_tag_ids}, combined={all_tag_ids}")
                 instance.tag.set(all_tag_ids)
+        else:
+            logger.info("🔄 tag_ids not provided - keeping existing tags unchanged")
         
         instance.save()
+        logger.info(f"✅ Customer {instance.id} saved successfully")
         return instance
 
 
