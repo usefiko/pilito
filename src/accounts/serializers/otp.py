@@ -39,16 +39,33 @@ class SendOTPSerializer(serializers.Serializer):
         
         phone_number = validated_data['phone_number']
         
-        # Check for rate limiting - prevent sending too many OTPs
-        recent_otps = OTPToken.objects.filter(
-            phone_number=phone_number,
-            created_at__gte=timezone.now() - timedelta(minutes=2)
-        ).count()
+        # Check for rate limiting - only allow 1 OTP per 5 minutes
+        # Get the most recent OTP for this phone number
+        last_otp = OTPToken.objects.filter(
+            phone_number=phone_number
+        ).order_by('-created_at').first()
         
-        if recent_otps >= 3:
-            raise serializers.ValidationError({
-                'phone_number': 'Too many OTP requests. Please try again in 2 minutes.'
-            })
+        if last_otp:
+            # Calculate time since last OTP
+            time_since_last = timezone.now() - last_otp.created_at
+            wait_time_seconds = settings.OTP_RESEND_WAIT_TIME  # Get from settings (default: 5 minutes)
+            
+            # If last OTP was sent within the wait time
+            if time_since_last < timedelta(seconds=wait_time_seconds):
+                # Calculate remaining wait time
+                remaining_seconds = (timedelta(seconds=wait_time_seconds) - time_since_last).total_seconds()
+                remaining_minutes = int(remaining_seconds // 60)
+                remaining_secs = int(remaining_seconds % 60)
+                
+                if remaining_minutes > 0:
+                    wait_msg = f'Please wait {remaining_minutes} minute(s) and {remaining_secs} second(s) before requesting a new OTP.'
+                else:
+                    wait_msg = f'Please wait {remaining_secs} second(s) before requesting a new OTP.'
+                
+                raise serializers.ValidationError({
+                    'detail': wait_msg,
+                    'retry_after': int(remaining_seconds)
+                })
         
         # Invalidate all previous unused OTPs for this phone number
         OTPToken.objects.filter(

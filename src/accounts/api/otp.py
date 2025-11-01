@@ -25,7 +25,7 @@ class SendOTPAPIView(APIView):
     throttle_classes = [OTPRateThrottle]
     
     @swagger_auto_schema(
-        operation_description="Send OTP code to phone number for authentication",
+        operation_description="Send OTP code to phone number for authentication. Rate limited to 1 request per 5 minutes per phone number.",
         request_body=SendOTPSerializer,
         responses={
             200: openapi.Response(
@@ -42,7 +42,8 @@ class SendOTPAPIView(APIView):
                 description="Invalid phone number or rate limit exceeded",
                 examples={
                     "application/json": {
-                        "phone_number": ["Please provide a valid Iranian phone number"]
+                        "detail": "Please wait 4 minute(s) and 30 second(s) before requesting a new OTP.",
+                        "retry_after": 270
                     }
                 }
             ),
