@@ -1,333 +1,398 @@
-# Monitoring Architecture
+# Pilito Architecture - Docker Swarm High Availability
 
-## System Overview
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         User / Browser                          │
-└────────────────┬────────────────────────────────────────────────┘
-                 │
-                 ├─ http://localhost:3001 ──► Grafana Dashboard
-                 ├─ http://localhost:9090 ──► Prometheus UI
-                 └─ http://localhost:8000 ──► Django Application
-                                               │
-┌────────────────────────────────────────────┴────────────────────┐
-│                    Monitoring Stack                             │
-│                                                                  │
-│  ┌──────────────┐         ┌──────────────┐                     │
-│  │   Grafana    │◄────────│  Prometheus  │                     │
-│  │   :3001      │  Query  │    :9090     │                     │
-│  │              │         │              │                     │
-│  │ • Dashboards │         │ • Metrics DB │                     │
-│  │ • Alerts     │         │ • Scraping   │                     │
-│  │ • Users      │         │ • Alerts     │                     │
-│  └──────────────┘         └───────┬──────┘                     │
-│                                    │                             │
-│                           ┌────────┴──────────┐                │
-│                           │   Scrape Targets   │                │
-│                           │   (every 15s)      │                │
-│                           └────────┬───────────┘                │
-│                                    │                             │
-└────────────────────────────────────┼─────────────────────────────┘
-                                     │
-                 ┌───────────────────┼────────────────┐
-                 │                   │                 │
-    ┌────────────▼──────┐  ┌────────▼────────┐  ┌───▼──────────┐
-    │  Django App       │  │  Redis          │  │  PostgreSQL  │
-    │  :8000            │  │  Exporter       │  │  Exporter    │
-    │                   │  │  :9121          │  │  :9187       │
-    │ /api/v1/metrics   │  │                 │  │              │
-    │                   │  │ Exposes:        │  │ Exposes:     │
-    │ Middleware:       │  │ • Memory        │  │ • Queries    │
-    │ • HTTP Metrics    │  │ • Commands      │  │ • Locks      │
-    │ • DB Metrics      │  │ • Connections   │  │ • Cache      │
-    │ • Custom Metrics  │  │ • Keyspace      │  │ • Size       │
-    └───────────────────┘  └─────────────────┘  └──────────────┘
-                                     │
-                           ┌─────────▼────────┐
-                           │  Celery Worker   │
-                           │  :9808           │
-                           │                  │
-                           │ Exporter:        │
-                           │ • Task counts    │
-                           │ • Queue length   │
-                           │ • Task duration  │
-                           └──────────────────┘
-```
-
-## Data Flow
-
-### 1. Metrics Collection
+## System Architecture Overview
 
 ```
-Application Code
-      │
-      ├─► HTTP Request ──► Middleware ──► Increment Counters
-      ├─► DB Query ────► Middleware ──► Record Duration
-      ├─► Cache Hit ───► Code ──────► Update Gauge
-      └─► Custom Event ► Code ──────► Custom Metric
-                                            │
-                                            ▼
-                                    Prometheus Client
-                                   (In-Memory Registry)
-                                            │
-                          ┌─────────────────┴──────────────┐
-                          │   Expose at /api/v1/metrics    │
-                          │   Format: Prometheus Text      │
-                          └────────────────┬───────────────┘
-                                           │
-                          ┌────────────────▼────────────────┐
-                          │   Prometheus Scrapes            │
-                          │   Every 15 seconds              │
-                          └────────────────┬────────────────┘
-                                           │
-                          ┌────────────────▼────────────────┐
-                          │   Store in TSDB                 │
-                          │   Retention: 30 days            │
-                          └─────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────┐
+│                          DOCKER SWARM CLUSTER                               │
+│                         High Availability Setup                             │
+└────────────────────────────────────────────────────────────────────────────┘
+
+                              ┌─────────────────┐
+                              │   Load Balancer │
+                              │  (Swarm Ingress)│
+                              └────────┬────────┘
+                                       │
+                    ┌──────────────────┼──────────────────┐
+                    │                  │                  │
+            ┌───────▼──────┐   ┌──────▼──────┐   ┌──────▼──────┐
+            │  Django Web  │   │ Django Web  │   │ Django Web  │
+            │  Replica #1  │   │ Replica #2  │   │ Replica #3  │
+            │  Container   │   │ Container   │   │ Container   │
+            └───────┬──────┘   └──────┬──────┘   └──────┬──────┘
+                    │                 │                  │
+                    └─────────┬───────┴──────────────────┘
+                              │
+                   Overlay Network (10.0.10.0/24)
+                              │
+        ┌─────────────────────┼─────────────────────────────────┐
+        │                     │                                  │
+┌───────▼────────┐   ┌────────▼────────┐              ┌─────────▼──────────┐
+│  PostgreSQL    │   │     Redis       │              │   Celery Workers   │
+│  (pgvector)    │   │   Cache/Queue   │              │                    │
+│  Replica: 1    │   │   Replica: 1    │              │ ┌────────────────┐ │
+│                │   │                 │              │ │  Worker #1     │ │
+│  Health: ✓     │   │  Health: ✓      │              │ └────────────────┘ │
+│  Port: 5432    │   │  Port: 6379     │              │ ┌────────────────┐ │
+└────────────────┘   └─────────────────┘              │ │  Worker #2     │ │
+                                                       │ └────────────────┘ │
+                                                       │                    │
+                                                       │  Celery Beat: ✓    │
+                                                       └────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│                        MONITORING STACK                                   │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                           │
+│  ┌─────────────────┐         ┌──────────────────┐                       │
+│  │   Prometheus    │────────▶│     Grafana      │                       │
+│  │  Port: 9090     │         │   Port: 3001     │                       │
+│  │  Metrics Store  │         │   Dashboards     │                       │
+│  └────────┬────────┘         └──────────────────┘                       │
+│           │                                                               │
+│           │ Scrapes metrics from:                                        │
+│           ├─────────── Django (Django Metrics)                           │
+│           ├─────────── Celery (Task Metrics)                             │
+│           ├─────────── PostgreSQL Exporter                               │
+│           ├─────────── Redis Exporter                                    │
+│           └─────────── Container Metrics                                 │
+│                                                                           │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 2. Alerting Flow
+## Component Details
 
+### Django Web Service (3 Replicas)
 ```
-Prometheus
+┌────────────────────────────────────┐
+│      Django Web Container          │
+├────────────────────────────────────┤
+│ ✓ Gunicorn ASGI Server             │
+│ ✓ Uvicorn Workers (2)              │
+│ ✓ WebSocket Support (Channels)     │
+│ ✓ Health Check: /health/           │
+│ ✓ Auto-restart on failure          │
+│ ✓ Resource Limits: 2 CPU, 2GB RAM │
+│ ✓ Update Strategy: Rolling         │
+└────────────────────────────────────┘
     │
-    ├─► Evaluate Alert Rules (every 15s)
-    │        │
-    │        ├─► Condition Met? ─NO─► Continue
-    │        │
-    │        └─► YES ─► Firing State
-    │                      │
-    │                      ├─► Show in Prometheus UI
-    │                      ├─► Show in Grafana
-    │                      └─► (Optional) Alertmanager
-    │                                     │
-    │                                     └─► Notifications
-    │                                          (Slack, Email, etc.)
-    └─────────────────────────────────────────────────────
+    ├─▶ Database Connection Pool
+    ├─▶ Redis Connection Pool
+    ├─▶ Static Files Volume
+    └─▶ Media Files Volume
 ```
 
-### 3. Dashboard Visualization
-
+### Celery Workers (2 Replicas)
 ```
-User Opens Grafana Dashboard
-         │
-         ▼
-Grafana Executes PromQL Queries
-         │
-         ▼
-Query Prometheus API
-         │
-         ▼
-Prometheus Returns Time Series Data
-         │
-         ▼
-Grafana Renders:
-  • Graphs (Time Series)
-  • Gauges (Current Values)
-  • Tables (Aggregations)
-  • Alerts (Current State)
+┌────────────────────────────────────┐
+│    Celery Worker Container         │
+├────────────────────────────────────┤
+│ ✓ Background Task Processing       │
+│ ✓ Concurrency: Auto-detected       │
+│ ✓ Task Retry Logic                 │
+│ ✓ Health Check: Celery Inspect     │
+│ ✓ Auto-restart on failure          │
+│ ✓ Resource Limits: 1.5 CPU, 1.5GB │
+│ ✓ Metrics: Port 9808               │
+└────────────────────────────────────┘
+    │
+    ├─▶ Redis (Task Queue)
+    ├─▶ Database (Results)
+    └─▶ Media Files Volume
 ```
 
-## Component Interactions
-
-### HTTP Request Journey
-
+### Data Layer
 ```
-1. User Request
+┌───────────────────────┐    ┌──────────────────────┐
+│   PostgreSQL 15       │    │      Redis 7         │
+│   with pgvector       │    │                      │
+├───────────────────────┤    ├──────────────────────┤
+│ ✓ Persistent Volume   │    │ ✓ In-Memory Cache    │
+│ ✓ Optimized Config    │    │ ✓ Celery Broker      │
+│ ✓ Connection Pool     │    │ ✓ Session Store      │
+│ ✓ Auto Backup Ready   │    │ ✓ LRU Eviction       │
+│ ✓ Health Monitored    │    │ ✓ Persistence: AOF   │
+│ ✓ Max Conn: 200       │    │ ✓ Max Memory: 512MB  │
+└───────────────────────┘    └──────────────────────┘
+```
+
+## High Availability Features
+
+### Automatic Failover
+```
+Normal Operation:
+┌──────┐  ┌──────┐  ┌──────┐
+│Web #1│  │Web #2│  │Web #3│  ← All serving traffic
+└──────┘  └──────┘  └──────┘
+
+Container Crash:
+┌──────┐  ┌──────┐  ┌──────┐
+│Web #1│  │  ✗   │  │Web #3│  ← #2 crashes
+└──────┘  └──────┘  └──────┘
+    ↓
+┌──────┐  ┌──────┐  ┌──────┐
+│Web #1│  │Web #2│  │Web #3│  ← Swarm auto-restarts #2
+└──────┘  └──────┘  └──────┘
+              ✓
+         (Recovered)
+
+During recovery:
+- Traffic continues via #1 and #3
+- No service interruption
+- Health checks verify recovery
+```
+
+### Rolling Updates
+```
+Step 1: Start new replica
+┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐
+│Old #1│  │Old #2│  │Old #3│  │New #1│
+└──────┘  └──────┘  └──────┘  └──────┘
+                                  ↓
+                            Health Check
+                                  ↓
+Step 2: Replace old replica      ✓
+┌──────┐  ┌──────┐  ┌──────┐
+│New #1│  │Old #2│  │Old #3│
+└──────┘  └──────┘  └──────┘
+
+Step 3: Continue rolling
+┌──────┐  ┌──────┐  ┌──────┐
+│New #1│  │New #2│  │Old #3│
+└──────┘  └──────┘  └──────┘
+
+Step 4: Complete
+┌──────┐  ┌──────┐  ┌──────┐
+│New #1│  │New #2│  │New #3│
+└──────┘  └──────┘  └──────┘
+```
+
+## Traffic Flow
+
+### HTTP Request Flow
+```
+1. External Request
    │
    ▼
-2. Nginx/Load Balancer (if in production)
+2. Swarm Ingress Load Balancer
+   │ (Round-robin DNS)
    │
-   ▼
-3. Django Application (:8000)
-   │
-   ├─► PrometheusMetricsMiddleware
-   │    │
-   │    ├─► Start Timer
-   │    ├─► Increment request counter
-   │    └─► Track request size
-   │
-   ├─► Application Logic
-   │    │
-   │    ├─► Database Queries
-   │    │    └─► DatabaseMetricsMiddleware tracks
-   │    │
-   │    ├─► Cache Operations
-   │    │    └─► Manual metrics in code
-   │    │
-   │    └─► Custom Business Logic
-   │         └─► Custom metrics in code
-   │
-   └─► PrometheusMetricsMiddleware (Response)
-        │
-        ├─► Stop Timer
-        ├─► Record duration
-        ├─► Track response size
-        └─► Increment status counter
-```
-
-### Celery Task Journey
-
-```
-1. Task Triggered
-   │
-   ▼
-2. Sent to Redis Queue
-   │
-   ▼
-3. Celery Worker Picks Up Task
-   │
-   ├─► Celery Exporter Tracks:
-   │    │
-   │    ├─► Task received
-   │    ├─► Queue length
-   │    └─► Worker state
-   │
-   ├─► Task Executes
-   │    │
-   │    └─► Custom metrics in task code
-   │
-   └─► Task Completes
-        │
-        └─► Celery Exporter Records:
-             ├─► Task state (success/failure)
-             ├─► Task duration
-             └─► Queue length update
-```
-
-## Network Ports
-
-| Service            | Port  | Purpose                    |
-|--------------------|-------|----------------------------|
-| Django App         | 8000  | Application + Metrics      |
-| Prometheus         | 9090  | Metrics DB + UI            |
-| Grafana            | 3001  | Dashboards + Visualization |
-| Redis Exporter     | 9121  | Redis metrics              |
-| PostgreSQL Export  | 9187  | Database metrics           |
-| Celery Exporter    | 9808  | Celery task metrics        |
-| Redis              | 6379  | Cache + Celery broker      |
-| PostgreSQL         | 5432  | Database (internal)        |
-
-## Metric Types & Storage
-
-### Counter (Monotonic Increase)
-
-```
-django_http_requests_total{method="GET", endpoint="/api/v1/usr/"}
-                 ▲
-                 │
-    ┌────────────┴─────────────┐
-    │  Increments only         │
-    │  Never decreases         │
-    │  Use rate() for rate/s   │
-    └──────────────────────────┘
-```
-
-### Histogram (Distribution)
-
-```
-django_http_request_duration_seconds
-                 │
-                 ├─► _bucket{le="0.1"}  = 50
-                 ├─► _bucket{le="0.5"}  = 95
-                 ├─► _bucket{le="1.0"}  = 99
-                 ├─► _bucket{le="+Inf"} = 100
-                 ├─► _sum = 42.5
-                 └─► _count = 100
-
-Use histogram_quantile() for percentiles
-```
-
-### Gauge (Can Increase/Decrease)
-
-```
-django_db_connections_active
-                 ▲
-                 │
-    ┌────────────┴─────────────┐
-    │  Current value           │
-    │  Goes up and down        │
-    │  No rate() needed        │
-    └──────────────────────────┘
-```
-
-## Scaling Considerations
-
-### Current Setup (Single Instance)
-
-```
-┌─────────────┐
-│ Prometheus  │ ◄─ Scrapes all targets
-└─────────────┘
+   ├─▶ Django Web #1
+   ├─▶ Django Web #2
+   └─▶ Django Web #3
        │
-       ▼
-  Local TSDB (30 days)
+       ├─▶ PostgreSQL (if needed)
+       ├─▶ Redis (cache lookup)
+       └─▶ Celery (async tasks)
 ```
 
-### Production Setup (HA)
-
+### WebSocket Flow
 ```
-┌─────────────┐      ┌─────────────┐
-│ Prometheus  │      │ Prometheus  │
-│  Instance 1 │      │  Instance 2 │
-└──────┬──────┘      └──────┬──────┘
-       │                     │
-       └──────────┬──────────┘
-                  ▼
-         ┌────────────────┐
-         │  Remote Write  │
-         │   (Thanos/     │
-         │    Cortex)     │
-         └────────────────┘
-                  │
-                  ▼
-         Long-term Storage
+1. WebSocket Connection Request
+   │
+   ▼
+2. Swarm Load Balancer
+   │ (Sticky session via VIP)
+   │
+   ▼
+3. Django Web Container
+   │ (Channels/Daphne)
+   │
+   ├─▶ Redis (Channel Layer)
+   └─▶ Database (Authentication)
 ```
 
-## Security Layers
-
+### Background Task Flow
 ```
-┌────────────────────────────────────────────┐
-│  Network Layer                             │
-│  • Docker network isolation                │
-│  • Port restrictions                       │
-└────────────────┬───────────────────────────┘
-                 │
-┌────────────────▼───────────────────────────┐
-│  Application Layer                         │
-│  • Middleware authentication (optional)    │
-│  • Metrics endpoint on app port            │
-└────────────────┬───────────────────────────┘
-                 │
-┌────────────────▼───────────────────────────┐
-│  Grafana Layer                             │
-│  • User authentication                     │
-│  • RBAC (optional)                         │
-│  • HTTPS (production)                      │
-└────────────────────────────────────────────┘
+1. Django creates task
+   │
+   ▼
+2. Task queued in Redis
+   │
+   ▼
+3. Celery Worker picks up task
+   │ (First available worker)
+   │
+   ├─▶ Celery Worker #1
+   └─▶ Celery Worker #2
+       │
+       ├─▶ Database (task data)
+       ├─▶ External APIs
+       └─▶ Media Files (if needed)
 ```
 
-## Monitoring the Monitors
+## Health Check Flow
 
 ```
-Prometheus monitors itself:
-├─► Scrape duration
-├─► Rule evaluation time
-├─► TSDB size
-└─► Target health
+Every 30 seconds:
 
-Grafana:
-├─► API health endpoint
-├─► Login metrics
-└─► Dashboard load time
+Swarm Health Monitor
+    │
+    ├─▶ Check Django /health/
+    │   └─▶ Database: OK?
+    │   └─▶ Redis: OK?
+    │   └─▶ Response: 200 = Healthy
+    │
+    ├─▶ Check PostgreSQL
+    │   └─▶ pg_isready
+    │
+    ├─▶ Check Redis
+    │   └─▶ redis-cli ping
+    │
+    └─▶ Check Celery Workers
+        └─▶ celery inspect ping
+
+If any fail 3 times in a row:
+    ↓
+Container marked unhealthy
+    ↓
+Swarm starts replacement
+    ↓
+Old container stopped
+    ↓
+Service continues (other replicas)
+```
+
+## Resource Allocation
+
+```
+Total Cluster Resources:
+┌────────────────────────────────────────┐
+│  CPU: 16 cores                         │
+│  RAM: 32 GB                            │
+│  Disk: 500 GB                          │
+└────────────────────────────────────────┘
+         │
+         ├─▶ Django Web (3×)
+         │   CPU: 6 cores max (2×3)
+         │   RAM: 6 GB max (2×3)
+         │
+         ├─▶ Celery Workers (2×)
+         │   CPU: 3 cores max (1.5×2)
+         │   RAM: 3 GB max (1.5×2)
+         │
+         ├─▶ PostgreSQL
+         │   CPU: 2 cores max
+         │   RAM: 2 GB max
+         │
+         ├─▶ Redis
+         │   CPU: 1 core max
+         │   RAM: 768 MB max
+         │
+         └─▶ Monitoring Stack
+             CPU: 2 cores max
+             RAM: 1.5 GB max
+
+Reserved vs Limits:
+- Reserved: Guaranteed minimum
+- Limits: Maximum allowed
+- Prevents resource exhaustion
+```
+
+## Network Topology
+
+```
+┌─────────────────────────────────────────────────┐
+│         External Network                         │
+│         (Internet)                               │
+└──────────────────┬──────────────────────────────┘
+                   │
+         ┌─────────▼──────────┐
+         │  Firewall/Router    │
+         │  Port Forwarding:   │
+         │  - 80 → 8000        │
+         │  - 443 → 8000 (SSL) │
+         └─────────┬───────────┘
+                   │
+         ┌─────────▼──────────────┐
+         │  Swarm Ingress Network  │
+         │  (Routing Mesh)         │
+         └─────────┬───────────────┘
+                   │
+         ┌─────────▼──────────────┐
+         │  Overlay Network        │
+         │  pilito_network         │
+         │  10.0.10.0/24          │
+         └─────────┬───────────────┘
+                   │
+    ┌──────────────┼──────────────────┐
+    │              │                   │
+Services      Services           Services
+(Manager)     (Worker 1)       (Worker 2)
+```
+
+## Disaster Recovery Architecture
+
+```
+Primary Site                    Backup
+┌────────────────┐             ┌────────────────┐
+│ Swarm Cluster  │             │  Backup Store  │
+│                │             │                │
+│ ┌────────────┐ │             │ ┌────────────┐ │
+│ │ PostgreSQL │─┼────backup───▶ │ Daily DB   │ │
+│ └────────────┘ │             │ │ Snapshots  │ │
+│                │             │ └────────────┘ │
+│ ┌────────────┐ │             │                │
+│ │   Media    │─┼────backup───▶ ┌────────────┐ │
+│ │   Files    │ │             │ │ Media      │ │
+│ └────────────┘ │             │ │ Backups    │ │
+│                │             │ └────────────┘ │
+│ ┌────────────┐ │             │                │
+│ │  Config    │─┼────backup───▶ ┌────────────┐ │
+│ │   Files    │ │             │ │ Config     │ │
+│ └────────────┘ │             │ │ Backups    │ │
+└────────────────┘             └────────────────┘
+```
+
+## Scaling Scenarios
+
+### Low Traffic (Development)
+```
+┌──────┐  ┌────┐  ┌────┐
+│Web #1│  │DB  │  │Redis│
+└──────┘  └────┘  └────┘
+Cost: $50/month
+RPS: ~100
+```
+
+### Medium Traffic (Small Production)
+```
+┌──────┐┌──────┐┌──────┐
+│Web #1││Web #2││Web #3│  ← 3 replicas
+└──────┘└──────┘└──────┘
+┌──────┐┌──────┐
+│Celery││Celery│           ← 2 workers
+└──────┘└──────┘
+Cost: $200/month
+RPS: ~1000
+```
+
+### High Traffic (Large Production)
+```
+┌──────┐┌──────┐┌──────┐┌──────┐┌──────┐
+│Web #1││Web #2││Web #3││Web #4││Web #5│
+└──────┘└──────┘└──────┘└──────┘└──────┘
+┌──────┐┌──────┐┌──────┐┌──────┐
+│Celery││Celery││Celery││Celery│
+└──────┘└──────┘└──────┘└──────┘
+Cost: $500/month
+RPS: ~10,000
 ```
 
 ---
 
-**This architecture provides:**
-- ✅ Comprehensive observability
-- ✅ Scalable design
-- ✅ Minimal performance impact
-- ✅ Production-ready setup
+## Summary
+
+This architecture provides:
+
+✅ **No Single Point of Failure**  
+✅ **Automatic Recovery from Crashes**  
+✅ **Zero-Downtime Deployments**  
+✅ **Horizontal Scalability**  
+✅ **Health Monitoring**  
+✅ **Load Balancing**  
+✅ **Resource Management**  
+✅ **Easy Maintenance**  
+
+**Result**: Production-ready, highly available Django application infrastructure.
 

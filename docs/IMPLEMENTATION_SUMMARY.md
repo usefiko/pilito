@@ -1,333 +1,289 @@
-# Workflow Template API Implementation Summary
+# OTP Authentication Implementation Summary
 
-## Overview
-Enhanced the workflow_template APIs with comprehensive search, pagination, and filtering capabilities for frontend integration.
+## ✅ Implementation Complete
 
-## Date: October 1, 2025
+All OTP login functionality has been successfully implemented and integrated with Kavenegar SMS service.
 
-## Changes Made
+## 📋 What Was Implemented
 
-### 1. **Added Pagination** ✅
-- Created `CustomPagination` class with:
-  - Default page size: 10 items
-  - Configurable page size: `?page_size=X`
-  - Maximum page size: 500 items
-- Applied pagination to all list endpoints:
-  - Languages
-  - Types
-  - Tags
-  - Templates
-  - Recent templates
-  - Search templates
+### 1. **Dependencies & Configuration**
+- ✅ Added `kavenegar==1.1.2` to `requirements/base.txt`
+- ✅ Added Kavenegar configuration to `core/settings/common.py`:
+  - `KAVENEGAR_API_KEY` - API key from environment
+  - `KAVENEGAR_SENDER` - Default sender number (10008663)
+  - `OTP_EXPIRY_TIME` - OTP validity period (300 seconds / 5 minutes)
+  - `OTP_MAX_ATTEMPTS` - Maximum verification attempts (3)
 
-### 2. **Created Advanced Filters** ✅
-**New File:** `filters.py`
+### 2. **Database Model**
+Created `OTPToken` model in `accounts/models/user.py` with:
+- `phone_number` - User's phone number
+- `code` - 6-digit OTP code (auto-generated)
+- `created_at` - Creation timestamp
+- `expires_at` - Expiration timestamp
+- `is_used` - Usage flag
+- `attempts` - Verification attempt counter
+- Methods: `is_valid()`, `increment_attempts()`
+- Index on `phone_number` + `created_at` for performance
 
-Implemented Django Filter classes for:
+### 3. **Serializers**
+Created `accounts/serializers/otp.py` with:
 
-#### TemplateFilter
-- `name__icontains` - Template name search
-- `description__icontains` - Description search
-- `language` - Filter by language UUID
-- `language_name` - Filter by language name
-- `type` - Filter by type UUID
-- `type_name` - Filter by type name
-- `tag` - Filter by tag UUID
-- `tag_name` - Filter by tag name
-- `status` - Filter by status (new/popular/none)
-- `is_active` - Filter by active status
-- `created_at__gte` - Date range (from)
-- `created_at__lte` - Date range (to)
-- `updated_at__gte` - Updated date (from)
-- `updated_at__lte` - Updated date (to)
-- `search` - Multi-field search across name and description
+#### `SendOTPSerializer`
+- Validates Iranian phone numbers (+98 or 09 format)
+- Normalizes phone to international format
+- Rate limiting (max 3 OTPs per 2 minutes)
+- Invalidates previous unused OTPs
+- Sends SMS via Kavenegar API
+- Error handling for API failures
 
-#### LanguageFilter, TypeFilter, TagFilter
-- `name__icontains` - Name search
-- `description__icontains` - Description search (for types and tags)
-- `is_active` - Active status filter
+#### `VerifyOTPSerializer`
+- Validates OTP code (6 digits)
+- Checks expiration and attempt limits
+- Creates user if first-time login
+- Generates JWT tokens
+- Returns user data and authentication info
 
-### 3. **Enhanced Views** ✅
-**Updated File:** `views.py`
+### 4. **API Views**
+Created `accounts/api/otp.py` with:
 
-#### LanguageListAPIView
-- Added pagination
-- Added search functionality
-- Added filtering capabilities
-- Added ordering options
+#### `SendOTPAPIView`
+- **Endpoint:** `POST /api/v1/usr/otp`
+- Rate throttling (5 requests/minute)
+- Swagger/OpenAPI documentation
+- Comprehensive error handling
 
-#### TypeListAPIView
-- Added pagination
-- Added search functionality
-- Added filtering capabilities
-- Added ordering options
+#### `VerifyOTPAPIView`
+- **Endpoint:** `POST /api/v1/usr/otp/verify`
+- JWT cookie setting (HTTP-only)
+- User creation on first login
+- Detailed response with user info
 
-#### TagListAPIView
-- Added pagination
-- Added search functionality
-- Added filtering capabilities
-- Added ordering options
-
-#### TemplateListAPIView
-- Added pagination
-- Enhanced filtering with `TemplateFilter` class
-- Maintained backward compatibility
-- Added comprehensive documentation in docstrings
-
-#### recent_templates (Function)
-- Added pagination support
-- Added optional `limit` parameter for non-paginated results
-- Returns paginated response by default
-
-#### search_templates (Function)
-- Added pagination support
-- Enhanced filtering options
-- Added `is_active` filter (default: true)
-- Added ordering validation and support
-
-### 4. **Added Ordering/Sorting** ✅
-All list endpoints now support sorting with `ordering` parameter:
-
-**Available sorting fields:**
-- `name` / `-name` (ascending/descending)
-- `created_at` / `-created_at`
-- `updated_at` / `-updated_at` (templates only)
-
-**Example:**
-```
-?ordering=-created_at  # Newest first
-?ordering=name        # Alphabetical
+### 5. **URL Configuration**
+Updated `accounts/urls.py`:
+```python
+path("otp", SendOTPAPIView.as_view(), name="send_otp"),
+path("otp/verify", VerifyOTPAPIView.as_view(), name="verify_otp"),
 ```
 
-### 5. **Search Capabilities** ✅
-Enhanced search functionality across all endpoints:
+### 6. **Admin Interface**
+Added `OTPTokenAdmin` in `accounts/admin.py`:
+- List display with all relevant fields
+- Search by phone number and code
+- Filter by usage status and dates
+- Validation status indicator
+- Readonly fields for security
 
-**Languages:**
-- Search in: name
+### 7. **Database Migration**
+- ✅ Created migration: `accounts/migrations/0016_otptoken.py`
+- Adds OTPToken model to database
+- Creates appropriate indexes
 
-**Types:**
-- Search in: name, description
+## 📁 Files Created/Modified
 
-**Tags:**
-- Search in: name, description
+### New Files
+1. `/src/accounts/serializers/otp.py` - OTP serializers
+2. `/src/accounts/api/otp.py` - OTP API views
+3. `/docs/OTP_AUTHENTICATION.md` - Full documentation
+4. `/docs/OTP_QUICK_START.md` - Quick start guide
+5. `/IMPLEMENTATION_SUMMARY.md` - This file
 
-**Templates:**
-- Search in: name, description
-- Multi-field search support
+### Modified Files
+1. `/src/requirements/base.txt` - Added kavenegar package
+2. `/src/core/settings/common.py` - Added Kavenegar config
+3. `/src/accounts/models/user.py` - Added OTPToken model
+4. `/src/accounts/models/__init__.py` - Exported OTPToken
+5. `/src/accounts/serializers/__init__.py` - Exported OTP serializers
+6. `/src/accounts/api/__init__.py` - Exported OTP views
+7. `/src/accounts/urls.py` - Added OTP endpoints
+8. `/src/accounts/admin.py` - Added OTP admin interface
 
-### 6. **Documentation** ✅
-Created comprehensive documentation files:
+## 🔒 Security Features
 
-#### API_DOCUMENTATION.md (Full Documentation)
-- Complete API reference
-- All endpoints documented
-- Query parameters explained
-- Request/response examples
-- Error handling guide
-- Frontend integration examples (React, Axios)
-- Best practices
+1. **Rate Limiting**
+   - Anonymous: 5 requests/minute
+   - Per phone: 3 OTPs per 2 minutes
 
-#### QUICK_API_REFERENCE.md (Quick Reference)
-- Condensed cheat sheet
-- Common query parameters
-- Quick examples
-- Filter reference
-- Status codes
+2. **OTP Security**
+   - Auto-generated 6-digit code
+   - Time-based expiration (5 minutes)
+   - Limited verification attempts (3)
+   - Single-use tokens
+   - Previous OTPs invalidated on new request
 
-### 7. **Backward Compatibility** ✅
-All existing functionality maintained:
-- Existing endpoints still work
-- Legacy query parameters supported
-- No breaking changes
+3. **Authentication**
+   - JWT token generation
+   - HTTP-only cookies
+   - Secure flag ready for HTTPS
 
-## API Endpoints Summary
+## 🚀 Next Steps
 
-| Endpoint | Method | Features |
-|----------|--------|----------|
-| `/languages/` | GET | Pagination, Search, Filter, Order |
-| `/types/` | GET | Pagination, Search, Filter, Order |
-| `/tags/` | GET | Pagination, Search, Filter, Order |
-| `/templates/` | GET, POST | Pagination, Search, Filter, Order |
-| `/templates/{id}/` | GET, PUT, PATCH, DELETE | CRUD operations |
-| `/templates/recent/` | GET | Pagination, Limit option |
-| `/templates/search/` | GET | Pagination, Advanced filters |
-| `/templates/statistics/` | GET | Template statistics |
+### Required Before Testing
+1. Set environment variables:
+   ```bash
+   KAVENEGAR_API_KEY=your_api_key_here
+   KAVENEGAR_SENDER=10008663
+   ```
 
-## Key Features
+2. Install dependencies:
+   ```bash
+   pip install -r src/requirements/base.txt
+   ```
 
-### Pagination Format
-```json
+3. Run migrations:
+   ```bash
+   cd src
+   python manage.py migrate accounts
+   ```
+
+### Recommended Setup
+1. Get Kavenegar API key from https://kavenegar.com/
+2. Configure sender number in Kavenegar panel
+3. Test with real Iranian phone numbers
+4. Monitor SMS costs and usage
+
+### Production Deployment
+- [ ] Update `KAVENEGAR_API_KEY` in production env
+- [ ] Set proper `KAVENEGAR_SENDER` number
+- [ ] Enable HTTPS and set `secure=True` in cookies
+- [ ] Configure monitoring for failed attempts
+- [ ] Set up error logging for SMS failures
+- [ ] Monitor Kavenegar credit balance
+
+## 📊 API Specification
+
+### Send OTP
+```http
+POST /api/v1/usr/otp
+Content-Type: application/json
+
 {
-  "count": 100,
-  "next": "http://api.example.com/endpoint/?page=2",
-  "previous": null,
-  "results": [...]
+  "phone_number": "+989123456789"
 }
 ```
 
-### Example API Calls
-
-**1. Simple pagination:**
-```
-GET /api/workflow-template/templates/?page=1&page_size=20
-```
-
-**2. Search with filters:**
-```
-GET /api/workflow-template/templates/?search=automation&language_name=english&status=popular
+**Response:**
+```json
+{
+  "phone_number": "+989123456789",
+  "message": "OTP sent successfully",
+  "expires_in": 300
+}
 ```
 
-**3. Date range filter:**
-```
-GET /api/workflow-template/templates/?created_at__gte=2024-01-01&created_at__lte=2024-12-31
-```
+### Verify OTP
+```http
+POST /api/v1/usr/otp/verify
+Content-Type: application/json
 
-**4. Combined filters:**
-```
-GET /api/workflow-template/templates/?language_name=english&type_name=automation&status=popular&ordering=-created_at&page=1
-```
-
-## Testing Recommendations
-
-### Test Cases to Verify:
-
-1. **Pagination:**
-   - [ ] Navigate between pages
-   - [ ] Change page size
-   - [ ] Verify count is correct
-
-2. **Search:**
-   - [ ] Search in names
-   - [ ] Search in descriptions
-   - [ ] Empty search results
-
-3. **Filters:**
-   - [ ] Single filter
-   - [ ] Multiple filters combined
-   - [ ] Date range filters
-   - [ ] Status filters
-
-4. **Ordering:**
-   - [ ] Ascending order
-   - [ ] Descending order
-   - [ ] Different fields
-
-5. **Edge Cases:**
-   - [ ] Empty results
-   - [ ] Invalid page number
-   - [ ] Invalid filter values
-   - [ ] Large page size (max 500)
-
-## Frontend Integration Guide
-
-### Sample React Hook
-```javascript
-const useTemplates = (filters) => {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const params = new URLSearchParams({
-          page: filters.page || 1,
-          page_size: filters.pageSize || 10,
-          ...(filters.search && { search: filters.search }),
-          ...(filters.language && { language_name: filters.language }),
-          ...(filters.status && { status: filters.status }),
-          ordering: filters.ordering || '-created_at'
-        });
-
-        const response = await fetch(
-          `${API_URL}/api/workflow-template/templates/?${params}`,
-          {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          }
-        );
-
-        const result = await response.json();
-        setData(result);
-      } catch (err) {
-        setError(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [filters]);
-
-  return { data, loading, error };
-};
+{
+  "phone_number": "+989123456789",
+  "code": "123456"
+}
 ```
 
-## Performance Optimizations
+**Response:**
+```json
+{
+  "access_token": "eyJ0eXAiOiJKV1Qi...",
+  "refresh_token": "eyJ0eXAiOiJKV1Qi...",
+  "is_new_user": false,
+  "user": {
+    "id": 1,
+    "phone_number": "+989123456789",
+    "email": "989123456789@temp.pilito.com",
+    "username": "989123456789",
+    "first_name": null,
+    "last_name": null
+  }
+}
+```
 
-1. **Database Queries:**
-   - Used `select_related()` for foreign keys
-   - Indexed fields used in filters
-   - Efficient pagination
+## 🧪 Testing
 
-2. **Response Size:**
-   - Separate list and detail serializers
-   - TemplateListSerializer for lists (lighter)
-   - TemplateSerializer for details (complete)
+### Manual Testing Steps
+1. Start development server
+2. Send POST to `/api/v1/usr/otp` with phone number
+3. Check admin panel for OTP code
+4. Send POST to `/api/v1/usr/otp/verify` with phone + code
+5. Verify JWT tokens are returned
+6. Check user is created/authenticated
 
-3. **Caching Recommendations:**
-   - Cache language, type, and tag lists (they change rarely)
-   - Implement frontend caching for better UX
+### Integration Testing
+- Test rate limiting
+- Test expired OTP
+- Test invalid code
+- Test maximum attempts
+- Test user creation
+- Test existing user login
 
-## Files Modified/Created
+## 📚 Documentation
 
-### Modified:
-- ✅ `views.py` - Enhanced all views with pagination and filtering
+Three documentation files created:
 
-### Created:
-- ✅ `filters.py` - Advanced filter classes
-- ✅ `API_DOCUMENTATION.md` - Complete API documentation
-- ✅ `QUICK_API_REFERENCE.md` - Quick reference guide
-- ✅ `IMPLEMENTATION_SUMMARY.md` - This file
+1. **IMPLEMENTATION_SUMMARY.md** (this file)
+   - Overview of what was implemented
+   - File changes
+   - Setup instructions
 
-## Dependencies
-All required packages already included in project:
-- `django-filter` ✅
-- `djangorestframework` ✅
+2. **docs/OTP_AUTHENTICATION.md**
+   - Complete technical documentation
+   - API specifications
+   - Security details
+   - Troubleshooting guide
+   - Production checklist
 
-## Next Steps for Frontend Team
+3. **docs/OTP_QUICK_START.md**
+   - Quick setup guide (5 minutes)
+   - Common use cases
+   - Frontend integration examples
+   - Quick reference
 
-1. **Review Documentation:**
-   - Read `API_DOCUMENTATION.md` for complete details
-   - Use `QUICK_API_REFERENCE.md` for quick lookups
+## 🎯 Comparison with Audingo Repository
 
-2. **Implement Features:**
-   - Add pagination controls to UI
-   - Implement search functionality
-   - Add filter dropdowns/inputs
-   - Add sorting options
+The implementation is based on the audingo repository structure but enhanced with:
+- Better error handling
+- Comprehensive documentation
+- Rate limiting
+- Admin interface
+- Swagger/OpenAPI documentation
+- Production-ready configuration
+- Security best practices
 
-3. **Test Integration:**
-   - Test all filter combinations
-   - Verify pagination works correctly
-   - Test search functionality
-   - Handle error cases
+## ✨ Key Features
 
-4. **Optimize UX:**
-   - Add loading states
-   - Implement debouncing for search
-   - Cache filter values in URL params
-   - Add "Clear filters" functionality
+1. **Iranian Phone Support**
+   - Accepts +98 and 09 formats
+   - Auto-normalization to international format
 
-## Support
+2. **User Experience**
+   - Clear error messages
+   - Remaining attempts counter
+   - Automatic user creation
 
-For questions or issues, please contact the backend team or refer to:
-- `API_DOCUMENTATION.md` - Complete documentation
-- `QUICK_API_REFERENCE.md` - Quick reference
+3. **Developer Experience**
+   - Swagger documentation
+   - Comprehensive error handling
+   - Detailed logging
 
-## Status: ✅ COMPLETE
+4. **Admin Features**
+   - View all OTP codes
+   - Monitor usage patterns
+   - Track verification attempts
 
-All workflow_template APIs now have full search, pagination, and filtering capabilities ready for frontend integration.
+## 🔗 References
+
+- Kavenegar API: https://kavenegar.com/
+- Kavenegar Documentation: https://kavenegar.com/rest.html
+- Django REST Framework: https://www.django-rest-framework.org/
+- JWT: https://jwt.io/
+
+---
+
+## ✅ Status: READY FOR TESTING
+
+All components have been implemented, tested for linting errors, and documented. The system is ready for integration testing with Kavenegar SMS service.
+
+**Implementation Date:** October 19, 2025
+**Version:** 1.0.0
+**Status:** Complete ✅
 
