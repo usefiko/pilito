@@ -178,13 +178,23 @@ class NodeBasedWorkflowExecutionService:
                 
                 for start_node in start_nodes:
                     try:
-                        # If explicit start node is provided, skip trigger check and start immediately
-                        if start_node_id:
-                            self._execute_node_chain(start_node, execution_context, execution)
-                        else:
+                        # Always check when node trigger conditions (including tag filtering)
+                        # Even if start_node_id is provided, we need to validate the trigger
+                        if start_node.node_type == 'when':
+                            logger.info(f"🔍 Evaluating when node {start_node.id} ('{start_node.title}') trigger conditions...")
+                            customer_id = context.get('event', {}).get('user_id')
+                            logger.info(f"   Customer ID: {customer_id}")
+                            
                             # Check if this when node should trigger
                             if self._should_when_node_trigger(start_node, context):
+                                logger.info(f"✅ When node {start_node.id} conditions met - executing workflow")
                                 self._execute_node_chain(start_node, execution_context, execution)
+                            else:
+                                logger.info(f"⏭️ Skipping when node {start_node.id} - trigger conditions not met (tags/keywords/channels)")
+                        else:
+                            # For non-when nodes, execute directly (e.g., resuming from a waiting node)
+                            logger.info(f"▶️ Executing non-when node {start_node.id} directly")
+                            self._execute_node_chain(start_node, execution_context, execution)
                     except Exception as e:
                         logger.error(f"Error executing from start node {start_node.id}: {e}")
                         continue
