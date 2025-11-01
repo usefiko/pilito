@@ -164,6 +164,22 @@ class ProductExtractor:
             logger.warning("Gemini not available, skipping AI extraction")
             return []
         
+        # ✅ CHECK TOKENS AND SUBSCRIPTION BEFORE AI USAGE
+        from billing.utils import check_ai_access_for_user
+        
+        access_check = check_ai_access_for_user(
+            user=self.user,
+            estimated_tokens=1000,  # Estimated tokens for product extraction
+            feature_name="Product Extraction"
+        )
+        
+        if not access_check['has_access']:
+            logger.warning(
+                f"User {self.user.username} denied access to Product Extraction. "
+                f"Reason: {access_check['reason']}"
+            )
+            return []
+        
         # Prepare content (limit to 5000 chars for Pro model)
         content_preview = page.cleaned_content[:5000]
         

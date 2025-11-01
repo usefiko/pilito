@@ -50,6 +50,29 @@ class AskQuestionAPIView(APIView):
         try:
             from AI_model.services.gemini_service import GeminiChatService
             from message.models import Conversation
+            from billing.utils import check_ai_access_for_user
+            
+            # ✅ CHECK TOKENS AND SUBSCRIPTION BEFORE AI USAGE
+            access_check = check_ai_access_for_user(
+                user=request.user,
+                estimated_tokens=1500,  # Estimated tokens for a question
+                feature_name="Ask Question"
+            )
+            
+            if not access_check['has_access']:
+                logger.warning(
+                    f"User {request.user.username} denied access to Ask Question. "
+                    f"Reason: {access_check['reason']}"
+                )
+                return Response({
+                    'success': False,
+                    'error': access_check['message'],
+                    'error_code': access_check['reason'],
+                    'response': None,
+                    'response_time_ms': 0,
+                    'tokens_remaining': access_check['tokens_remaining'],
+                    'days_remaining': access_check['days_remaining']
+                }, status=status.HTTP_402_PAYMENT_REQUIRED)
             
             # Initialize AI service
             ai_service = GeminiChatService(request.user)

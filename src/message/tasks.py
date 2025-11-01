@@ -498,7 +498,9 @@ def process_telegram_voice(self, message_id: str, file_id: str, bot_token: str) 
         import tempfile
         import os
         
-        processor = MediaProcessorService()
+        # Get user from message conversation
+        user = message.conversation.user if message.conversation else None
+        processor = MediaProcessorService(user=user)
         
         if not processor.is_ready():
             raise Exception("MediaProcessorService not ready")
@@ -637,7 +639,9 @@ def process_telegram_image(self, message_id: str, file_id: str, bot_token: str, 
         import tempfile
         import os
         
-        processor = MediaProcessorService()
+        # Get user from message conversation
+        user = message.conversation.user if message.conversation else None
+        processor = MediaProcessorService(user=user)
         
         if not processor.is_ready():
             raise Exception("MediaProcessorService not ready")

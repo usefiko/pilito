@@ -57,7 +57,9 @@ def process_instagram_image(self, message_id: str, media_url: str, access_token:
         import tempfile
         import os
         
-        processor = MediaProcessorService()
+        # Get user from message conversation
+        user = message.conversation.user if message.conversation else None
+        processor = MediaProcessorService(user=user)
         
         if not processor.is_ready():
             raise Exception("MediaProcessorService not ready")
@@ -179,7 +181,9 @@ def process_instagram_voice(self, message_id: str, media_url: str, access_token:
         import tempfile
         import os
         
-        processor = MediaProcessorService()
+        # Get user from message conversation
+        user = message.conversation.user if message.conversation else None
+        processor = MediaProcessorService(user=user)
         
         if not processor.is_ready():
             raise Exception("MediaProcessorService not ready")

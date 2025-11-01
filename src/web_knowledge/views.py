@@ -1900,37 +1900,30 @@ class GeneratePromptAPIView(APIView):
                     name__iexact=business_type.strip()
                 ).first()
             
-            # ✅ NEW: Check tokens BEFORE AI generation
-            try:
-                subscription = request.user.subscription
-                
-                if not subscription.is_subscription_active():
-                    logger.warning(f"User {request.user.username} subscription not active for prompt enhancement")
-                    return Response({
-                        'success': False,
-                        'message': 'Subscription is not active',
-                        'error': 'Please renew your subscription to use AI prompt enhancement'
-                    }, status=status.HTTP_402_PAYMENT_REQUIRED)
-                
-                # Estimate tokens needed (prompt enhancement usually ~500-1000 tokens)
-                estimated_tokens = 700
-                if subscription.tokens_remaining < estimated_tokens:
-                    logger.warning(
-                        f"User {request.user.username} has insufficient tokens for prompt enhancement. "
-                        f"Need: {estimated_tokens}, Available: {subscription.tokens_remaining}"
-                    )
-                    return Response({
-                        'success': False,
-                        'message': 'Insufficient tokens',
-                        'error': f'You need at least {estimated_tokens} tokens for prompt enhancement. Available: {subscription.tokens_remaining}',
-                        'tokens_remaining': subscription.tokens_remaining
-                    }, status=status.HTTP_402_PAYMENT_REQUIRED)
-                
-                logger.info(f"Token pre-check passed for prompt enhancement (user: {request.user.username})")
-                    
-            except Exception as token_check_error:
-                logger.error(f"Token pre-check failed for prompt enhancement: {token_check_error}")
-                # Continue with fallback (without AI) instead of failing
+            # ✅ CHECK TOKENS AND SUBSCRIPTION BEFORE AI USAGE
+            from billing.utils import check_ai_access_for_user
+            
+            access_check = check_ai_access_for_user(
+                user=request.user,
+                estimated_tokens=700,  # Estimated tokens for prompt enhancement
+                feature_name="Prompt Enhancement"
+            )
+            
+            if not access_check['has_access']:
+                logger.warning(
+                    f"User {request.user.username} denied access to Prompt Enhancement. "
+                    f"Reason: {access_check['reason']}"
+                )
+                return Response({
+                    'success': False,
+                    'message': access_check['message'],
+                    'error': access_check['message'],
+                    'error_code': access_check['reason'],
+                    'tokens_remaining': access_check['tokens_remaining'],
+                    'days_remaining': access_check['days_remaining']
+                }, status=status.HTTP_402_PAYMENT_REQUIRED)
+            
+            logger.info(f"Token pre-check passed for prompt enhancement (user: {request.user.username})")
             
             # Use AI to rewrite and improve the manual_prompt based on business_type.prompt
             try:

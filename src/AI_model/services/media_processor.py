@@ -24,7 +24,8 @@ class MediaProcessorService:
     - Performance tracking
     """
     
-    def __init__(self):
+    def __init__(self, user=None):
+        self.user = user
         self.gemini_model = None
         self.initialized = False
         self._initialize_gemini()
@@ -108,6 +109,31 @@ class MediaProcessorService:
                 'transcription': '[Voice processing unavailable]',
                 'duration_ms': 0
             }
+        
+        # ✅ CHECK TOKENS AND SUBSCRIPTION BEFORE AI USAGE
+        if self.user:
+            from billing.utils import check_ai_access_for_user
+            
+            access_check = check_ai_access_for_user(
+                user=self.user,
+                estimated_tokens=500,  # Estimated tokens for voice transcription
+                feature_name="Voice Transcription"
+            )
+            
+            if not access_check['has_access']:
+                logger.warning(
+                    f"User {self.user.username} denied access to Voice Transcription. "
+                    f"Reason: {access_check['reason']}"
+                )
+                return {
+                    'success': False,
+                    'error': f"Access denied: {access_check['message']}",
+                    'error_code': access_check['reason'],
+                    'transcription': '[Voice transcription unavailable - subscription required]',
+                    'duration_ms': 0,
+                    'tokens_remaining': access_check['tokens_remaining'],
+                    'days_remaining': access_check['days_remaining']
+                }
         
         try:
             # ✅ Setup proxy before importing Gemini
@@ -211,6 +237,31 @@ class MediaProcessorService:
                 'description': '[Image analysis unavailable]',
                 'duration_ms': 0
             }
+        
+        # ✅ CHECK TOKENS AND SUBSCRIPTION BEFORE AI USAGE
+        if self.user:
+            from billing.utils import check_ai_access_for_user
+            
+            access_check = check_ai_access_for_user(
+                user=self.user,
+                estimated_tokens=800,  # Estimated tokens for image analysis
+                feature_name="Image Analysis"
+            )
+            
+            if not access_check['has_access']:
+                logger.warning(
+                    f"User {self.user.username} denied access to Image Analysis. "
+                    f"Reason: {access_check['reason']}"
+                )
+                return {
+                    'success': False,
+                    'error': f"Access denied: {access_check['message']}",
+                    'error_code': access_check['reason'],
+                    'description': '[Image analysis unavailable - subscription required]',
+                    'duration_ms': 0,
+                    'tokens_remaining': access_check['tokens_remaining'],
+                    'days_remaining': access_check['days_remaining']
+                }
         
         try:
             from PIL import Image

@@ -1036,31 +1036,35 @@ def generate_prompt_async_task(self, user_id: int, manual_prompt: str) -> Dict[s
             'created_at': timezone.now().isoformat()
         }, timeout=600)
         
-        # Check tokens
-        try:
-            subscription = user.subscription
-            
-            if not subscription.is_subscription_active():
-                raise Exception('Subscription is not active')
-            
-            estimated_tokens = 700
-            if subscription.tokens_remaining < estimated_tokens:
-                raise Exception(f'Insufficient tokens. Need: {estimated_tokens}, Available: {subscription.tokens_remaining}')
-            
-            logger.info(f"Token pre-check passed for async prompt enhancement (user: {user.username})")
-        except Exception as token_error:
-            logger.error(f"Token check failed: {token_error}")
+        # ✅ CHECK TOKENS AND SUBSCRIPTION BEFORE AI USAGE
+        from billing.utils import check_ai_access_for_user
+        
+        access_check = check_ai_access_for_user(
+            user=user,
+            estimated_tokens=700,  # Estimated tokens for prompt enhancement
+            feature_name="Async Prompt Enhancement"
+        )
+        
+        if not access_check['has_access']:
+            error_message = f"{access_check['message']} (Reason: {access_check['reason']})"
+            logger.error(f"Token check failed for async prompt enhancement: {error_message}")
             cache.set(f'prompt_generation_{task_id}', {
                 'status': 'failed',
                 'progress': 100,
-                'message': str(token_error),
-                'error': str(token_error),
+                'message': error_message,
+                'error': error_message,
+                'error_code': access_check['reason'],
+                'tokens_remaining': access_check['tokens_remaining'],
+                'days_remaining': access_check['days_remaining'],
                 'created_at': timezone.now().isoformat()
             }, timeout=600)
             return {
                 'success': False,
-                'error': str(token_error)
+                'error': error_message,
+                'error_code': access_check['reason']
             }
+        
+        logger.info(f"Token pre-check passed for async prompt enhancement (user: {user.username})")
         
         # Update status
         cache.set(f'prompt_generation_{task_id}', {
