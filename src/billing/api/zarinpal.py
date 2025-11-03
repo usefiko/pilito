@@ -223,7 +223,7 @@ class ZPPayment(APIView):
                     
                     return SuccessResponse(
                         PaymentSerializer(payment).data,
-                        data={
+                        {
                             'status': True,
                             'url': payment_url,
                             'payment_id': payment.id,

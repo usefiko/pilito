@@ -8,7 +8,6 @@ from .views import (
     CreateCheckoutSessionView, CreateBillingPortalSessionView
 )
 
-
 urlpatterns = [
     # New subscription system endpoints
     path('plans/', PlanListView.as_view(), name='plans'),
