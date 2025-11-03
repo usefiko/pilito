@@ -27,65 +27,63 @@ class CustomerUpdateSerializer(serializers.ModelSerializer):
     # Sentinel value to distinguish between "not provided" and "explicitly null/empty"
     _TAG_NOT_PROVIDED = object()
     
-    tag_ids = serializers.ListField(
+    tag = serializers.ListField(
         child=serializers.IntegerField(),
-        write_only=True,
         required=False,
         allow_empty=True,
         allow_null=True,
         help_text="List of tag IDs to assign to the customer. Example: [1, 2, 3]. Send empty array [] or null to clear all user tags."
     )
-    tag = serializers.SerializerMethodField()
     
     class Meta:
         model = Customer
         fields = ['first_name', 'last_name', 'username', 'phone_number', 'description', 
-                 'profile_picture', 'email', 'tag', 'tag_ids']
+                 'profile_picture', 'email', 'tag']
         
-    def validate_tag_ids(self, value):
-        """Custom validation for tag_ids"""
+    def validate_tag(self, value):
+        """Custom validation for tag"""
         import logging
         logger = logging.getLogger(__name__)
-        logger.info(f"🔍 validate_tag_ids called with value: {value!r} (type: {type(value).__name__})")
+        logger.info(f"🔍 validate_tag called with value: {value!r} (type: {type(value).__name__})")
         
         # Explicitly handle None or null - clear all user tags (when explicitly sent as null)
         if value is None:
-            logger.info("✅ tag_ids is None/null - returning [] (will clear tags)")
+            logger.info("✅ tag is None/null - returning [] (will clear tags)")
             return []
         
         # Explicitly handle empty list - clear all user tags
         if value == [] or value == '':
-            logger.info("✅ tag_ids is empty - returning [] (will clear tags)")
+            logger.info("✅ tag is empty - returning [] (will clear tags)")
             return []
         
         # Handle string input (when using form-data)
         if isinstance(value, str):
             # Check for empty string
             if value.strip() == '':
-                logger.info("✅ tag_ids is empty string - returning [] (will clear tags)")
+                logger.info("✅ tag is empty string - returning [] (will clear tags)")
                 return []
             try:
                 import json
                 value = json.loads(value)
                 logger.info(f"✅ Parsed string to: {value}")
             except (json.JSONDecodeError, ValueError):
-                logger.error(f"❌ Failed to parse tag_ids string: {value}")
+                logger.error(f"❌ Failed to parse tag string: {value}")
                 raise serializers.ValidationError(
-                    "tag_ids must be a valid JSON array of integers. "
+                    "tag must be a valid JSON array of integers. "
                     "Example: [1, 2, 3] or \"[1, 2, 3]\" when using form-data"
                 )
             
         # Ensure it's a list
         if not isinstance(value, list):
-            logger.error(f"❌ tag_ids is not a list: {type(value).__name__}")
+            logger.error(f"❌ tag is not a list: {type(value).__name__}")
             raise serializers.ValidationError(
-                "tag_ids must be a list of integers. "
+                "tag must be a list of integers. "
                 "Example: [1, 2, 3] or \"[1, 2, 3]\" when using form-data"
             )
         
         # Handle empty list again after type conversion
         if len(value) == 0:
-            logger.info("✅ tag_ids is empty list after conversion - returning [] (will clear tags)")
+            logger.info("✅ tag is empty list after conversion - returning [] (will clear tags)")
             return []
         
         # Validate each item is an integer
@@ -112,28 +110,31 @@ class CustomerUpdateSerializer(serializers.ModelSerializer):
             logger.error(f"❌ Invalid tag IDs: {sorted(list(invalid_ids))}")
             raise serializers.ValidationError(f'Invalid tag IDs: {sorted(list(invalid_ids))}. Please provide valid tag IDs.')
         
-        logger.info(f"✅ tag_ids validated successfully: {value}")
+        logger.info(f"✅ tag validated successfully: {value}")
         return value
     
-    def get_tag(self, obj):
-        """Filter out system tags (Instagram, Telegram, Whatsapp) from customer tags"""
-        user_tags = obj.tag.exclude(name__in=["Telegram", "Whatsapp", "Instagram"])
-        return TagSerializer(user_tags, many=True).data
+    def to_representation(self, instance):
+        """Customize output representation to show tag details instead of IDs"""
+        representation = super().to_representation(instance)
+        # Replace tag IDs with tag objects (excluding system tags)
+        user_tags = instance.tag.exclude(name__in=["Telegram", "Whatsapp", "Instagram"])
+        representation['tag'] = TagSerializer(user_tags, many=True).data
+        return representation
 
     def update(self, instance, validated_data):
         import logging
         logger = logging.getLogger(__name__)
         
-        # Extract tag_ids if provided (using sentinel to distinguish "not provided" from "null/empty")
-        tag_ids = validated_data.pop('tag_ids', self._TAG_NOT_PROVIDED)
-        logger.info(f"🔄 Updating customer {instance.id} - tag_ids from validated_data: {tag_ids}")
+        # Extract tag if provided (using sentinel to distinguish "not provided" from "null/empty")
+        tag_ids = validated_data.pop('tag', self._TAG_NOT_PROVIDED)
+        logger.info(f"🔄 Updating customer {instance.id} - tag from validated_data: {tag_ids}")
         
         # Update regular fields
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         
-        # Handle tag updates - only if tag_ids was explicitly provided in the request
-        # Check if tag_ids is NOT the sentinel value (meaning it was provided)
+        # Handle tag updates - only if tag was explicitly provided in the request
+        # Check if tag is NOT the sentinel value (meaning it was provided)
         if tag_ids is not self._TAG_NOT_PROVIDED:
             # Get system tags that should always be preserved
             system_tags = instance.tag.filter(name__in=["Telegram", "Whatsapp", "Instagram"])
@@ -142,7 +143,7 @@ class CustomerUpdateSerializer(serializers.ModelSerializer):
             
             # If empty list (from null or []), clear all user tags but keep system tags
             if tag_ids is None or len(tag_ids) == 0:
-                logger.info(f"🔄 Clearing all user tags (tag_ids={tag_ids}), keeping only system tags: {system_tag_ids}")
+                logger.info(f"🔄 Clearing all user tags (tag={tag_ids}), keeping only system tags: {system_tag_ids}")
                 instance.tag.set(system_tag_ids)
             else:
                 # Combine user-provided tags with system tags
@@ -150,7 +151,7 @@ class CustomerUpdateSerializer(serializers.ModelSerializer):
                 logger.info(f"🔄 Setting tags: user_tags={tag_ids}, system_tags={system_tag_ids}, combined={all_tag_ids}")
                 instance.tag.set(all_tag_ids)
         else:
-            logger.info("🔄 tag_ids not provided - keeping existing tags unchanged")
+            logger.info("🔄 tag not provided - keeping existing tags unchanged")
         
         instance.save()
         logger.info(f"✅ Customer {instance.id} saved successfully")
