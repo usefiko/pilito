@@ -1,5 +1,107 @@
 from rest_framework import serializers
 from message.models import Conversation,Tag,Customer,Message
+import json
+
+
+class FlexibleTagField(serializers.Field):
+    """Custom field that accepts tag IDs as list, string, or null"""
+    
+    def to_internal_value(self, data):
+        """Convert input data to list of integers"""
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"🔍 FlexibleTagField.to_internal_value called with: {data!r} (type: {type(data).__name__})")
+        
+        # Handle None/null explicitly - will clear tags
+        if data is None or data == 'null':
+            logger.info("✅ tag is None/null - returning [] (will clear tags)")
+            return []
+        
+        # Handle empty string - will clear tags
+        if data == '' or data == '[]':
+            logger.info("✅ tag is empty - returning [] (will clear tags)")
+            return []
+        
+        # If already a list, validate it
+        if isinstance(data, list):
+            logger.info(f"✅ tag is already a list: {data}")
+            return self._validate_tag_list(data)
+        
+        # If string, try to parse as JSON
+        if isinstance(data, str):
+            data = data.strip()
+            if data == '' or data == '[]':
+                logger.info("✅ tag is empty string - returning [] (will clear tags)")
+                return []
+            try:
+                parsed = json.loads(data)
+                logger.info(f"✅ Parsed string to: {parsed}")
+                if not isinstance(parsed, list):
+                    logger.error(f"❌ Parsed value is not a list: {type(parsed).__name__}")
+                    raise serializers.ValidationError(
+                        "tag must be a valid JSON array of integers. "
+                        "Example: [1, 2, 3]"
+                    )
+                return self._validate_tag_list(parsed)
+            except (json.JSONDecodeError, ValueError) as e:
+                logger.error(f"❌ Failed to parse tag string: {data} - {e}")
+                raise serializers.ValidationError(
+                    "tag must be a valid JSON array of integers. "
+                    "Example: [1, 2, 3] or \"[1, 2, 3]\" when using form-data"
+                )
+        
+        # Unsupported type
+        logger.error(f"❌ tag has unsupported type: {type(data).__name__}")
+        raise serializers.ValidationError(
+            f"tag must be a list of integers or null, got {type(data).__name__}"
+        )
+    
+    def _validate_tag_list(self, value):
+        """Validate list of tag IDs"""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        # Handle empty list
+        if len(value) == 0:
+            logger.info("✅ tag is empty list - returning [] (will clear tags)")
+            return []
+        
+        # Validate each item is an integer
+        validated_ids = []
+        for i, item in enumerate(value):
+            if not isinstance(item, int):
+                try:
+                    validated_ids.append(int(item))
+                except (ValueError, TypeError):
+                    logger.error(f"❌ Invalid tag ID at index {i}: {item}")
+                    raise serializers.ValidationError(
+                        f"All tag IDs must be integers. Item at index {i} is not a valid integer: {item}"
+                    )
+            else:
+                validated_ids.append(item)
+        
+        # Check for duplicates
+        if len(validated_ids) != len(set(validated_ids)):
+            logger.error(f"❌ Duplicate tag IDs found: {validated_ids}")
+            raise serializers.ValidationError("Duplicate tag IDs are not allowed")
+        
+        # Validate that all tag IDs exist
+        existing_tags = Tag.objects.filter(id__in=validated_ids)
+        if len(existing_tags) != len(validated_ids):
+            existing_ids = set(existing_tags.values_list('id', flat=True))
+            invalid_ids = set(validated_ids) - existing_ids
+            logger.error(f"❌ Invalid tag IDs: {sorted(list(invalid_ids))}")
+            raise serializers.ValidationError(
+                f'Invalid tag IDs: {sorted(list(invalid_ids))}. Please provide valid tag IDs.'
+            )
+        
+        logger.info(f"✅ tag validated successfully: {validated_ids}")
+        return validated_ids
+    
+    def to_representation(self, value):
+        """Convert tag relation to list of tag details"""
+        # This is handled in the serializer's to_representation method
+        return value
 
 
 class TagSerializer(serializers.ModelSerializer):
@@ -27,10 +129,8 @@ class CustomerUpdateSerializer(serializers.ModelSerializer):
     # Sentinel value to distinguish between "not provided" and "explicitly null/empty"
     _TAG_NOT_PROVIDED = object()
     
-    tag = serializers.ListField(
-        child=serializers.IntegerField(),
+    tag = FlexibleTagField(
         required=False,
-        allow_empty=True,
         allow_null=True,
         help_text="List of tag IDs to assign to the customer. Example: [1, 2, 3]. Send empty array [] or null to clear all user tags."
     )
@@ -39,79 +139,6 @@ class CustomerUpdateSerializer(serializers.ModelSerializer):
         model = Customer
         fields = ['first_name', 'last_name', 'username', 'phone_number', 'description', 
                  'profile_picture', 'email', 'tag']
-        
-    def validate_tag(self, value):
-        """Custom validation for tag"""
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.info(f"🔍 validate_tag called with value: {value!r} (type: {type(value).__name__})")
-        
-        # Explicitly handle None or null - clear all user tags (when explicitly sent as null)
-        if value is None:
-            logger.info("✅ tag is None/null - returning [] (will clear tags)")
-            return []
-        
-        # Explicitly handle empty list - clear all user tags
-        if value == [] or value == '':
-            logger.info("✅ tag is empty - returning [] (will clear tags)")
-            return []
-        
-        # Handle string input (when using form-data)
-        if isinstance(value, str):
-            # Check for empty string
-            if value.strip() == '':
-                logger.info("✅ tag is empty string - returning [] (will clear tags)")
-                return []
-            try:
-                import json
-                value = json.loads(value)
-                logger.info(f"✅ Parsed string to: {value}")
-            except (json.JSONDecodeError, ValueError):
-                logger.error(f"❌ Failed to parse tag string: {value}")
-                raise serializers.ValidationError(
-                    "tag must be a valid JSON array of integers. "
-                    "Example: [1, 2, 3] or \"[1, 2, 3]\" when using form-data"
-                )
-            
-        # Ensure it's a list
-        if not isinstance(value, list):
-            logger.error(f"❌ tag is not a list: {type(value).__name__}")
-            raise serializers.ValidationError(
-                "tag must be a list of integers. "
-                "Example: [1, 2, 3] or \"[1, 2, 3]\" when using form-data"
-            )
-        
-        # Handle empty list again after type conversion
-        if len(value) == 0:
-            logger.info("✅ tag is empty list after conversion - returning [] (will clear tags)")
-            return []
-        
-        # Validate each item is an integer
-        for i, item in enumerate(value):
-            if not isinstance(item, int):
-                try:
-                    value[i] = int(item)
-                except (ValueError, TypeError):
-                    logger.error(f"❌ Invalid tag ID at index {i}: {item}")
-                    raise serializers.ValidationError(
-                        f"All tag IDs must be integers. Item at index {i} is not a valid integer: {item}"
-                    )
-        
-        # Check for duplicates
-        if len(value) != len(set(value)):
-            logger.error(f"❌ Duplicate tag IDs found: {value}")
-            raise serializers.ValidationError("Duplicate tag IDs are not allowed")
-        
-        # Validate that all tag IDs exist (only for non-empty lists)
-        existing_tags = Tag.objects.filter(id__in=value)
-        if len(existing_tags) != len(value):
-            existing_ids = set(existing_tags.values_list('id', flat=True))
-            invalid_ids = set(value) - existing_ids
-            logger.error(f"❌ Invalid tag IDs: {sorted(list(invalid_ids))}")
-            raise serializers.ValidationError(f'Invalid tag IDs: {sorted(list(invalid_ids))}. Please provide valid tag IDs.')
-        
-        logger.info(f"✅ tag validated successfully: {value}")
-        return value
     
     def to_representation(self, instance):
         """Customize output representation to show tag details instead of IDs"""
