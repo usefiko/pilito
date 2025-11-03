@@ -4,6 +4,7 @@ from accounts.api.intercom import IntercomJWTView, IntercomConfigView, IntercomU
 from accounts.api.email_confirmation import EmailConfirmationAPIView, ResendEmailConfirmationAPIView, EmailConfirmationStatusAPIView
 from accounts.api.auth_status import AuthStatusAPIView, DashboardAccessAPIView
 
+
 urlpatterns = [
     path("login", LoginAPIView.as_view(), name="login"),
     path('register', RegisterView.as_view(), name='register'),
