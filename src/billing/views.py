@@ -90,15 +90,13 @@ class PurchasePlanView(APIView):
         if token_plan_id:
             try:
                 selected_token_plan = TokenPlan.objects.get(id=token_plan_id, is_active=True)
-                # Default to English price; could be chosen by locale later
-                amount = selected_token_plan.price_en
+                amount = selected_token_plan.price
             except TokenPlan.DoesNotExist:
                 return Response({'error': 'Invalid or inactive token plan'}, status=status.HTTP_404_NOT_FOUND)
         else:
             try:
                 selected_full_plan = FullPlan.objects.get(id=full_plan_id, is_active=True)
-                # Default to English price; could be chosen by locale later
-                amount = selected_full_plan.price_en
+                amount = selected_full_plan.price
             except FullPlan.DoesNotExist:
                 return Response({'error': 'Invalid or inactive full plan'}, status=status.HTTP_404_NOT_FOUND)
 

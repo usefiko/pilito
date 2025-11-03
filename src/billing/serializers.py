@@ -15,7 +15,7 @@ class TokenPlanSerializer(serializers.ModelSerializer):
     class Meta:
         model = TokenPlan
         fields = [
-            'id', 'name', 'price_en', 'price_tr', 'price_ar', 'tokens_included', 
+            'id', 'name', 'price', 'tokens_included', 
             'is_recurring', 'is_active', 'description', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
@@ -28,7 +28,7 @@ class FullPlanSerializer(serializers.ModelSerializer):
         model = FullPlan
         fields = [
             'id', 'name', 'tokens_included', 'duration_days', 'is_recommended', 'is_yearly',
-            'price_en', 'price_tr', 'price_ar', 'is_active', 'description', 
+            'price', 'is_active', 'description', 
             'user_has_active_subscription', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
@@ -407,11 +407,6 @@ class ZarinpalPaymentSerializer(serializers.Serializer):
     """
     token_plan_id = serializers.IntegerField(required=False, allow_null=True)
     full_plan_id = serializers.IntegerField(required=False, allow_null=True)
-    language = serializers.ChoiceField(
-        choices=['en', 'tr', 'ar'],
-        default='en',
-        help_text="Language for pricing selection"
-    )
 
     def validate(self, attrs):
         token_plan_id = attrs.get('token_plan_id')
@@ -446,8 +441,3 @@ class ZarinpalPaymentSerializer(serializers.Serializer):
                 })
         
         return attrs
-
-    def get_plan_price(self, plan, language='en'):
-        """Get the price based on the selected language"""
-        price_field = f'price_{language}'
-        return getattr(plan, price_field, plan.price_en)

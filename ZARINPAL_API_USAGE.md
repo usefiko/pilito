@@ -13,8 +13,7 @@ The Zarinpal payment integration has been updated to work with the modern billin
 **Request Body:**
 ```json
 {
-  "token_plan_id": 1,     // For token-only plans (OR use full_plan_id)
-  "language": "en"        // Options: "en", "tr", "ar" (default: "en")
+  "token_plan_id": 1     // For token-only plans (OR use full_plan_id)
 }
 ```
 
@@ -22,8 +21,7 @@ OR
 
 ```json
 {
-  "full_plan_id": 2,      // For full plans with duration (OR use token_plan_id)
-  "language": "tr"        // Options: "en", "tr", "ar" (default: "en")
+  "full_plan_id": 2      // For full plans with duration (OR use token_plan_id)
 }
 ```
 
@@ -95,17 +93,6 @@ OR
 
 ---
 
-## Multi-Language Pricing
-
-The API supports per-language pricing:
-- `price_en`: English/USD pricing
-- `price_tr`: Turkish/TRY pricing  
-- `price_ar`: Arabic pricing
-
-The `language` parameter selects which price field to use.
-
----
-
 ## Payment Status Flow
 
 1. **pending**: Payment created, waiting for user to complete payment
@@ -127,8 +114,7 @@ const response = await fetch('/billing/zp-pay', {
     'Authorization': `Bearer ${accessToken}`
   },
   body: JSON.stringify({
-    full_plan_id: 2,
-    language: 'en'
+    full_plan_id: 2
   })
 });
 
@@ -151,12 +137,12 @@ if (data.data.status) {
 
 ### TokenPlan
 - Token-only plans without expiration
-- Fields: name, price_en, price_tr, price_ar, tokens_included
+- Fields: name, price, tokens_included
 - Example: "100 Tokens Package"
 
 ### FullPlan  
 - Complete plans with tokens and duration
-- Fields: name, price_en, price_tr, price_ar, tokens_included, duration_days
+- Fields: name, price, tokens_included, duration_days
 - Example: "Pro Monthly - 1000 tokens for 30 days"
 
 ### Subscription
@@ -182,7 +168,7 @@ curl -H "Authorization: Bearer {token}" http://localhost:8000/billing/plans/
 curl -X POST http://localhost:8000/billing/zp-pay \
   -H "Authorization: Bearer {token}" \
   -H "Content-Type: application/json" \
-  -d '{"full_plan_id": 1, "language": "en"}'
+  -d '{"full_plan_id": 1}'
 
 # 3. Visit returned URL in browser
 # 4. Complete payment on Zarinpal (use test card in sandbox mode)
@@ -223,7 +209,6 @@ ZP_API_STARTPAY = 'https://sandbox.zarinpal.com/pg/StartPay/'
 1. **`billing/serializers.py`**
    - Added `ZarinpalPaymentSerializer` for payment initiation
    - Validates token_plan_id or full_plan_id
-   - Supports multi-language pricing
 
 2. **`billing/api/zarinpal.py`**
    - Added `ZPPayment` class for payment initiation

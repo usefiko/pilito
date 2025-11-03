@@ -12,7 +12,6 @@ NEW APIs (using modern billing system with TokenPlan/FullPlan/Subscription):
   POST /billing/zp-pay
   Body: {
     "token_plan_id": 1,  // OR "full_plan_id": 2
-    "language": "en"     // Options: "en", "tr", "ar" (default: "en")
   }
   Returns: {payment_id, authority, url} - Redirect user to url
 
@@ -167,11 +166,9 @@ class ZPPayment(APIView):
         validated_data = serializer.validated_data
         plan = validated_data['plan']
         plan_type = validated_data['plan_type']
-        language = validated_data.get('language', 'en')
 
-        # Get the price based on language
-        price_field = f'price_{language}'
-        amount = getattr(plan, price_field, plan.price_en)
+        # Get the price from the plan
+        amount = plan.price
         
         # Convert to Rials (Zarinpal uses Rials, multiply by 10 if you're storing in Toman)
         # Assuming amount is in Toman, convert to Rials
@@ -185,7 +182,7 @@ class ZPPayment(APIView):
             amount=amount,
             payment_method='other',  # Can add 'zarinpal' to PAYMENT_METHOD_CHOICES
             status='pending',
-            payment_gateway_response={'language': language}
+            payment_gateway_response={}
         )
 
         # Prepare Zarinpal request

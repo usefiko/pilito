@@ -70,7 +70,7 @@ class Command(BaseCommand):
         """Sync a token plan to Stripe"""
         self.stdout.write(f'\n  📌 {plan.name}')
         self.stdout.write(f'     Tokens: {plan.tokens_included}')
-        self.stdout.write(f'     Price: ${plan.price_en}')
+        self.stdout.write(f'     Price: ${plan.price}')
         self.stdout.write(f'     Recurring: {plan.is_recurring}')
         
         if dry_run:
@@ -93,7 +93,7 @@ class Command(BaseCommand):
             # Create price
             price_params = {
                 'product': product.id,
-                'unit_amount': int(plan.price_en * 100),  # Convert to cents
+                'unit_amount': int(plan.price * 100),  # Convert to cents
                 'currency': getattr(settings, 'STRIPE_CURRENCY', 'usd'),
                 'metadata': {
                     'plan_type': 'token',

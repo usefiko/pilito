@@ -112,9 +112,8 @@ class StripeService:
                     days_remaining = (subscription.end_date - now).days
                     
                     # Detect upgrade vs downgrade based on price
-                    # Use price_en as reference (can also check other currencies)
-                    old_price = float(old_plan.price_en) if hasattr(old_plan, 'price_en') else 0
-                    new_price = float(selected_full_plan.price_en) if hasattr(selected_full_plan, 'price_en') else 0
+                    old_price = float(old_plan.price) if hasattr(old_plan, 'price') else 0
+                    new_price = float(selected_full_plan.price) if hasattr(selected_full_plan, 'price') else 0
                     
                     is_upgrade = new_price > old_price
                     is_downgrade = new_price < old_price
@@ -326,11 +325,9 @@ class StripeService:
                     pass  # No existing subscription, OK to proceed
             
             # Determine currency based on user preference or default
-            # You can customize this based on user's country/language
-            price_field = 'price_en'  # Default to English pricing
             currency = getattr(settings, 'STRIPE_CURRENCY', 'usd')
             
-            amount = getattr(plan, price_field)
+            amount = plan.price
             
             # Create or get Stripe price
             if is_recurring and plan_type == 'full':

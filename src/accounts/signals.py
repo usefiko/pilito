@@ -37,9 +37,7 @@ def create_user_plan(sender, instance, created, **kwargs):
                                 'duration_days': 14,
                                 'is_recommended': False,
                                 'is_yearly': False,
-                                'price_en': 0,
-                                'price_tr': 0,
-                                'price_ar': 0,
+                                'price': 0,
                                 'is_active': True,
                                 'description': 'Automatic free trial plan for new users',
                             }

@@ -38,7 +38,7 @@ def get_subscription_with_recommendations(request):
             "full_plan": {
               "id": 1,
               "name": "Monthly Pro",
-              "price_en": 15.00,
+              "price": 15.00,
               "tokens_included": 5000,
               "duration_days": 30,
               "is_yearly": false
@@ -56,7 +56,7 @@ def get_subscription_with_recommendations(request):
             "plan": {
               "id": 2,
               "name": "Yearly Pro",
-              "price_en": 150.00,
+              "price": 150.00,
               "tokens_included": 100000,
               "duration_days": 365,
               "is_yearly": true
@@ -95,7 +95,7 @@ def get_subscription_with_recommendations(request):
                         {
                             'id': p.id,
                             'name': p.name,
-                            'price_en': float(p.price_en),
+                            'price': float(p.price),
                             'tokens_included': p.tokens_included,
                             'duration_days': p.duration_days
                         } for p in monthly_plans
@@ -104,7 +104,7 @@ def get_subscription_with_recommendations(request):
                         {
                             'id': p.id,
                             'name': p.name,
-                            'price_en': float(p.price_en),
+                            'price': float(p.price),
                             'tokens_included': p.tokens_included,
                             'duration_days': p.duration_days,
                             'is_recommended': True
@@ -173,15 +173,15 @@ def get_subscription_with_recommendations(request):
                 
                 if yearly_plan:
                     # Calculate savings
-                    annual_cost_monthly = float(current_plan.price_en) * 12
-                    annual_cost_yearly = float(yearly_plan.price_en)
+                    annual_cost_monthly = float(current_plan.price) * 12
+                    annual_cost_yearly = float(yearly_plan.price)
                     annual_savings = annual_cost_monthly - annual_cost_yearly
                     percentage_savings = (annual_savings / annual_cost_monthly) * 100
                     
                     # Calculate prorated credit for unused days
                     prorated_credit = 0
                     if not is_expired and days_remaining > 0:
-                        daily_rate = float(current_plan.price_en) / current_plan.duration_days
+                        daily_rate = float(current_plan.price) / current_plan.duration_days
                         prorated_credit = daily_rate * days_remaining
                     
                     final_price = annual_cost_yearly - prorated_credit
@@ -219,14 +219,14 @@ def get_subscription_with_recommendations(request):
                 
                 if monthly_plan:
                     # Calculate what they'd lose
-                    annual_cost_monthly = float(monthly_plan.price_en) * 12
-                    annual_cost_yearly = float(current_plan.price_en)
+                    annual_cost_monthly = float(monthly_plan.price) * 12
+                    annual_cost_yearly = float(current_plan.price)
                     annual_increase = annual_cost_monthly - annual_cost_yearly
                     
                     # Calculate refund for unused days
                     prorated_refund = 0
                     if not is_expired and days_remaining > 0:
-                        daily_rate = float(current_plan.price_en) / current_plan.duration_days
+                        daily_rate = float(current_plan.price) / current_plan.duration_days
                         prorated_refund = daily_rate * days_remaining
                     
                     recommendation = {
@@ -249,7 +249,7 @@ def get_subscription_with_recommendations(request):
                             'current_annual_cost': round(annual_cost_yearly, 2),
                             'new_annual_cost': round(annual_cost_monthly, 2),
                             'current_monthly_effective': round(annual_cost_yearly / 12, 2),
-                            'new_monthly_cost': float(monthly_plan.price_en),
+                            'new_monthly_cost': float(monthly_plan.price),
                             'current_tokens_per_year': current_plan.tokens_included,
                             'new_tokens_per_year': monthly_plan.tokens_included * 12
                         }

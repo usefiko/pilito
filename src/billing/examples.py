@@ -449,9 +449,7 @@ class BillingAPITestCase(TestCase):
         # Create test plan
         self.plan = TokenPlan.objects.create(
             name='Test Plan',
-            price_en=10.00,
-            price_tr=10.00,
-            price_ar=10.00,
+            price=10.00,
             tokens_included=1000,
             is_recurring=False
         )

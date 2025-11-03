@@ -10,9 +10,7 @@ class TokenPlan(models.Model):
     Token-based plans (no time duration)
     """
     name = models.CharField(max_length=100)
-    price_en = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Price displayed for English")
-    price_tr = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Price displayed for Turkish")
-    price_ar = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Price displayed for Arabic")
+    price = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Price of the plan")
     tokens_included = models.IntegerField()
     is_recurring = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True, help_text="Whether this plan is available for purchase")
@@ -23,24 +21,22 @@ class TokenPlan(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.name} - ${self.price_en} ({self.tokens_included} tokens)"
+        return f"{self.name} - ${self.price} ({self.tokens_included} tokens)"
 
     class Meta:
-        ordering = ['price_en']
+        ordering = ['price']
 
 
 class FullPlan(models.Model):
     """
-    Complete plan with tokens and time duration, with per-language pricing.
+    Complete plan with tokens and time duration
     """
     name = models.CharField(max_length=100)
     tokens_included = models.IntegerField()
     duration_days = models.IntegerField(help_text="Duration of the plan in days")
     is_recommended = models.BooleanField(default=False)
     is_yearly = models.BooleanField(default=False)
-    price_en = models.DecimalField(max_digits=10, decimal_places=2, help_text="Price displayed for English")
-    price_tr = models.DecimalField(max_digits=10, decimal_places=2, help_text="Price displayed for Turkish")
-    price_ar = models.DecimalField(max_digits=10, decimal_places=2, help_text="Price displayed for Arabic")
+    price = models.DecimalField(max_digits=10, decimal_places=2, help_text="Price of the plan")
     is_active = models.BooleanField(default=True)
     description = models.TextField(null=True, blank=True)
     stripe_product_id = models.CharField(max_length=255, null=True, blank=True, help_text='Stripe Product ID')
@@ -52,7 +48,7 @@ class FullPlan(models.Model):
         return f"{self.name} - {self.duration_days}d / {self.tokens_included} tokens"
 
     class Meta:
-        ordering = ['is_yearly', 'price_en']
+        ordering = ['is_yearly', 'price']
 
 
 class Subscription(models.Model):

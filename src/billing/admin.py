@@ -6,19 +6,19 @@ from .models import TokenPlan, FullPlan, Subscription, Payment, TokenUsage, Purc
 
 @admin.register(TokenPlan)
 class TokenPlanAdmin(ImportExportModelAdmin):
-    list_display = ('name', 'price_en', 'price_tr', 'price_ar', 'tokens_included', 'is_recurring', 'is_active', 'created_at')
+    list_display = ('name', 'price', 'tokens_included', 'is_recurring', 'is_active', 'created_at')
     list_filter = ('is_recurring', 'is_active', 'created_at')
     search_fields = ('name', 'description')
-    ordering = ('price_en',)
+    ordering = ('price',)
     readonly_fields = ('created_at', 'updated_at')
 
 
 @admin.register(FullPlan)
 class FullPlanAdmin(ImportExportModelAdmin):
-    list_display = ('name', 'tokens_included', 'duration_days', 'is_yearly', 'is_recommended', 'price_en', 'price_tr', 'price_ar', 'is_active', 'created_at')
+    list_display = ('name', 'tokens_included', 'duration_days', 'is_yearly', 'is_recommended', 'price', 'is_active', 'created_at')
     list_filter = ('is_yearly', 'is_recommended', 'is_active', 'created_at')
     search_fields = ('name', 'description')
-    ordering = ('is_yearly', 'price_en')
+    ordering = ('is_yearly', 'price')
     readonly_fields = ('created_at', 'updated_at')
 
 

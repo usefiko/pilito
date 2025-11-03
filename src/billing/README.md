@@ -38,9 +38,7 @@ from billing.models import TokenPlan
 # Create basic plan
 basic_plan = TokenPlan.objects.create(
     name="Basic Plan",
-    price_en=15.00,
-    price_tr=15.00,
-    price_ar=15.00,
+    price=15.00,
     tokens_included=1000,
     duration_days=30,
     is_recurring=True,
@@ -50,9 +48,7 @@ basic_plan = TokenPlan.objects.create(
 # Create pro plan
 pro_plan = TokenPlan.objects.create(
     name="Pro Plan", 
-    price_en=40.00,
-    price_tr=40.00,
-    price_ar=40.00,
+    price=40.00,
     tokens_included=5000,
     duration_days=30,
     is_recurring=True,
