@@ -251,8 +251,9 @@ ZARRINPAL_MERCHANT_ID = "1dab00cb-8aa7-4f5e-a9a2-aea98dce0826"
 ZP_API_REQUEST = "https://www.zarinpal.com/pg/rest/WebGate/PaymentRequest.json"
 ZP_API_VERIFY = "https://www.zarinpal.com/pg/rest/WebGate/PaymentVerification.json"
 ZP_API_STARTPAY = "https://www.zarinpal.com/pg/StartPay/"
-ZARIN_CALL_BACK = 'https://api.pilito.app/api/v1/billing/zp-verify/'
+ZARIN_CALL_BACK = 'https://api.pilito.com/api/v1/billing/zp-verify/'
 # END ZARRINPAL CONFIGURATION
+
 
 
 # CORSHEADERS CONFIGURATION
