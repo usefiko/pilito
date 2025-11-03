@@ -3,3 +3,9 @@ from accounts.serializers.user import UserSerializer,LoginSerializer,UserUpdateS
 from accounts.serializers.register import RegisterSerializer,CompleteRegisterSerializer
 from accounts.serializers.google_oauth import GoogleOAuthLoginSerializer,GoogleOAuthCodeSerializer,GoogleOAuthAuthURLSerializer,GoogleUserSerializer
 from accounts.serializers.otp import SendOTPSerializer, VerifyOTPSerializer
+from accounts.serializers.linking import (
+    SendEmailCodeForLinkingSerializer, 
+    VerifyEmailCodeForLinkingSerializer,
+    SendOTPForLinkingSerializer,
+    VerifyOTPForLinkingSerializer
+)

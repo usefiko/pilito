@@ -1,5 +1,5 @@
 from django.urls import path
-from accounts.api import LoginAPIView,RegisterView,CompleteRegisterView,Refresh,RefreshAccess,Logout,Profile,ProfilePicture,ProfilePictureRemove,ChangePasswordAPIView,DeleteAccountAPIView,WizardCompleteAPIView,ForgetPasswordAPIView,ResetPasswordAPIView,GoogleOAuthLoginAPIView,GoogleOAuthCodeAPIView,GoogleOAuthAuthURLAPIView,GoogleOAuthTestAPIView,UserOverview,SendOTPAPIView,VerifyOTPAPIView
+from accounts.api import LoginAPIView,RegisterView,CompleteRegisterView,Refresh,RefreshAccess,Logout,Profile,ProfilePicture,ProfilePictureRemove,ChangePasswordAPIView,DeleteAccountAPIView,WizardCompleteAPIView,ForgetPasswordAPIView,ResetPasswordAPIView,GoogleOAuthLoginAPIView,GoogleOAuthCodeAPIView,GoogleOAuthAuthURLAPIView,GoogleOAuthTestAPIView,UserOverview,SendOTPAPIView,VerifyOTPAPIView,AddEmailSendCodeAPIView,AddEmailVerifyCodeAPIView,AddPhoneSendOTPAPIView,AddPhoneVerifyOTPAPIView
 from accounts.api.intercom import IntercomJWTView, IntercomConfigView, IntercomUserHashView, IntercomValidateJWTView
 from accounts.api.email_confirmation import EmailConfirmationAPIView, ResendEmailConfirmationAPIView, EmailConfirmationStatusAPIView
 from accounts.api.auth_status import AuthStatusAPIView, DashboardAccessAPIView
@@ -44,4 +44,10 @@ urlpatterns = [
     # OTP authentication endpoints
     path("otp", SendOTPAPIView.as_view(), name="send_otp"),
     path("otp/verify", VerifyOTPAPIView.as_view(), name="verify_otp"),
+    
+    # Account linking endpoints (authenticated)
+    path("link/email", AddEmailSendCodeAPIView.as_view(), name="link-email-send"),
+    path("link/email/verify", AddEmailVerifyCodeAPIView.as_view(), name="link-email-verify"),
+    path("link/phone", AddPhoneSendOTPAPIView.as_view(), name="link-phone-send"),
+    path("link/phone/verify", AddPhoneVerifyOTPAPIView.as_view(), name="link-phone-verify"),
 ]
