@@ -187,7 +187,7 @@ class ZPPayment(APIView):
 
         # Prepare Zarinpal request
         description = f"خرید اشتراک {plan.name} - Pilito"
-        callback_url = settings.ZARIN_CALL_BACK.replace('/payment-verify/', f'/zp-verify/{payment.id}/')
+        callback_url = settings.ZARIN_CALL_BACK + str(payment.id) + "/"
         
         zarinpal_data = {
             "MerchantID": settings.ZARRINPAL_MERCHANT_ID,
