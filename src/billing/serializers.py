@@ -399,3 +399,55 @@ class PurchasesSerializer(serializers.ModelSerializer):
             'paid', 'description', 'ref_id', 'authority'
         ]
         read_only_fields = ['id', 'user', 'created_at']
+
+
+class ZarinpalPaymentSerializer(serializers.Serializer):
+    """
+    Serializer for Zarinpal payment initiation
+    """
+    token_plan_id = serializers.IntegerField(required=False, allow_null=True)
+    full_plan_id = serializers.IntegerField(required=False, allow_null=True)
+    language = serializers.ChoiceField(
+        choices=['en', 'tr', 'ar'],
+        default='en',
+        help_text="Language for pricing selection"
+    )
+
+    def validate(self, attrs):
+        token_plan_id = attrs.get('token_plan_id')
+        full_plan_id = attrs.get('full_plan_id')
+        
+        # Ensure exactly one plan is selected
+        if bool(token_plan_id) == bool(full_plan_id):
+            raise serializers.ValidationError(
+                "Provide exactly one of token_plan_id or full_plan_id."
+            )
+        
+        # Validate token plan
+        if token_plan_id:
+            try:
+                plan = TokenPlan.objects.get(id=token_plan_id, is_active=True)
+                attrs['plan'] = plan
+                attrs['plan_type'] = 'token'
+            except TokenPlan.DoesNotExist:
+                raise serializers.ValidationError({
+                    "token_plan_id": "Invalid or inactive token plan."
+                })
+        
+        # Validate full plan
+        if full_plan_id:
+            try:
+                plan = FullPlan.objects.get(id=full_plan_id, is_active=True)
+                attrs['plan'] = plan
+                attrs['plan_type'] = 'full'
+            except FullPlan.DoesNotExist:
+                raise serializers.ValidationError({
+                    "full_plan_id": "Invalid or inactive full plan."
+                })
+        
+        return attrs
+
+    def get_plan_price(self, plan, language='en'):
+        """Get the price based on the selected language"""
+        price_field = f'price_{language}'
+        return getattr(plan, price_field, plan.price_en)
