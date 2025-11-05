@@ -172,7 +172,7 @@ class ZPPayment(APIView):
         
         # Convert to Rials (Zarinpal uses Rials, multiply by 10 if you're storing in Toman)
         # Assuming amount is in Toman, convert to Rials
-        amount_rials = amount * 10
+        #amount_rials = amount * 10
 
         # Create Payment record
         payment = PaymentModel.objects.create(
@@ -191,7 +191,7 @@ class ZPPayment(APIView):
         
         zarinpal_data = {
             "MerchantID": settings.ZARRINPAL_MERCHANT_ID,
-            "Amount": amount_rials,
+            "Amount": amount,
             "Description": description,
             "Phone": str(self.request.user.phone_number) if hasattr(self.request.user, 'phone_number') else "",
             "CallbackURL": callback_url,
