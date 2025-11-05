@@ -175,10 +175,12 @@ class Subscription(models.Model):
     def days_remaining(self):
         """
         Calculate days remaining in subscription
+        Returns 0 if expired, None if unlimited
         """
         if not self.end_date:
             return None  # Unlimited
-        return days_left_from_now(self.end_date)
+        days_left = days_left_from_now(self.end_date)
+        return max(0, days_left)  # Return 0 if negative (expired)
 
     class Meta:
         ordering = ['-created_at']
