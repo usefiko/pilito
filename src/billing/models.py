@@ -210,7 +210,7 @@ class Payment(models.Model):
     subscription = models.ForeignKey(Subscription, on_delete=models.CASCADE, null=True, blank=True, related_name='payments')
     token_plan = models.ForeignKey(TokenPlan, on_delete=models.CASCADE, null=True, blank=True)
     full_plan = models.ForeignKey(FullPlan, on_delete=models.CASCADE, null=True, blank=True)
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    amount = models.IntegerField(default=0, help_text="Amount in Toman")
     payment_date = models.DateTimeField(default=timezone.now)
     payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, default='credit_card')
     status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending')

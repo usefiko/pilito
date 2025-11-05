@@ -288,10 +288,10 @@ class ZPVerify(APIView):
             return redirect(f'https://app.pilito.com/dashboard/payment/success?payment_id={payment.ref_id}')
 
         # Verify with Zarinpal
-        amount_rials = payment.amount * 10
+        # Amount is already in correct format (no conversion needed, matching ZPPayment)
         verify_data = {
             "MerchantID": settings.ZARRINPAL_MERCHANT_ID,
-            "Amount": amount_rials,
+            "Amount": payment.amount,
             "Authority": authority,
         }
 
