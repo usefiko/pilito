@@ -38,7 +38,7 @@ from billing.models import TokenPlan
 # Create basic plan
 basic_plan = TokenPlan.objects.create(
     name="Basic Plan",
-    price=15.00,
+    price=15,
     tokens_included=1000,
     duration_days=30,
     is_recurring=True,
@@ -48,7 +48,7 @@ basic_plan = TokenPlan.objects.create(
 # Create pro plan
 pro_plan = TokenPlan.objects.create(
     name="Pro Plan", 
-    price=40.00,
+    price=40,
     tokens_included=5000,
     duration_days=30,
     is_recurring=True,
@@ -263,7 +263,7 @@ class StripePaymentView(APIView):
         try:
             # Create Stripe payment intent
             intent = stripe.PaymentIntent.create(
-                amount=int(float(plan.price) * 100),  # Convert to cents
+                amount=plan.price * 100,  # Convert to cents
                 currency='usd',
                 metadata={
                     'user_id': request.user.id,

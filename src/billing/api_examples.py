@@ -95,7 +95,7 @@ def get_subscription_with_recommendations(request):
                         {
                             'id': p.id,
                             'name': p.name,
-                            'price': float(p.price),
+                            'price': p.price,
                             'tokens_included': p.tokens_included,
                             'duration_days': p.duration_days
                         } for p in monthly_plans
@@ -104,7 +104,7 @@ def get_subscription_with_recommendations(request):
                         {
                             'id': p.id,
                             'name': p.name,
-                            'price': float(p.price),
+                            'price': p.price,
                             'tokens_included': p.tokens_included,
                             'duration_days': p.duration_days,
                             'is_recommended': True
@@ -145,7 +145,7 @@ def get_subscription_with_recommendations(request):
             response_data['subscription']['full_plan'] = {
                 'id': subscription.full_plan.id,
                 'name': subscription.full_plan.name,
-                'price_en': float(subscription.full_plan.price_en),
+                'price': subscription.full_plan.price,
                 'tokens_included': subscription.full_plan.tokens_included,
                 'duration_days': subscription.full_plan.duration_days,
                 'is_yearly': subscription.full_plan.is_yearly
@@ -154,7 +154,7 @@ def get_subscription_with_recommendations(request):
             response_data['subscription']['token_plan'] = {
                 'id': subscription.token_plan.id,
                 'name': subscription.token_plan.name,
-                'price_en': float(subscription.token_plan.price_en),
+                'price': subscription.token_plan.price,
                 'tokens_included': subscription.token_plan.tokens_included
             }
         
@@ -173,15 +173,15 @@ def get_subscription_with_recommendations(request):
                 
                 if yearly_plan:
                     # Calculate savings
-                    annual_cost_monthly = float(current_plan.price) * 12
-                    annual_cost_yearly = float(yearly_plan.price)
+                    annual_cost_monthly = current_plan.price * 12
+                    annual_cost_yearly = yearly_plan.price
                     annual_savings = annual_cost_monthly - annual_cost_yearly
                     percentage_savings = (annual_savings / annual_cost_monthly) * 100
                     
                     # Calculate prorated credit for unused days
                     prorated_credit = 0
                     if not is_expired and days_remaining > 0:
-                        daily_rate = float(current_plan.price) / current_plan.duration_days
+                        daily_rate = current_plan.price / current_plan.duration_days
                         prorated_credit = daily_rate * days_remaining
                     
                     final_price = annual_cost_yearly - prorated_credit
@@ -191,7 +191,7 @@ def get_subscription_with_recommendations(request):
                         'plan': {
                             'id': yearly_plan.id,
                             'name': yearly_plan.name,
-                            'price_en': float(yearly_plan.price_en),
+                            'price': yearly_plan.price,
                             'tokens_included': yearly_plan.tokens_included,
                             'duration_days': yearly_plan.duration_days,
                             'is_yearly': True
@@ -219,14 +219,14 @@ def get_subscription_with_recommendations(request):
                 
                 if monthly_plan:
                     # Calculate what they'd lose
-                    annual_cost_monthly = float(monthly_plan.price) * 12
-                    annual_cost_yearly = float(current_plan.price)
+                    annual_cost_monthly = monthly_plan.price * 12
+                    annual_cost_yearly = current_plan.price
                     annual_increase = annual_cost_monthly - annual_cost_yearly
                     
                     # Calculate refund for unused days
                     prorated_refund = 0
                     if not is_expired and days_remaining > 0:
-                        daily_rate = float(current_plan.price) / current_plan.duration_days
+                        daily_rate = current_plan.price / current_plan.duration_days
                         prorated_refund = daily_rate * days_remaining
                     
                     recommendation = {
@@ -234,7 +234,7 @@ def get_subscription_with_recommendations(request):
                         'plan': {
                             'id': monthly_plan.id,
                             'name': monthly_plan.name,
-                            'price_en': float(monthly_plan.price_en),
+                            'price': monthly_plan.price,
                             'tokens_included': monthly_plan.tokens_included,
                             'duration_days': monthly_plan.duration_days,
                             'is_yearly': False
@@ -249,7 +249,7 @@ def get_subscription_with_recommendations(request):
                             'current_annual_cost': round(annual_cost_yearly, 2),
                             'new_annual_cost': round(annual_cost_monthly, 2),
                             'current_monthly_effective': round(annual_cost_yearly / 12, 2),
-                            'new_monthly_cost': float(monthly_plan.price),
+                            'new_monthly_cost': monthly_plan.price,
                             'current_tokens_per_year': current_plan.tokens_included,
                             'new_tokens_per_year': monthly_plan.tokens_included * 12
                         }

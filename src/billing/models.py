@@ -10,7 +10,7 @@ class TokenPlan(models.Model):
     Token-based plans (no time duration)
     """
     name = models.CharField(max_length=100)
-    price = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Price of the plan")
+    price = models.IntegerField(default=0, help_text="Price of the plan")
     tokens_included = models.IntegerField()
     is_recurring = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True, help_text="Whether this plan is available for purchase")
@@ -36,7 +36,7 @@ class FullPlan(models.Model):
     duration_days = models.IntegerField(help_text="Duration of the plan in days")
     is_recommended = models.BooleanField(default=False)
     is_yearly = models.BooleanField(default=False)
-    price = models.DecimalField(max_digits=10, decimal_places=2, help_text="Price of the plan")
+    price = models.IntegerField(default=0, help_text="Price of the plan")
     is_active = models.BooleanField(default=True)
     description = models.TextField(null=True, blank=True)
     stripe_product_id = models.CharField(max_length=255, null=True, blank=True, help_text='Stripe Product ID')

@@ -112,8 +112,8 @@ class StripeService:
                     days_remaining = (subscription.end_date - now).days
                     
                     # Detect upgrade vs downgrade based on price
-                    old_price = float(old_plan.price) if hasattr(old_plan, 'price') else 0
-                    new_price = float(selected_full_plan.price) if hasattr(selected_full_plan, 'price') else 0
+                    old_price = old_plan.price if hasattr(old_plan, 'price') else 0
+                    new_price = selected_full_plan.price if hasattr(selected_full_plan, 'price') else 0
                     
                     is_upgrade = new_price > old_price
                     is_downgrade = new_price < old_price
