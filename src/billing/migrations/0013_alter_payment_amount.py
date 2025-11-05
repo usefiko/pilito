@@ -6,15 +6,10 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('billing', '0011_merge_20251105_0841'),
+        ('billing', '0012_alter_fullplan_price'),
     ]
 
     operations = [
-        migrations.AlterField(
-            model_name='fullplan',
-            name='price',
-            field=models.IntegerField(default=0, help_text='Price of the plan'),
-        ),
         migrations.AlterField(
             model_name='payment',
             name='amount',
