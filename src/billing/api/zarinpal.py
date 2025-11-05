@@ -169,7 +169,6 @@ class ZPPayment(APIView):
 
         # Get the price from the plan
         amount = plan.price
-        
         # Convert to Rials (Zarinpal uses Rials, multiply by 10 if you're storing in Toman)
         # Assuming amount is in Toman, convert to Rials
         #amount_rials = amount * 10
