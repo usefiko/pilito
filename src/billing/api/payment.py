@@ -32,7 +32,7 @@ class Payment(APIView):
 
             data = {
                 "MerchantID": settings.ZARRINPAL_MERCHANT_ID,
-                "Amount": purchase.price,
+                "Amount": int(purchase.price),  # Convert to int for JSON serialization
                 "Description": purchase.description,
                 "Authority": authority,
                 "Phone": str(self.request.user.phone_number),
@@ -93,7 +93,7 @@ class PaymentVerify(APIView):
 
         data = {
             "MerchantID": settings.ZARRINPAL_MERCHANT_ID,
-            "Amount": purchase.price,
+            "Amount": int(purchase.price),  # Convert to int for JSON serialization
             "Authority": authority,
         }
         #data = json.dumps(data)

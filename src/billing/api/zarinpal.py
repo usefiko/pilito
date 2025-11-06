@@ -63,7 +63,7 @@ class Payment(APIView):
 
             data = {
                 "MerchantID": settings.ZARRINPAL_MERCHANT_ID,  # betterme zarinpal merchent
-                "Amount": purchase.price,  
+                "Amount": int(purchase.price),  # Convert to int for JSON serialization
                 "Description": purchase.description,
                 "Authority": authority,
                 "Phone": str(self.request.user.phone_number),
@@ -123,7 +123,7 @@ class PaymentVerify(APIView):
 
         data = {
             "MerchantID": settings.ZARRINPAL_MERCHANT_ID,
-            "Amount": purchase.price,
+            "Amount": int(purchase.price),  # Convert to int for JSON serialization
             "Authority": authority,
         }
         #data = json.dumps(data)
@@ -190,7 +190,7 @@ class ZPPayment(APIView):
         
         zarinpal_data = {
             "MerchantID": settings.ZARRINPAL_MERCHANT_ID,
-            "Amount": amount,
+            "Amount": int(amount),  # Convert to int for JSON serialization
             "Description": description,
             "Phone": str(self.request.user.phone_number) if hasattr(self.request.user, 'phone_number') else "",
             "CallbackURL": callback_url,
@@ -292,7 +292,7 @@ class ZPVerify(APIView):
         # Amount is already in correct format (no conversion needed, matching ZPPayment)
         verify_data = {
             "MerchantID": settings.ZARRINPAL_MERCHANT_ID,
-            "Amount": payment.amount,
+            "Amount": int(payment.amount),  # Convert to int for JSON serialization
             "Authority": authority,
         }
 
