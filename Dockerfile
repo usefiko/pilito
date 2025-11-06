@@ -30,8 +30,9 @@ FROM system-deps AS python-deps
 COPY src/requirements/*.txt /tmp/requirements/
 
 # Install Python packages (this layer will be cached)
+# Use increased retries and timeout for large packages like torch
 RUN pip install --upgrade pip setuptools wheel && \
-    pip install -r /tmp/requirements/base.txt
+    pip install --retries 10 --timeout 300 --resume-retries 10 -r /tmp/requirements/base.txt
 
 # ─────────────────────────────────────────
 # Stage 3: Final application (only rebuilds when code changes)
