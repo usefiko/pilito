@@ -364,7 +364,8 @@ class InstaWebhook(APIView):
         try:
             sender_info = messaging.get('sender', {})
             sender_id = sender_info.get('id')
-            recipient_id = messaging.get('recipient', {}).get('id') 
+            recipient_info = messaging.get('recipient', {})
+            recipient_id = recipient_info.get('id') 
             timestamp = messaging.get('timestamp')
             message = messaging.get('message', {})
             
@@ -401,6 +402,22 @@ class InstaWebhook(APIView):
             
             logger.info(f"Processing message from {sender_id} to {recipient_id}: {message_text}")
             
+            # Determine which user is the account owner (recipient of webhook = our account)
+            # In Instagram webhooks, the page that owns the webhook is the 'recipient' when receiving messages
+            # and the 'sender' when sending messages
+            account_owner_id = page_id  # The webhook owner's Instagram ID
+            
+            # Determine message direction
+            is_customer_message = (sender_id != account_owner_id)
+            is_owner_message = (sender_id == account_owner_id)
+            
+            if is_owner_message:
+                # Message sent by account owner from Instagram app
+                logger.info(f"📤 Detected OWNER message: Account owner {sender_id} sent message to customer {recipient_id}")
+            else:
+                # Message received from customer
+                logger.info(f"📥 Detected CUSTOMER message: Customer {sender_id} sent message to account owner {recipient_id}")
+            
             # پیدا کردن Instagram channel مناسب
             try:
                 # Show all existing Instagram channels for debugging
@@ -410,34 +427,37 @@ class InstaWebhook(APIView):
                     logger.info(f"  - Channel ID: {ch.id}, Username: {ch.username}, User: {ch.user.email}")
                     logger.info(f"    instagram_user_id: {ch.instagram_user_id}, page_id: {ch.page_id}, is_connect: {ch.is_connect}")
                 
-                logger.info(f"🎯 Looking for recipient_id: {recipient_id}")
+                # For owner messages, the sender_id is the account owner (our Instagram account)
+                # For customer messages, the recipient_id is the account owner (our Instagram account)
+                lookup_id = account_owner_id
+                logger.info(f"🎯 Looking for account owner ID: {lookup_id}")
                 
                 # First try to find channel by page_id (webhook recipient_id)
                 channel = InstagramChannel.objects.filter(
-                    page_id=recipient_id,
+                    page_id=lookup_id,
                     is_connect=True
                 ).first()
                 
                 if channel:
                     logger.info(f"✅ Found channel by page_id: {channel.username}")
                 else:
-                    logger.info(f"❌ No channel found by page_id: {recipient_id}")
+                    logger.info(f"❌ No channel found by page_id: {lookup_id}")
                 
                 # If not found by page_id, try by instagram_user_id (fallback for existing channels)
                 if not channel:
                     channel = InstagramChannel.objects.filter(
-                        instagram_user_id=recipient_id,
+                        instagram_user_id=lookup_id,
                         is_connect=True
                     ).first()
                     
                     if channel:
                         logger.info(f"✅ Found channel by instagram_user_id: {channel.username}")
                         # Update the page_id for future lookups
-                        channel.page_id = recipient_id
+                        channel.page_id = lookup_id
                         channel.save()
-                        logger.info(f"Updated Instagram channel {channel.username} with page_id: {recipient_id}")
+                        logger.info(f"Updated Instagram channel {channel.username} with page_id: {lookup_id}")
                     else:
-                        logger.info(f"❌ No channel found by instagram_user_id: {recipient_id}")
+                        logger.info(f"❌ No channel found by instagram_user_id: {lookup_id}")
 
                 # Self-heal: if still not found, probe connected channels' /me id and fix mapping automatically
                 if not channel:
@@ -460,12 +480,12 @@ class InstaWebhook(APIView):
                                     continue
                                 data = resp.json() if resp.content else {}
                                 me_id = str(data.get('id')) if data else None
-                                if me_id and me_id == str(recipient_id):
+                                if me_id and me_id == str(lookup_id):
                                     # Found the correct channel; fix IDs and use it
                                     old_page_id = candidate.page_id
                                     old_instagram_user_id = candidate.instagram_user_id
-                                    candidate.page_id = str(recipient_id)
-                                    candidate.instagram_user_id = str(recipient_id)
+                                    candidate.page_id = str(lookup_id)
+                                    candidate.instagram_user_id = str(lookup_id)
                                     candidate.save(update_fields=['page_id', 'instagram_user_id'])
                                     logger.info(
                                         f"✅ Auto-matched channel {candidate.username} by Graph id. "
@@ -480,14 +500,14 @@ class InstaWebhook(APIView):
                         logger.warning(f"Auto-match routine error: {auto_err}")
 
                 if not channel:
-                    logger.warning(f"❌ FINAL: No Instagram channel found for recipient_id: {recipient_id}")
+                    logger.warning(f"❌ FINAL: No Instagram channel found for account owner ID: {lookup_id}")
                     return {
                         "status": "error",
-                        "message": f"Instagram channel with recipient_id '{recipient_id}' not found",
+                        "message": f"Instagram channel with ID '{lookup_id}' not found",
                         "error_code": "CHANNEL_NOT_FOUND"
                     }
                 
-                logger.info(f"Found Instagram channel: {channel.username} for recipient {recipient_id}")
+                logger.info(f"Found Instagram channel: {channel.username} for account owner {lookup_id}")
             except Exception as e:
                 logger.error(f"Error finding Instagram channel: {e}")
                 return {
@@ -497,10 +517,12 @@ class InstaWebhook(APIView):
                 }
             
             # Fetch detailed user information from Instagram Graph API
+            # We want customer information, not account owner information
+            customer_instagram_id = recipient_id if is_owner_message else sender_id
             user_details = {}
             if channel.access_token:
-                logger.info(f"🔍 Fetching detailed user info for sender {sender_id}")
-                user_details = self._get_instagram_user_details(sender_id, channel.access_token)
+                logger.info(f"🔍 Fetching detailed user info for customer {customer_instagram_id}")
+                user_details = self._get_instagram_user_details(customer_instagram_id, channel.access_token)
             else:
                 logger.warning(f"⚠️ No access token available for channel {channel.username}, using basic info")
             
@@ -535,16 +557,23 @@ class InstaWebhook(APIView):
                 
                 logger.info(f"📋 Using API data - Name: {full_name}, Username: {username}, Processed: {first_name} {last_name}")
             else:
-                # Fallback to webhook data (limited)
-                first_name = sender_info.get('first_name', 'Instagram User')
-                last_name = sender_info.get('last_name', ' ')
+                # Fallback to webhook data (limited) - extract customer info
+                if is_owner_message:
+                    # For owner messages, customer is the recipient
+                    customer_info = recipient_info
+                else:
+                    # For customer messages, customer is the sender
+                    customer_info = sender_info
+                    
+                first_name = customer_info.get('first_name', 'Instagram User')
+                last_name = customer_info.get('last_name', ' ')
                 profile_pic_url = None
                 
                 # If names are empty, use fallback
                 if not first_name or first_name == '':
                     first_name = 'Instagram User'
                 if not last_name or last_name == '':
-                    last_name = str(sender_id)[-8:]  # Last 8 digits of ID
+                    last_name = str(customer_instagram_id)[-8:]  # Last 8 digits of ID
                 
                 logger.info(f"📋 Using webhook data - First: {first_name}, Last: {last_name}")
             
@@ -553,23 +582,23 @@ class InstaWebhook(APIView):
             
             # Download and save profile picture if available
             if profile_pic_url:
-                logger.info(f"🔍 Downloading Instagram profile picture for user {sender_id}")
+                logger.info(f"🔍 Downloading Instagram profile picture for user {customer_instagram_id}")
                 try:
-                    profile_image = self._download_profile_picture(profile_pic_url, sender_id)
+                    profile_image = self._download_profile_picture(profile_pic_url, customer_instagram_id)
                     if profile_image:
                         customer_profile_image = profile_image
-                        logger.info(f"✅ Instagram profile picture downloaded for user {sender_id}")
+                        logger.info(f"✅ Instagram profile picture downloaded for user {customer_instagram_id}")
                     else:
-                        logger.info(f"📷 Failed to download Instagram profile picture for user {sender_id}")
+                        logger.info(f"📷 Failed to download Instagram profile picture for user {customer_instagram_id}")
                 except Exception as e:
-                    logger.error(f"❌ Error downloading Instagram profile picture for {sender_id}: {e}")
+                    logger.error(f"❌ Error downloading Instagram profile picture for {customer_instagram_id}: {e}")
             else:
-                logger.info(f"📷 No Instagram profile picture available for user {sender_id}")
+                logger.info(f"📷 No Instagram profile picture available for user {customer_instagram_id}")
 
             # Create or update Customer but PRESERVE manual edits
             customer, created = Customer.objects.get_or_create(
                 source='instagram',
-                source_id=str(sender_id),
+                source_id=str(customer_instagram_id),
             )
 
             # On create, set fetched fields
@@ -682,20 +711,42 @@ class InstaWebhook(APIView):
             # Always update conversation's updated_at field
             conversation.save(update_fields=['updated_at'])
 
+            # Determine message type based on sender
+            # If owner sent it, it's a 'support' message
+            # If customer sent it, it's a 'customer' message
+            msg_type = 'support' if is_owner_message else 'customer'
+            
             # Create Message based on type
             if message_type == 'text':
                 message_obj = Message.objects.create(
                     content=message_text, 
                     conversation=conversation, 
                     customer=customer,
-                    type='customer',
+                    type=msg_type,
                     message_type='text',
                     processing_status='completed'
                 )
-                logger.info(f"✅ Text message created: {message_obj.id}")
+                logger.info(f"✅ Text message created: {message_obj.id} (type={msg_type})")
                 
-                # Notify WebSocket only for text
-                notify_new_customer_message(message_obj)
+                # Notify WebSocket for both customer and owner messages
+                if is_customer_message:
+                    notify_new_customer_message(message_obj)
+                else:
+                    # For owner messages sent from Instagram, broadcast to websocket
+                    from message.websocket_utils import broadcast_to_chat_room, notify_conversation_status_change
+                    from message.serializers import WSMessageSerializer
+                    
+                    broadcast_to_chat_room(
+                        conversation.id,
+                        'chat_message',
+                        {
+                            'message': WSMessageSerializer(message_obj).data,
+                            'external_send_result': {'success': True, 'source': 'instagram_direct'}
+                        }
+                    )
+                    # Update conversation list for user
+                    notify_conversation_status_change(conversation)
+                    logger.info(f"✅ Owner message from Instagram broadcasted to websocket: {message_obj.id}")
                 
             else:
                 # Image or Voice message
@@ -703,12 +754,12 @@ class InstaWebhook(APIView):
                     content=placeholder_text,
                     conversation=conversation,
                     customer=customer,
-                    type='customer',
+                    type=msg_type,
                     message_type=message_type,
                     media_url=media_url,  # Instagram provides direct URL
                     processing_status='pending'
                 )
-                logger.info(f"✅ {message_type.capitalize()} message created (pending): {message_obj.id}")
+                logger.info(f"✅ {message_type.capitalize()} message created (pending): {message_obj.id} (type={msg_type})")
                 
                 # Queue async processing
                 if message_type == 'image':
@@ -725,6 +776,7 @@ class InstaWebhook(APIView):
                 "status": "success",
                 "message": "Message received and processed successfully",
                 "data": {
+                    "message_direction": "owner_to_customer" if is_owner_message else "customer_to_owner",
                     "channel": {
                         "username": channel.username,
                         "owner": {
@@ -734,7 +786,7 @@ class InstaWebhook(APIView):
                     },
                     "customer": {
                         "id": customer.id,
-                        "instagram_id": sender_id,
+                        "instagram_id": customer_instagram_id,
                         "first_name": customer.first_name,
                         "last_name": customer.last_name,
                         "full_name": f"{customer.first_name or ''} {customer.last_name or ''}".strip(),
@@ -751,7 +803,9 @@ class InstaWebhook(APIView):
                     },
                     "message": {
                         "id": message_obj.id,
-                        "content": message_text,
+                        "content": message_text or placeholder_text,
+                        "type": msg_type,
+                        "message_type": message_type,
                         "timestamp": message_obj.created_at.isoformat()
                     }
                 }

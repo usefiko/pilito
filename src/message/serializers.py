@@ -259,7 +259,9 @@ class WSMessageSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Message
-        fields = ['id', 'content', 'type', 'customer', 'conversation_id', 'is_ai_response', 'is_answered', 'created_at', 'feedback', 'feedback_comment', 'feedback_at']
+        fields = ['id', 'content', 'type', 'customer', 'conversation_id', 'is_ai_response', 'is_answered', 
+                 'created_at', 'feedback', 'feedback_comment', 'feedback_at', 'message_type', 'media_url', 
+                 'media_file', 'processing_status', 'transcription']
 
 
 class ChatMessageInputSerializer(serializers.Serializer):
