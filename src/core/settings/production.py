@@ -80,6 +80,7 @@ ALLOWED_HOSTS = [
     '127.0.0.1',
     '0.0.0.0',
     '185.164.72.165',
+    'log.pilito.com',
     # Docker internal network hostnames for monitoring
     'web',
     'django_app',
