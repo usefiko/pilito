@@ -716,6 +716,41 @@ class InstaWebhook(APIView):
             # If customer sent it, it's a 'customer' message
             msg_type = 'support' if is_owner_message else 'customer'
             
+            # ✅ DEDUPLICATION: Check if this message already exists
+            # When we send a message through our app (AI or support), Instagram webhooks it back
+            # We need to prevent creating duplicates
+            if is_owner_message:
+                from django.utils import timezone
+                from datetime import timedelta
+                
+                # Check for recent messages (last 30 seconds) with same content
+                recent_cutoff = timezone.now() - timedelta(seconds=30)
+                existing_message = Message.objects.filter(
+                    conversation=conversation,
+                    content=message_text or placeholder_text,
+                    created_at__gte=recent_cutoff,
+                    type__in=['support', 'AI']  # Could be either support or AI
+                ).first()
+                
+                if existing_message:
+                    logger.info(f"⚠️ Duplicate owner message detected - message already exists: {existing_message.id}")
+                    logger.info(f"   Existing: type={existing_message.type}, is_ai_response={existing_message.is_ai_response}")
+                    logger.info(f"   Skipping duplicate creation from Instagram webhook")
+                    
+                    # Return success but indicate it was a duplicate
+                    return {
+                        "status": "success",
+                        "message": "Duplicate message ignored (already exists in database)",
+                        "data": {
+                            "message_direction": "owner_to_customer",
+                            "duplicate": True,
+                            "existing_message_id": existing_message.id,
+                            "conversation": {
+                                "id": conversation.id,
+                            }
+                        }
+                    }
+            
             # Create Message based on type
             if message_type == 'text':
                 message_obj = Message.objects.create(

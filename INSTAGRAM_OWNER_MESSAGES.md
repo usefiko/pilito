@@ -37,7 +37,39 @@ is_owner_message = (sender_id == account_owner_id)
   - `sender_id` = customer's Instagram ID
   - `recipient_id` = account owner's Instagram ID
 
-### 2. Customer Identification
+### 2. Deduplication Logic (Anti-Echo Prevention)
+
+**Problem**: When AI or support sends a message through our app → Instagram → Instagram webhooks it back → Creating duplicate
+
+**Solution**: Check if message already exists before creating
+```python
+# Check for recent messages (last 30 seconds) with same content
+recent_cutoff = timezone.now() - timedelta(seconds=30)
+existing_message = Message.objects.filter(
+    conversation=conversation,
+    content=message_text,
+    created_at__gte=recent_cutoff,
+    type__in=['support', 'AI']  # Could be either support or AI
+).first()
+
+if existing_message:
+    logger.info("⚠️ Duplicate owner message detected - skipping")
+    return {"status": "success", "duplicate": True}
+```
+
+**Why this works**:
+- When we send a message via our app, it's saved immediately to database
+- Instagram webhooks typically arrive within 1-2 seconds
+- We check if an identical message exists in the last 30 seconds
+- If found, skip creating the duplicate
+
+**Edge cases handled**:
+- ✅ AI messages (type='AI', is_ai_response=True)
+- ✅ Support messages (type='support')
+- ✅ Messages sent from Instagram app directly (no duplicate = create new)
+- ✅ Time window of 30 seconds handles webhook delays
+
+### 3. Customer Identification
 ```python
 # For owner messages, the customer is the RECIPIENT
 # For customer messages, the customer is the SENDER
@@ -280,4 +312,36 @@ For issues or questions, check:
 - Webhook logs: Look for Instagram webhook entries
 - Database: Verify messages are being created
 - WebSocket: Check browser console for connection issues
+
+---
+
+## Bug Fixes
+
+### Duplicate AI Messages (Fixed)
+
+**Issue**: AI-generated messages were appearing twice - once as AI message and once as support message.
+
+**Root Cause**: 
+1. AI generates response → saved to DB as `type='AI'`
+2. AI service sends message to Instagram API
+3. Instagram webhooks the message back to us
+4. Our code treated it as "owner message" → saved again as `type='support'`
+5. Result: Duplicate messages in conversation
+
+**Fix**: Added deduplication logic that checks for existing messages before creating new ones:
+```python
+# For owner messages, check if identical message exists in last 30 seconds
+existing_message = Message.objects.filter(
+    conversation=conversation,
+    content=message_text,
+    created_at__gte=recent_cutoff,
+    type__in=['support', 'AI']
+).first()
+
+if existing_message:
+    # Skip creating duplicate
+    return {"status": "success", "duplicate": True}
+```
+
+**Result**: ✅ No more duplicates - AI messages appear only once
 
