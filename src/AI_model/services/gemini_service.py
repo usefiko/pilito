@@ -1129,11 +1129,15 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
                     'auto_generated': True,
                     'global_api_used': True,
                     'timestamp': datetime.now(timezone.utc).isoformat(),
-                    'ai_service_version': '1.0'
+                    'ai_service_version': '1.0',
+                    'sent_from_app': True  # Mark as sent from app
                 }
             )
             
-            logger.info(f"AI message created: {ai_message.id} for conversation {conversation.id}")
+            logger.info(f"✅ AI message created: {ai_message.id} for conversation {conversation.id}")
+            logger.info(f"   Content: {ai_message.content[:50]}...")
+            logger.info(f"   Type: {ai_message.type}")
+            logger.info(f"   is_ai_response: {ai_message.is_ai_response}")
             
             # Send the AI response to the appropriate platform
             self._send_ai_response_to_platform(ai_message, conversation)
@@ -1225,6 +1229,7 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
             
             if result.get('success'):
                 logger.info(f"✅ AI response sent to Instagram successfully: message {ai_message.id}")
+                logger.info(f"   Instagram message_id: {result.get('message_id')}")
                 
                 # ✅ Store external message_id in metadata to prevent webhook duplicates
                 if result.get('message_id'):
@@ -1232,7 +1237,8 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
                     ai_message.metadata['external_message_id'] = str(result.get('message_id'))
                     ai_message.metadata['sent_from_app'] = True
                     ai_message.save(update_fields=['metadata'])
-                    logger.info(f"Stored Instagram message_id in AI message metadata: {result.get('message_id')}")
+                    logger.info(f"   Stored Instagram message_id in AI message metadata: {result.get('message_id')}")
+                    logger.info(f"   Updated metadata: {ai_message.metadata}")
                 
                 # ✅ Mark message as sent in cache to prevent duplicate from webhook
                 import hashlib
@@ -1241,7 +1247,7 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
                 ).hexdigest()
                 cache_key = f"instagram_sent_msg_{message_hash}"
                 cache.set(cache_key, True, timeout=60)
-                logger.debug(f"📝 Cached sent message to prevent webhook duplicate: {cache_key}")
+                logger.info(f"   📝 Cached sent message to prevent webhook duplicate: {cache_key}")
                 
                 # Calculate elapsed time since typing_on
                 elapsed_time = message_sent_time - typing_start_time
