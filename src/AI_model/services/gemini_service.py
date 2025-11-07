@@ -1226,6 +1226,15 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
             if result.get('success'):
                 logger.info(f"✅ AI response sent to Instagram successfully: message {ai_message.id}")
                 
+                # ✅ Mark message as sent in cache to prevent duplicate from webhook
+                import hashlib
+                message_hash = hashlib.md5(
+                    f"{conversation.id}:{ai_message.content}".encode()
+                ).hexdigest()
+                cache_key = f"instagram_sent_msg_{message_hash}"
+                cache.set(cache_key, True, timeout=60)
+                logger.debug(f"📝 Cached sent message to prevent webhook duplicate: {cache_key}")
+                
                 # Calculate elapsed time since typing_on
                 elapsed_time = message_sent_time - typing_start_time
                 

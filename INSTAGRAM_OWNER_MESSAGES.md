@@ -41,33 +41,57 @@ is_owner_message = (sender_id == account_owner_id)
 
 **Problem**: When AI or support sends a message through our app → Instagram → Instagram webhooks it back → Creating duplicate
 
-**Solution**: Check if message already exists before creating
+**Solution**: Two-layer deduplication using Cache + Database
+
+#### Layer 1: Cache (Proactive Marking)
+When we send a message to Instagram, we immediately mark it in cache:
 ```python
-# Check for recent messages (last 30 seconds) with same content
-recent_cutoff = timezone.now() - timedelta(seconds=30)
+# In AI service and SendMessageAPI - AFTER sending to Instagram
+import hashlib
+message_hash = hashlib.md5(f"{conversation.id}:{content}".encode()).hexdigest()
+cache_key = f"instagram_sent_msg_{message_hash}"
+cache.set(cache_key, True, timeout=60)  # Mark for 60 seconds
+```
+
+#### Layer 2: Webhook Check (Defensive Detection)
+When webhook arrives, check cache first, then database:
+```python
+# In webhook handler - BEFORE creating message
+message_hash = hashlib.md5(f"{conversation.id}:{message_content}".encode()).hexdigest()
+cache_key = f"instagram_sent_msg_{message_hash}"
+
+# Check cache first (faster)
+if cache.get(cache_key):
+    logger.info("⚠️ Duplicate detected via CACHE")
+    return {"status": "success", "duplicate": True}
+
+# Check database as fallback (handles edge cases)
 existing_message = Message.objects.filter(
     conversation=conversation,
-    content=message_text,
-    created_at__gte=recent_cutoff,
-    type__in=['support', 'AI']  # Could be either support or AI
+    content=message_content,
+    created_at__gte=timezone.now() - timedelta(seconds=30),
+    type__in=['support', 'AI']
 ).first()
 
 if existing_message:
-    logger.info("⚠️ Duplicate owner message detected - skipping")
+    logger.info("⚠️ Duplicate detected via DATABASE")
+    cache.set(cache_key, True, timeout=60)  # Cache for future
     return {"status": "success", "duplicate": True}
 ```
 
 **Why this works**:
-- When we send a message via our app, it's saved immediately to database
-- Instagram webhooks typically arrive within 1-2 seconds
-- We check if an identical message exists in the last 30 seconds
-- If found, skip creating the duplicate
+- ✅ **Proactive marking**: Message is cached IMMEDIATELY after sending to Instagram
+- ✅ **Cache is instant**: No database query latency
+- ✅ **Handles race conditions**: Even if webhook arrives before DB commit completes
+- ✅ **Database fallback**: Catches cases where cache might miss (restarts, etc.)
+- ✅ **60-second window**: Long enough to catch all webhooks, short enough to not block real duplicates
 
 **Edge cases handled**:
-- ✅ AI messages (type='AI', is_ai_response=True)
-- ✅ Support messages (type='support')
-- ✅ Messages sent from Instagram app directly (no duplicate = create new)
-- ✅ Time window of 30 seconds handles webhook delays
+- ✅ AI messages (marked in `gemini_service.py`)
+- ✅ Support messages (marked in `send_message.py`)
+- ✅ Messages sent from Instagram app directly (no cache entry = create new)
+- ✅ Race conditions (cache check happens before DB query)
+- ✅ Server restarts (database fallback handles missing cache)
 
 ### 3. Customer Identification
 ```python
@@ -317,31 +341,51 @@ For issues or questions, check:
 
 ## Bug Fixes
 
-### Duplicate AI Messages (Fixed)
+### Duplicate AI Messages (Fixed - v2)
 
 **Issue**: AI-generated messages were appearing twice - once as AI message and once as support message.
 
 **Root Cause**: 
 1. AI generates response → saved to DB as `type='AI'`
 2. AI service sends message to Instagram API
-3. Instagram webhooks the message back to us
+3. Instagram webhooks the message back to us (sometimes VERY fast, even before DB commit completes)
 4. Our code treated it as "owner message" → saved again as `type='support'`
 5. Result: Duplicate messages in conversation
 
-**Fix**: Added deduplication logic that checks for existing messages before creating new ones:
-```python
-# For owner messages, check if identical message exists in last 30 seconds
-existing_message = Message.objects.filter(
-    conversation=conversation,
-    content=message_text,
-    created_at__gte=recent_cutoff,
-    type__in=['support', 'AI']
-).first()
+**Initial Fix (v1)**: Database query to check for existing messages
+- ❌ **Problem**: Race condition - webhook sometimes arrived before DB commit completed
+- ❌ **Result**: Still occasional duplicates
 
-if existing_message:
-    # Skip creating duplicate
+**Improved Fix (v2)**: Two-layer cache + database approach
+1. **Proactive caching**: IMMEDIATELY after sending to Instagram, mark message in cache
+2. **Cache-first check**: Webhook checks cache before querying database
+3. **Database fallback**: If cache misses (server restart, etc.), check database
+
+**Implementation**:
+
+```python
+# Step 1: Mark message as sent (in AI service & send message API)
+result = instagram_service.send_message_to_customer(customer, content)
+if result.get('success'):
+    message_hash = hashlib.md5(f"{conversation.id}:{content}".encode()).hexdigest()
+    cache_key = f"instagram_sent_msg_{message_hash}"
+    cache.set(cache_key, True, timeout=60)  # Immediate marking
+
+# Step 2: Check for duplicates (in webhook handler)
+# Cache check (instant, no race condition)
+if cache.get(cache_key):
+    return {"status": "success", "duplicate": True}
+    
+# Database check (fallback)
+if Message.objects.filter(...).exists():
+    cache.set(cache_key, True, timeout=60)  # Cache for next time
     return {"status": "success", "duplicate": True}
 ```
 
-**Result**: ✅ No more duplicates - AI messages appear only once
+**Files modified**:
+- `src/message/insta.py` - Added cache check + database check
+- `src/AI_model/services/gemini_service.py` - Added cache marking after AI send
+- `src/message/api/send_message.py` - Added cache marking after support send
+
+**Result**: ✅ No more duplicates - AI messages appear only once, even with race conditions
 

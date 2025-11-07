@@ -144,6 +144,19 @@ class SendMessageAPIView(APIView):
             
             result = instagram_service.send_message_to_customer(customer, content)
             logger.info(f"Instagram send result for conversation {conversation.id}: {result}")
+            
+            # ✅ Mark message as sent in cache to prevent duplicate from webhook
+            if result.get('success'):
+                from django.core.cache import cache
+                import hashlib
+                
+                message_hash = hashlib.md5(
+                    f"{conversation.id}:{content}".encode()
+                ).hexdigest()
+                cache_key = f"instagram_sent_msg_{message_hash}"
+                cache.set(cache_key, True, timeout=60)
+                logger.debug(f"📝 Cached sent support message to prevent webhook duplicate: {cache_key}")
+            
             return result
             
         except Exception as e:

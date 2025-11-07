@@ -716,26 +716,57 @@ class InstaWebhook(APIView):
             # If customer sent it, it's a 'customer' message
             msg_type = 'support' if is_owner_message else 'customer'
             
-            # ✅ DEDUPLICATION: Check if this message already exists
+            # ✅ DEDUPLICATION: Check if this message already exists or was recently sent
             # When we send a message through our app (AI or support), Instagram webhooks it back
             # We need to prevent creating duplicates
             if is_owner_message:
                 from django.utils import timezone
                 from datetime import timedelta
+                from django.core.cache import cache
+                import hashlib
                 
-                # Check for recent messages (last 30 seconds) with same content
+                # Create a unique hash for this message (conversation + content + time window)
+                message_content = message_text or placeholder_text
+                message_hash = hashlib.md5(
+                    f"{conversation.id}:{message_content}".encode()
+                ).hexdigest()
+                cache_key = f"instagram_sent_msg_{message_hash}"
+                
+                # Check cache first (faster than DB query)
+                if cache.get(cache_key):
+                    logger.info(f"⚠️ Duplicate owner message detected via CACHE - message recently sent from our app")
+                    logger.info(f"   Cache key: {cache_key}")
+                    logger.info(f"   Skipping duplicate creation from Instagram webhook (cache hit)")
+                    
+                    return {
+                        "status": "success",
+                        "message": "Duplicate message ignored (detected via cache - recently sent from app)",
+                        "data": {
+                            "message_direction": "owner_to_customer",
+                            "duplicate": True,
+                            "detection_method": "cache",
+                            "conversation": {
+                                "id": conversation.id,
+                            }
+                        }
+                    }
+                
+                # Check for recent messages in database (last 30 seconds) with same content
                 recent_cutoff = timezone.now() - timedelta(seconds=30)
                 existing_message = Message.objects.filter(
                     conversation=conversation,
-                    content=message_text or placeholder_text,
+                    content=message_content,
                     created_at__gte=recent_cutoff,
                     type__in=['support', 'AI']  # Could be either support or AI
                 ).first()
                 
                 if existing_message:
-                    logger.info(f"⚠️ Duplicate owner message detected - message already exists: {existing_message.id}")
+                    logger.info(f"⚠️ Duplicate owner message detected via DATABASE - message already exists: {existing_message.id}")
                     logger.info(f"   Existing: type={existing_message.type}, is_ai_response={existing_message.is_ai_response}")
-                    logger.info(f"   Skipping duplicate creation from Instagram webhook")
+                    logger.info(f"   Skipping duplicate creation from Instagram webhook (database hit)")
+                    
+                    # Cache it for future checks
+                    cache.set(cache_key, True, timeout=60)
                     
                     # Return success but indicate it was a duplicate
                     return {
@@ -744,6 +775,7 @@ class InstaWebhook(APIView):
                         "data": {
                             "message_direction": "owner_to_customer",
                             "duplicate": True,
+                            "detection_method": "database",
                             "existing_message_id": existing_message.id,
                             "conversation": {
                                 "id": conversation.id,
