@@ -69,7 +69,8 @@ class SendMessageAPIView(APIView):
                     conversation=conversation,
                     customer=conversation.customer,
                     content=content,
-                    type=message_type
+                    type=message_type,
+                    metadata={}  # Initialize metadata
                 )
                 
                 # Update conversation timestamp
@@ -77,6 +78,14 @@ class SendMessageAPIView(APIView):
             
             # Send to external platform (Telegram/Instagram)
             external_result = self._send_to_external_platform(conversation, content)
+            
+            # Store external message ID in metadata to prevent webhook duplicates
+            if external_result.get('success') and external_result.get('message_id'):
+                message.metadata = message.metadata or {}
+                message.metadata['external_message_id'] = str(external_result.get('message_id'))
+                message.metadata['sent_from_app'] = True
+                message.save(update_fields=['metadata'])
+                logger.info(f"Stored external message_id in metadata: {external_result.get('message_id')}")
             
             # Notify via WebSocket
             self._notify_websocket(message, external_result)

@@ -1226,6 +1226,14 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
             if result.get('success'):
                 logger.info(f"✅ AI response sent to Instagram successfully: message {ai_message.id}")
                 
+                # ✅ Store external message_id in metadata to prevent webhook duplicates
+                if result.get('message_id'):
+                    ai_message.metadata = ai_message.metadata or {}
+                    ai_message.metadata['external_message_id'] = str(result.get('message_id'))
+                    ai_message.metadata['sent_from_app'] = True
+                    ai_message.save(update_fields=['metadata'])
+                    logger.info(f"Stored Instagram message_id in AI message metadata: {result.get('message_id')}")
+                
                 # ✅ Mark message as sent in cache to prevent duplicate from webhook
                 import hashlib
                 message_hash = hashlib.md5(

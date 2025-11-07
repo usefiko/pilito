@@ -716,23 +716,53 @@ class InstaWebhook(APIView):
             # If customer sent it, it's a 'customer' message
             msg_type = 'support' if is_owner_message else 'customer'
             
-            # ✅ DEDUPLICATION: Check if this message already exists or was recently sent
-            # When we send a message through our app (AI or support), Instagram webhooks it back
-            # We need to prevent creating duplicates
+            # ✅ DEDUPLICATION: Check if this message was sent from our app
+            # This is the MOST RELIABLE method - checking metadata directly
             if is_owner_message:
                 from django.utils import timezone
                 from datetime import timedelta
                 from django.core.cache import cache
                 import hashlib
                 
-                # Create a unique hash for this message (conversation + content + time window)
                 message_content = message_text or placeholder_text
+                
+                # PRIMARY CHECK: Look for messages with 'sent_from_app' flag in metadata
+                # This catches messages sent from our app (AI or support)
+                recent_cutoff = timezone.now() - timedelta(seconds=30)
+                existing_app_message = Message.objects.filter(
+                    conversation=conversation,
+                    content=message_content,
+                    created_at__gte=recent_cutoff,
+                    type__in=['support', 'AI'],
+                    metadata__sent_from_app=True  # This is the key check!
+                ).first()
+                
+                if existing_app_message:
+                    logger.info(f"⚠️ Duplicate owner message detected via METADATA - message was sent from app: {existing_app_message.id}")
+                    logger.info(f"   Existing: type={existing_app_message.type}, is_ai_response={existing_app_message.is_ai_response}")
+                    logger.info(f"   Metadata: {existing_app_message.metadata}")
+                    logger.info(f"   Skipping duplicate creation from Instagram webhook (metadata flag check)")
+                    
+                    return {
+                        "status": "success",
+                        "message": "Duplicate message ignored (sent from app - metadata check)",
+                        "data": {
+                            "message_direction": "owner_to_customer",
+                            "duplicate": True,
+                            "detection_method": "metadata_flag",
+                            "existing_message_id": existing_app_message.id,
+                            "conversation": {
+                                "id": conversation.id,
+                            }
+                        }
+                    }
+                
+                # SECONDARY CHECK: Cache (for performance)
                 message_hash = hashlib.md5(
                     f"{conversation.id}:{message_content}".encode()
                 ).hexdigest()
                 cache_key = f"instagram_sent_msg_{message_hash}"
                 
-                # Check cache first (faster than DB query)
                 if cache.get(cache_key):
                     logger.info(f"⚠️ Duplicate owner message detected via CACHE - message recently sent from our app")
                     logger.info(f"   Cache key: {cache_key}")
@@ -751,13 +781,12 @@ class InstaWebhook(APIView):
                         }
                     }
                 
-                # Check for recent messages in database (last 30 seconds) with same content
-                recent_cutoff = timezone.now() - timedelta(seconds=30)
+                # TERTIARY CHECK: Database fallback (any recent message with same content)
                 existing_message = Message.objects.filter(
                     conversation=conversation,
                     content=message_content,
                     created_at__gte=recent_cutoff,
-                    type__in=['support', 'AI']  # Could be either support or AI
+                    type__in=['support', 'AI']
                 ).first()
                 
                 if existing_message:
@@ -768,7 +797,6 @@ class InstaWebhook(APIView):
                     # Cache it for future checks
                     cache.set(cache_key, True, timeout=60)
                     
-                    # Return success but indicate it was a duplicate
                     return {
                         "status": "success",
                         "message": "Duplicate message ignored (already exists in database)",
