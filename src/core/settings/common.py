@@ -103,6 +103,18 @@ CHANNEL_LAYERS = {
             # Connection pool settings
             "symmetric_encryption_keys": [environ.get("DJANGO_SECRET_KEY", "fallback-key")[:32].ljust(32, 'x')],
         },
+        "OPTIONS": {
+            "connection_kwargs": {
+                "retry_on_timeout": True,
+                "socket_keepalive": True,
+                "socket_keepalive_options": {
+                    1: 1,  # TCP_KEEPIDLE
+                    2: 1,  # TCP_KEEPINTVL
+                    3: 3,  # TCP_KEEPCNT
+                },
+                "health_check_interval": 30,
+            }
+        }
     },
 }
 # END CHANNELS CONFIGURATION

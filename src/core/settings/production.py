@@ -141,7 +141,27 @@ CHANNEL_LAYERS = {
             # تنظیمات اضافی برای production
             "capacity": 1500,
             "expiry": 60,
+            # Connection pool settings to prevent read-only errors
+            "channel_capacity": {
+                "http.request": 200,
+                "http.response": 200,
+                "websocket.send*": 1000,
+            },
+            # Retry logic for Redis connection failures
+            "symmetric_encryption_keys": [environ.get("DJANGO_SECRET_KEY", "fallback-key")[:32].ljust(32, 'x')],
         },
+        "OPTIONS": {
+            "connection_kwargs": {
+                "retry_on_timeout": True,
+                "socket_keepalive": True,
+                "socket_keepalive_options": {
+                    1: 1,  # TCP_KEEPIDLE
+                    2: 1,  # TCP_KEEPINTVL
+                    3: 3,  # TCP_KEEPCNT
+                },
+                "health_check_interval": 30,
+            }
+        }
     },
 }
 
