@@ -724,29 +724,42 @@ class InstaWebhook(APIView):
                 message_content = message_text or placeholder_text
                 recent_cutoff = timezone.now() - timedelta(seconds=60)  # Increased to 60 seconds
                 
+                # ✅ NORMALIZE content: Instagram removes trailing newlines in webhooks
+                # So we need to compare normalized content
+                normalized_content = message_content.strip()
+                
                 logger.info(f"🔍 Checking for duplicate owner messages...")
-                logger.info(f"   Content: {message_content[:50]}...")
+                logger.info(f"   Content (first 80 chars): {normalized_content[:80]}...")
+                logger.info(f"   Content length: {len(normalized_content)}")
                 logger.info(f"   Conversation: {conversation.id}")
                 logger.info(f"   Time cutoff: {recent_cutoff}")
                 
-                # Check for ANY recent message (AI or support) with the EXACT same content
-                existing_messages = Message.objects.filter(
+                # Check for ANY recent message (AI or support) with the SAME normalized content
+                # We need to normalize database content too for comparison
+                recent_messages = Message.objects.filter(
                     conversation=conversation,
-                    content=message_content,
                     created_at__gte=recent_cutoff,
                     type__in=['support', 'AI']
                 ).order_by('-created_at')
                 
-                logger.info(f"   Found {existing_messages.count()} matching messages")
+                logger.info(f"   Checking {recent_messages.count()} recent messages")
                 
-                if existing_messages.exists():
-                    existing_msg = existing_messages.first()
+                # Check each message by normalizing its content
+                existing_msg = None
+                for msg in recent_messages:
+                    normalized_db_content = msg.content.strip()
+                    if normalized_db_content == normalized_content:
+                        existing_msg = msg
+                        break
+                
+                if existing_msg:
                     logger.warning(f"⚠️⚠️⚠️ DUPLICATE DETECTED - BLOCKING WEBHOOK MESSAGE ⚠️⚠️⚠️")
                     logger.warning(f"   Existing message ID: {existing_msg.id}")
                     logger.warning(f"   Existing message type: {existing_msg.type}")
                     logger.warning(f"   Existing message is_ai: {existing_msg.is_ai_response}")
                     logger.warning(f"   Existing message created: {existing_msg.created_at}")
-                    logger.warning(f"   Existing message metadata: {existing_msg.metadata}")
+                    logger.warning(f"   Time difference: {(timezone.now() - existing_msg.created_at).total_seconds():.1f} seconds")
+                    logger.warning(f"   Content match (normalized): YES")
                     logger.warning(f"   >>> SKIPPING DUPLICATE CREATION FROM WEBHOOK <<<")
                     
                     return {
@@ -760,7 +773,8 @@ class InstaWebhook(APIView):
                                 "id": existing_msg.id,
                                 "type": existing_msg.type,
                                 "is_ai_response": existing_msg.is_ai_response,
-                                "created_at": existing_msg.created_at.isoformat()
+                                "created_at": existing_msg.created_at.isoformat(),
+                                "time_diff_seconds": (timezone.now() - existing_msg.created_at).total_seconds()
                             },
                             "conversation": {
                                 "id": conversation.id,
