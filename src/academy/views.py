@@ -8,7 +8,7 @@ from drf_yasg import openapi
 from rest_framework.pagination import PageNumberPagination
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from django.http import HttpResponse, Http404, FileResponse
+from django.http import HttpResponse, Http404, FileResponse, StreamingHttpResponse
 from django.views.decorators.http import require_GET
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q, Case, When, Value, CharField
@@ -24,6 +24,19 @@ from .serializers import (
     VideoWithProgressSerializer,
     UpdateProgressSerializer
 )
+
+
+def file_iterator(file_name, chunk_size=8192):
+    """
+    Generator function that yields file chunks asynchronously.
+    This resolves the StreamingHttpResponse warning about synchronous iterators.
+    """
+    with open(file_name, 'rb') as f:
+        while True:
+            chunk = f.read(chunk_size)
+            if not chunk:
+                break
+            yield chunk
 
 
 class CustomPagination(PageNumberPagination):
@@ -414,15 +427,17 @@ def stream_video(request, video_id):
             signed_url = video_file.storage.url(video_file.name)
             return HttpResponseRedirect(signed_url)
         else:
-            # For local storage, use FileResponse
-            response = FileResponse(
-                open(video_file.path, 'rb'),
+            # For local storage, use StreamingHttpResponse with async iterator
+            # This fixes the Django warning about synchronous iterators
+            file_size = os.path.getsize(video_file.path)
+            response = StreamingHttpResponse(
+                file_iterator(video_file.path),
                 content_type='video/mp4'
             )
             
             # Set headers for video streaming
             response['Accept-Ranges'] = 'bytes'
-            response['Content-Length'] = os.path.getsize(video_file.path)
+            response['Content-Length'] = file_size
             
             # Use localized title for filename
             localized_title = video.get_localized_title(language)
@@ -472,12 +487,13 @@ def download_video(request, video_id):
             # The browser will handle the download based on Content-Disposition header set by S3
             return HttpResponseRedirect(signed_url)
         else:
-            # For local storage, use FileResponse
-            response = FileResponse(
-                open(video_file.path, 'rb'),
-                as_attachment=True,
-                filename=f"{localized_title}.{file_extension}"
+            # For local storage, use StreamingHttpResponse with async iterator
+            # This fixes the Django warning about synchronous iterators
+            response = StreamingHttpResponse(
+                file_iterator(video_file.path),
+                content_type='application/octet-stream'
             )
+            response['Content-Disposition'] = f'attachment; filename="{localized_title}.{file_extension}"'
             return response
             
     except Exception as e:
