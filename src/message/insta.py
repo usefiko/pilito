@@ -746,10 +746,19 @@ class InstaWebhook(APIView):
                 
                 # Check each message by normalizing its content
                 existing_msg = None
-                for msg in recent_messages:
+                for idx, msg in enumerate(recent_messages):
                     normalized_db_content = msg.content.strip()
+                    logger.debug(f"   [{idx+1}] Comparing with message {msg.id}:")
+                    logger.debug(f"       Type: {msg.type}")
+                    logger.debug(f"       Created: {msg.created_at}")
+                    logger.debug(f"       Content length: {len(msg.content)} -> normalized: {len(normalized_db_content)}")
+                    logger.debug(f"       First 80 chars: {normalized_db_content[:80]}...")
+                    logger.debug(f"       Match: {normalized_db_content == normalized_content}")
+                    logger.debug(f"       Metadata: {msg.metadata}")
+                    
                     if normalized_db_content == normalized_content:
                         existing_msg = msg
+                        logger.info(f"   ✅ MATCH FOUND at index {idx+1}: message {msg.id}")
                         break
                 
                 if existing_msg:
