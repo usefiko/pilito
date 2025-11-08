@@ -734,12 +734,13 @@ class InstaWebhook(APIView):
                 logger.info(f"   Conversation: {conversation.id}")
                 logger.info(f"   Time cutoff: {recent_cutoff}")
                 
-                # Check for ANY recent message (AI or support) with the SAME normalized content
+                # Check for ANY recent message (AI, support, or marketing) with the SAME normalized content
                 # We need to normalize database content too for comparison
+                # Note: 'marketing' type is used by workflow messages
                 recent_messages = Message.objects.filter(
                     conversation=conversation,
                     created_at__gte=recent_cutoff,
-                    type__in=['support', 'AI']
+                    type__in=['support', 'AI', 'marketing']
                 ).order_by('-created_at')
                 
                 logger.info(f"   Checking {recent_messages.count()} recent messages")
