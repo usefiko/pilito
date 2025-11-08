@@ -629,7 +629,44 @@ class NodeBasedWorkflowExecutionService:
                                     elif getattr(customer, 'source', '') == 'instagram':
                                         svc = InstagramService.get_service_for_conversation(conversation)
                                         if svc:
-                                            svc.send_message_to_customer(customer, msg.content)
+                                            logger.info(f"📤 [Node] Sending Instagram message...")
+                                            logger.info(f"   Conversation: {conversation.id}")
+                                            logger.info(f"   Message ID: {msg.id}")
+                                            logger.info(f"   Content (first 80 chars): {msg.content[:80]}...")
+                                            logger.info(f"   Content length: {len(msg.content)}")
+                                            
+                                            send_res = svc.send_message_to_customer(customer, msg.content)
+                                            
+                                            if send_res.get('success'):
+                                                logger.info(f"✅ [Node] Instagram message sent successfully")
+                                                logger.info(f"   Instagram message_id: {send_res.get('message_id')}")
+                                            else:
+                                                logger.warning(f"❌ [Node] Instagram message send failed: {send_res.get('error')}")
+                                            
+                                            # ✅ Mark message as sent to prevent webhook duplicate
+                                            if send_res.get('success'):
+                                                from django.core.cache import cache
+                                                import hashlib
+                                                
+                                                message_hash = hashlib.md5(
+                                                    f"{conversation.id}:{msg.content}".encode()
+                                                ).hexdigest()
+                                                cache_key = f"instagram_sent_msg_{message_hash}"
+                                                cache.set(cache_key, True, timeout=60)
+                                                logger.info(f"📝 [Node] Cached sent message to prevent webhook duplicate")
+                                                logger.info(f"   Cache key: {cache_key}")
+                                                logger.info(f"   Cache timeout: 60 seconds")
+                                                
+                                                # Update message metadata
+                                                if send_res.get('message_id') and msg:
+                                                    msg.metadata = msg.metadata or {}
+                                                    msg.metadata['external_message_id'] = str(send_res.get('message_id'))
+                                                    msg.metadata['sent_from_app'] = True
+                                                    msg.save(update_fields=['metadata'])
+                                                    logger.info(f"📝 [Node] Stored Instagram message_id in metadata")
+                                                    logger.info(f"   Message ID: {msg.id}")
+                                                    logger.info(f"   External message_id: {send_res.get('message_id')}")
+                                                    logger.info(f"   Metadata: {msg.metadata}")
                             except Exception as se:
                                 logger.warning(f"Failed to send external channel message (node-based): {se}")
                             channel_layer = get_channel_layer()
@@ -1741,7 +1778,44 @@ class NodeBasedWorkflowExecutionService:
                                     elif getattr(customer, 'source', '') == 'instagram':
                                         svc = InstagramService.get_service_for_conversation(conversation)
                                         if svc:
-                                            svc.send_message_to_customer(customer, msg.content)
+                                            logger.info(f"📤 [Node] Sending Instagram message...")
+                                            logger.info(f"   Conversation: {conversation.id}")
+                                            logger.info(f"   Message ID: {msg.id}")
+                                            logger.info(f"   Content (first 80 chars): {msg.content[:80]}...")
+                                            logger.info(f"   Content length: {len(msg.content)}")
+                                            
+                                            send_res = svc.send_message_to_customer(customer, msg.content)
+                                            
+                                            if send_res.get('success'):
+                                                logger.info(f"✅ [Node] Instagram message sent successfully")
+                                                logger.info(f"   Instagram message_id: {send_res.get('message_id')}")
+                                            else:
+                                                logger.warning(f"❌ [Node] Instagram message send failed: {send_res.get('error')}")
+                                            
+                                            # ✅ Mark message as sent to prevent webhook duplicate
+                                            if send_res.get('success'):
+                                                from django.core.cache import cache
+                                                import hashlib
+                                                
+                                                message_hash = hashlib.md5(
+                                                    f"{conversation.id}:{msg.content}".encode()
+                                                ).hexdigest()
+                                                cache_key = f"instagram_sent_msg_{message_hash}"
+                                                cache.set(cache_key, True, timeout=60)
+                                                logger.info(f"📝 [Node] Cached sent message to prevent webhook duplicate")
+                                                logger.info(f"   Cache key: {cache_key}")
+                                                logger.info(f"   Cache timeout: 60 seconds")
+                                                
+                                                # Update message metadata
+                                                if send_res.get('message_id') and msg:
+                                                    msg.metadata = msg.metadata or {}
+                                                    msg.metadata['external_message_id'] = str(send_res.get('message_id'))
+                                                    msg.metadata['sent_from_app'] = True
+                                                    msg.save(update_fields=['metadata'])
+                                                    logger.info(f"📝 [Node] Stored Instagram message_id in metadata")
+                                                    logger.info(f"   Message ID: {msg.id}")
+                                                    logger.info(f"   External message_id: {send_res.get('message_id')}")
+                                                    logger.info(f"   Metadata: {msg.metadata}")
                             except Exception as se:
                                 logger.warning(f"Failed to send external channel retry message (waiting-node): {se}")
 

@@ -147,12 +147,25 @@ class SendMessageAPIView(APIView):
     def _send_instagram_message(self, conversation, customer, content):
         """Send message via Instagram API"""
         try:
+            logger.info(f"📤 [Support] Sending Instagram message...")
+            logger.info(f"   Conversation: {conversation.id}")
+            logger.info(f"   Customer: {customer.id}")
+            logger.info(f"   Content (first 80 chars): {content[:80]}...")
+            logger.info(f"   Content length: {len(content)}")
+            
             instagram_service = InstagramService.get_service_for_conversation(conversation)
             if not instagram_service:
+                logger.warning(f"❌ [Support] Instagram service not available")
                 return {'success': False, 'error': 'Instagram service not available'}
             
             result = instagram_service.send_message_to_customer(customer, content)
             logger.info(f"Instagram send result for conversation {conversation.id}: {result}")
+            
+            if result.get('success'):
+                logger.info(f"✅ [Support] Instagram message sent successfully")
+                logger.info(f"   Instagram message_id: {result.get('message_id')}")
+            else:
+                logger.warning(f"❌ [Support] Instagram message send failed: {result.get('error')}")
             
             # ✅ Mark message as sent in cache to prevent duplicate from webhook
             if result.get('success'):
@@ -164,7 +177,9 @@ class SendMessageAPIView(APIView):
                 ).hexdigest()
                 cache_key = f"instagram_sent_msg_{message_hash}"
                 cache.set(cache_key, True, timeout=60)
-                logger.debug(f"📝 Cached sent support message to prevent webhook duplicate: {cache_key}")
+                logger.info(f"📝 [Support] Cached sent message to prevent webhook duplicate")
+                logger.info(f"   Cache key: {cache_key}")
+                logger.info(f"   Cache timeout: 60 seconds")
             
             return result
             

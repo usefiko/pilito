@@ -476,9 +476,46 @@ class WorkflowExecutionService:
                     from message.services.instagram_service import InstagramService
                     svc = InstagramService.get_service_for_conversation(conversation)
                     if svc:
+                        logger.info(f"📤 [Workflow] Sending Instagram message...")
+                        logger.info(f"   Conversation: {conversation.id}")
+                        logger.info(f"   Customer: {customer.id}")
+                        logger.info(f"   Content (first 80 chars): {message_content[:80]}...")
+                        logger.info(f"   Content length: {len(message_content)}")
+                        
                         send_res = svc.send_message_to_customer(customer, message_content)
                         result['sent_to_channel'] = bool(send_res.get('success'))
                         result['channel'] = 'instagram'
+                        
+                        if send_res.get('success'):
+                            logger.info(f"✅ [Workflow] Instagram message sent successfully")
+                            logger.info(f"   Instagram message_id: {send_res.get('message_id')}")
+                        else:
+                            logger.warning(f"❌ [Workflow] Instagram message send failed: {send_res.get('error')}")
+                        
+                        # ✅ Mark message as sent to prevent webhook duplicate
+                        if send_res.get('success'):
+                            from django.core.cache import cache
+                            import hashlib
+                            
+                            message_hash = hashlib.md5(
+                                f"{conversation.id}:{message_content}".encode()
+                            ).hexdigest()
+                            cache_key = f"instagram_sent_msg_{message_hash}"
+                            cache.set(cache_key, True, timeout=60)
+                            logger.info(f"📝 [Workflow] Cached sent message to prevent webhook duplicate")
+                            logger.info(f"   Cache key: {cache_key}")
+                            logger.info(f"   Cache timeout: 60 seconds")
+                            
+                            # Also update message metadata if message_id is available
+                            if send_res.get('message_id') and message:
+                                message.metadata = message.metadata or {}
+                                message.metadata['external_message_id'] = str(send_res.get('message_id'))
+                                message.metadata['sent_from_app'] = True
+                                message.save(update_fields=['metadata'])
+                                logger.info(f"📝 [Workflow] Stored Instagram message_id in metadata")
+                                logger.info(f"   Message ID: {message.id}")
+                                logger.info(f"   External message_id: {send_res.get('message_id')}")
+                                logger.info(f"   Metadata: {message.metadata}")
                     else:
                         logger.warning("Instagram service not available for this conversation")
             except Exception as e:
