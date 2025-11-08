@@ -136,3 +136,34 @@ class WizardCompleteAPIView(APIView):
             "missing_fields": missing_fields,
             "details": details
         }, status=status.HTTP_200_OK)
+
+
+class WizardCompleteForceAPIView(APIView):
+    """
+    Force complete the wizard without checking any prerequisites.
+    Sets wizard_complete to True directly.
+    """
+    serializer_class = WizardCompleteSerializer
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, *args, **kwargs):
+        """
+        Force complete the wizard by setting wizard_complete to True
+        without checking any prerequisites.
+        """
+        user = request.user
+        
+        # Set wizard_complete to True without any checks
+        data = {"wizard_complete": True}
+        serializer = self.serializer_class(user, data=data, partial=True)
+        
+        if serializer.is_valid():
+            serializer.save()
+            logger.info(f"Wizard force completed for user: {user.email}")
+            return Response({
+                "success": True,
+                "message": "Wizard force completed successfully",
+                "wizard_complete": True
+            }, status=status.HTTP_200_OK)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

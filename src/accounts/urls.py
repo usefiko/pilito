@@ -1,5 +1,5 @@
 from django.urls import path
-from accounts.api import LoginAPIView,RegisterView,CompleteRegisterView,Refresh,RefreshAccess,Logout,Profile,ProfilePicture,ProfilePictureRemove,ChangePasswordAPIView,DeleteAccountAPIView,WizardCompleteAPIView,ForgetPasswordAPIView,ResetPasswordAPIView,GoogleOAuthLoginAPIView,GoogleOAuthCodeAPIView,GoogleOAuthAuthURLAPIView,GoogleOAuthTestAPIView,UserOverview,SendOTPAPIView,VerifyOTPAPIView,AddEmailSendCodeAPIView,AddEmailVerifyCodeAPIView,AddPhoneSendOTPAPIView,AddPhoneVerifyOTPAPIView
+from accounts.api import LoginAPIView,RegisterView,CompleteRegisterView,Refresh,RefreshAccess,Logout,Profile,ProfilePicture,ProfilePictureRemove,ChangePasswordAPIView,DeleteAccountAPIView,WizardCompleteAPIView,WizardCompleteForceAPIView,ForgetPasswordAPIView,ResetPasswordAPIView,GoogleOAuthLoginAPIView,GoogleOAuthCodeAPIView,GoogleOAuthAuthURLAPIView,GoogleOAuthTestAPIView,UserOverview,SendOTPAPIView,VerifyOTPAPIView,AddEmailSendCodeAPIView,AddEmailVerifyCodeAPIView,AddPhoneSendOTPAPIView,AddPhoneVerifyOTPAPIView
 from accounts.api.intercom import IntercomJWTView, IntercomConfigView, IntercomUserHashView, IntercomValidateJWTView
 from accounts.api.email_confirmation import EmailConfirmationAPIView, ResendEmailConfirmationAPIView, EmailConfirmationStatusAPIView
 from accounts.api.auth_status import AuthStatusAPIView, DashboardAccessAPIView
@@ -18,6 +18,7 @@ urlpatterns = [
     path("change-password", ChangePasswordAPIView.as_view(), name="change-password"),
     path("delete-account", DeleteAccountAPIView.as_view(), name="delete-account"),
     path("wizard-complete", WizardCompleteAPIView.as_view(), name="wizard-complete"),
+    path("wizard-complete/force", WizardCompleteForceAPIView.as_view(), name="wizard-complete-force"),
     path("forget-password", ForgetPasswordAPIView.as_view(), name="forget-password"),
     path("reset-password", ResetPasswordAPIView.as_view(), name="reset-password"),
     # Google OAuth endpoints
