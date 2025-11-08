@@ -118,3 +118,44 @@ class ConversationItemAPIView(APIView):
             {"message": "Conversation deleted successfully"}, 
             status=status.HTTP_204_NO_CONTENT
         )
+
+
+class ActivateAllUserConversationsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    @swagger_auto_schema(
+        operation_description="Activate all conversations of the authenticated user (set status to 'active')",
+        responses={
+            200: openapi.Response(
+                description="All conversations activated successfully",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'updated_count': openapi.Schema(type=openapi.TYPE_INTEGER)
+                    }
+                )
+            ),
+            400: "Bad request"
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        try:
+            # Get all conversations of the authenticated user
+            conversations = Conversation.objects.filter(user=request.user)
+            
+            # Update all conversations to status='active'
+            updated_count = conversations.update(status='active')
+            
+            return Response(
+                {
+                    "message": f"Successfully activated {updated_count} conversation(s)",
+                    "updated_count": updated_count
+                },
+                status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            return Response(
+                {"error": f"Error: {str(e)}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
