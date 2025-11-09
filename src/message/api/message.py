@@ -125,8 +125,8 @@ def submit_message_feedback(request, message_id):
         message.feedback_at = timezone.now()
         message.save(update_fields=['feedback', 'feedback_comment', 'feedback_at'])
         
-        # If positive feedback, create QAPair in web_knowledge
-        if feedback_type == 'positive':
+        # If positive or negative feedback, create QAPair in web_knowledge
+        if feedback_type in ['positive', 'negative']:
             try:
                 # Find the previous message in the same conversation
                 previous_message = Message.objects.filter(
@@ -135,16 +135,28 @@ def submit_message_feedback(request, message_id):
                 ).order_by('-created_at').first()
                 
                 if previous_message:
-                    # Create QAPair with previous message as question and current message as answer
-                    QAPair.objects.create(
-                        question=previous_message.content,
-                        answer=message.content,
-                        user=message.conversation.user,
-                        created_by_ai=True,
-                        generation_status='completed',
-                        confidence_score=1.0,  # High confidence since it's user-validated
-                        context='',  # Can be empty or add conversation context if needed
-                    )
+                    if feedback_type == 'positive':
+                        # For positive feedback: previous message as question, current message as answer
+                        QAPair.objects.create(
+                            question=previous_message.content,
+                            answer=message.content,
+                            user=message.conversation.user,
+                            created_by_ai=True,
+                            generation_status='completed',
+                            confidence_score=1.0,  # High confidence since it's user-validated
+                            context='',  # Can be empty or add conversation context if needed
+                        )
+                    elif feedback_type == 'negative' and comment:
+                        # For negative feedback: previous message as question, comment as answer
+                        QAPair.objects.create(
+                            question=previous_message.content,
+                            answer=comment,
+                            user=message.conversation.user,
+                            created_by_ai=True,
+                            generation_status='completed',
+                            confidence_score=1.0,  # High confidence since it's user-validated
+                            context='',  # Can be empty or add conversation context if needed
+                        )
             except Exception as e:
                 # Log error but don't fail the feedback submission
                 # You might want to add logging here
