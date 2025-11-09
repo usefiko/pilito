@@ -169,9 +169,14 @@ class HybridRetriever:
         Formula: score(d) = Σ 1 / (k + rank(d))
         where k = 60 (constant), rank = position in ranking
         
+        ⭐ NEW: Priority boost for user-corrected chunks
+        User-corrected FAQs get priority multiplier from metadata
+        
         Returns:
             List of (chunk_id, hybrid_score) sorted by score
         """
+        from AI_model.models import TenantKnowledge
+        
         scores = {}
         
         # Add BM25 scores (weighted)
@@ -184,7 +189,20 @@ class HybridRetriever:
             rrf_score = cls.VECTOR_WEIGHT / (cls.RRF_K + rank)
             scores[chunk_id] = scores.get(chunk_id, 0) + rrf_score
         
-        # Sort by hybrid score
+        # ⭐ Apply priority boost from metadata
+        # Fetch chunks to get metadata
+        chunk_ids = list(scores.keys())
+        chunks = TenantKnowledge.objects.filter(id__in=chunk_ids).only('id', 'metadata')
+        
+        for chunk in chunks:
+            if chunk.metadata and 'priority' in chunk.metadata:
+                priority = float(chunk.metadata['priority'])
+                if priority > 1.0:
+                    # Boost score by priority multiplier
+                    scores[chunk.id] *= priority
+                    logger.debug(f"🌟 Boosted chunk {chunk.id} with priority {priority}")
+        
+        # Sort by hybrid score (with priority boost)
         sorted_results = sorted(scores.items(), key=lambda x: x[1], reverse=True)
         return sorted_results
     

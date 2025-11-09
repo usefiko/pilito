@@ -61,6 +61,22 @@ class IncrementalChunker:
                 logger.error(f"Failed to generate embeddings for QAPair {qa.id}")
                 return False
             
+            # ⭐ Metadata for priority system
+            # User-corrected FAQs (created_by_ai=True) get HIGH priority
+            metadata = {}
+            if qa.created_by_ai:
+                metadata['user_corrected'] = True
+                metadata['priority'] = 10.0  # 10x boost for user-corrected
+                metadata['source'] = 'feedback_correction'
+            else:
+                metadata['priority'] = 1.0  # Normal priority
+            
+            # Add other metadata
+            if hasattr(qa, 'category') and qa.category:
+                metadata['category'] = qa.category
+            if hasattr(qa, 'confidence_score') and qa.confidence_score:
+                metadata['confidence_score'] = float(qa.confidence_score)
+            
             # Create chunk
             TenantKnowledge.objects.create(
                 user=self.user,
@@ -71,10 +87,14 @@ class IncrementalChunker:
                 tldr=tldr,
                 tldr_embedding=tldr_embedding,
                 full_embedding=full_embedding,
-                word_count=len(full_text.split())
+                word_count=len(full_text.split()),
+                metadata=metadata  # ⭐ Add metadata
             )
             
-            logger.info(f"✅ Chunked QAPair {qa.id} for user {self.user.username}")
+            if qa.created_by_ai:
+                logger.info(f"✅🌟 Chunked USER-CORRECTED FAQ {qa.id} (priority: 10.0)")
+            else:
+                logger.info(f"✅ Chunked QAPair {qa.id} for user {self.user.username}")
             
             # Invalidate cache
             cache.delete(f'knowledge_stats:{self.user.id}')

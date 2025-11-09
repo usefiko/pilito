@@ -204,7 +204,24 @@ def ensure_global_ai_config():
 
 @receiver(post_save, sender='web_knowledge.QAPair')
 def on_qapair_saved_for_chunking(sender, instance, created, **kwargs):
-    """Auto-chunk QAPair when created/updated (if completed)"""
+    """
+    Auto-chunk QAPair when created/updated
+    
+    Rules:
+    1. If created_by_ai=True (user-corrected): ALWAYS chunk immediately ⭐
+    2. If AI-generated: only chunk if generation_status='completed'
+    """
+    # ⭐ Priority 1: User-corrected FAQs (from feedback system)
+    # These should ALWAYS be chunked immediately
+    if instance.created_by_ai:
+        # Check that it has question and answer
+        if instance.question and instance.answer:
+            from AI_model.tasks import chunk_qapair_async
+            chunk_qapair_async.apply_async(args=[str(instance.id)], countdown=2)
+            logger.info(f"🌟 Queued USER-CORRECTED FAQ for chunking: {instance.id}")
+            return
+    
+    # Priority 2: AI-generated FAQs (only if completed)
     if instance.generation_status != 'completed':
         return
     
