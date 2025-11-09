@@ -176,6 +176,24 @@ class GeminiChatService:
             # Build the prompt with conversation context
             prompt = self._build_prompt(customer_message, conversation)
             
+            # ✅ LOG FULL PROMPT FOR DEBUGGING
+            logger.info("=" * 100)
+            logger.info("🔍 FULL PROMPT SENT TO AI:")
+            logger.info("=" * 100)
+            logger.info(prompt)
+            logger.info("=" * 100)
+            
+            # Check if critical rules are present
+            if "Anti-Hallucination" in prompt or "NEVER promise" in prompt or "NEVER say" in prompt:
+                logger.info("✅ Anti-Hallucination rules FOUND in prompt")
+            else:
+                logger.warning("❌ Anti-Hallucination rules NOT FOUND in prompt!")
+            
+            if "Link" in prompt and ("FULL URLs" in prompt or "placeholder" in prompt):
+                logger.info("✅ Link Handling rules FOUND in prompt")
+            else:
+                logger.warning("❌ Link Handling rules NOT FOUND in prompt!")
+            
             # Generate content using Gemini (safety_settings already set in model initialization)
             response = self.model.generate_content(prompt)
             
@@ -843,6 +861,13 @@ Provide a concise summary (max 100 words):"""
             
             final_prompt = "\n".join(prompt_parts)
             
+            # ✅ LOG FINAL PROMPT FOR DEBUGGING
+            logger.info("=" * 100)
+            logger.info("🔍 FINAL PROMPT BUILT (after trimming):")
+            logger.info("=" * 100)
+            logger.info(final_prompt)
+            logger.info("=" * 100)
+            
             logger.info(
                 f"✅ Lean RAG prompt built: {trimmed['total_tokens']} tokens "
                 f"(system: {trimmed['system_prompt_tokens']}, "
@@ -959,6 +984,24 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
             
             # Combine all parts
             full_prompt = "\n\n".join(prompt_parts)
+            
+            # ✅ LOG SYSTEM PROMPT FOR DEBUGGING
+            logger.info("=" * 80)
+            logger.info("🔍 SYSTEM PROMPT (from GeneralSettings):")
+            logger.info("=" * 80)
+            logger.info(full_prompt)
+            logger.info("=" * 80)
+            
+            # Check if critical rules are in system prompt
+            if "Anti-Hallucination" in full_prompt or "NEVER promise" in full_prompt or "NEVER say" in full_prompt:
+                logger.info("✅ Anti-Hallucination rules FOUND in system prompt")
+            else:
+                logger.warning("❌ Anti-Hallucination rules NOT FOUND in system prompt!")
+            
+            if "Link" in full_prompt and ("FULL URLs" in full_prompt or "placeholder" in full_prompt):
+                logger.info("✅ Link Handling rules FOUND in system prompt")
+            else:
+                logger.warning("❌ Link Handling rules NOT FOUND in system prompt!")
             
             # NO TRIMMING! Let TokenBudgetController handle token limits
             # Manual prompt chunks will be added via RAG context retrieval
