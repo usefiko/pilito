@@ -91,11 +91,15 @@ class QueryRouter:
                 'secondary_sources': ['products'],
                 'token_budgets': {'primary': 800, 'secondary': 300},
                 'keywords_matched': ['قیمت', 'پلن'],
+                'detected_product': 'کت هرمس',
                 'method': 'keyword_based'
             }
         """
         if not user_message or not user_message.strip():
             return cls._get_default_routing()
+        
+        # 🔍 Product Name Detection (before intent classification)
+        detected_product = cls._detect_product_name(user_message, user)
         
         # Load keywords (from DB or defaults)
         keywords = cls._load_keywords(user)
@@ -131,9 +135,17 @@ class QueryRouter:
         # Get routing config
         routing = cls._load_routing_config(best_intent)
         
+        # 🎯 Dynamic Routing: Add 'products' if product detected
+        routing = cls._enhance_routing_with_product(
+            routing=routing,
+            detected_product=detected_product,
+            intent=best_intent
+        )
+        
         logger.info(
             f"🎯 Intent: {best_intent} (confidence: {confidence:.2f}) "
             f"→ {routing['primary_source']} | Keywords: {matched_keywords[:3]}"
+            f"{' | Product: ' + detected_product if detected_product else ''}"
         )
         
         return {
@@ -143,6 +155,7 @@ class QueryRouter:
             'secondary_sources': routing['secondary_sources'],
             'token_budgets': routing['token_budget'],
             'keywords_matched': matched_keywords,
+            'detected_product': detected_product,
             'method': 'keyword_based'
         }
     
@@ -264,6 +277,139 @@ class QueryRouter:
             'secondary_sources': ['manual'],
             'token_budgets': {'primary': 800, 'secondary': 300},
             'keywords_matched': [],
+            'detected_product': None,
             'method': 'keyword_based'
         }
+    
+    @classmethod
+    def _detect_product_name(cls, user_message: str, user) -> str:
+        """
+        Detect product name in user query
+        
+        Strategy:
+        1. Exact match: "کت هرمس" in query
+        2. Partial match: "کت هرمس" matches "کت هرمس Elmos"
+        3. Fuzzy match: First 2-3 words of product title
+        
+        Args:
+            user_message: User's question
+            user: User instance
+            
+        Returns:
+            Product title if found, None otherwise
+        """
+        if not user or not user_message:
+            return None
+        
+        try:
+            from web_knowledge.models import Product
+            
+            # Get active products (cached for 5 minutes)
+            cache_key = f"active_products:{user.id}"
+            products = cache.get(cache_key)
+            
+            if products is None:
+                products = list(Product.objects.filter(
+                    user=user,
+                    is_active=True
+                ).values_list('title', flat=True))
+                
+                # Cache for 5 minutes
+                cache.set(cache_key, products, 300)
+            
+            if not products:
+                return None
+            
+            query_lower = user_message.lower()
+            
+            # 1. Exact match (full product name in query)
+            for title in products:
+                title_lower = title.lower()
+                if title_lower in query_lower:
+                    logger.debug(f"🔍 Product detected (exact): '{title}'")
+                    return title
+            
+            # 2. Partial match (query contains product name)
+            for title in products:
+                title_lower = title.lower()
+                if query_lower in title_lower:
+                    logger.debug(f"🔍 Product detected (partial): '{title}'")
+                    return title
+            
+            # 3. Fuzzy match (first 2-3 words of product title)
+            for title in products:
+                title_words = title.lower().split()
+                
+                # Try first 2 words
+                if len(title_words) >= 2:
+                    first_two = ' '.join(title_words[:2])
+                    if first_two in query_lower:
+                        logger.debug(f"🔍 Product detected (fuzzy 2-word): '{title}'")
+                        return title
+                
+                # Try first 3 words (for longer product names)
+                if len(title_words) >= 3:
+                    first_three = ' '.join(title_words[:3])
+                    if first_three in query_lower:
+                        logger.debug(f"🔍 Product detected (fuzzy 3-word): '{title}'")
+                        return title
+            
+            # No product found
+            return None
+            
+        except Exception as e:
+            logger.warning(f"⚠️ Product detection failed: {e}")
+            return None
+    
+    @classmethod
+    def _enhance_routing_with_product(
+        cls,
+        routing: Dict,
+        detected_product: str,
+        intent: str
+    ) -> Dict:
+        """
+        Enhance routing by adding 'products' to secondary sources if product detected
+        
+        Rules:
+        1. If product detected AND 'products' not in primary/secondary → add to secondary
+        2. If intent is already 'product' → don't modify (already optimal)
+        3. If intent is 'pricing' → don't modify ('products' already in secondary)
+        4. Otherwise → add 'products' to secondary sources
+        
+        Args:
+            routing: Current routing configuration
+            detected_product: Detected product name (or None)
+            intent: Classified intent
+            
+        Returns:
+            Enhanced routing configuration
+        """
+        # Make a copy to avoid modifying original
+        routing = routing.copy()
+        routing['secondary_sources'] = routing['secondary_sources'].copy()
+        
+        if not detected_product:
+            # No product detected, return as-is
+            return routing
+        
+        # Check if 'products' is already in primary or secondary
+        if routing['primary_source'] == 'products':
+            # Already optimal (intent is 'product')
+            logger.debug("✅ Product intent already routes to products (no change)")
+            return routing
+        
+        if 'products' in routing['secondary_sources']:
+            # Already included (e.g., intent is 'pricing')
+            logger.debug("✅ Products already in secondary sources (no change)")
+            return routing
+        
+        # Add 'products' to secondary sources
+        routing['secondary_sources'].append('products')
+        logger.info(
+            f"🎯 Product detected ('{detected_product}') → "
+            f"Added 'products' to secondary sources for intent '{intent}'"
+        )
+        
+        return routing
 
