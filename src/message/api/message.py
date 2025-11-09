@@ -10,6 +10,7 @@ from rest_framework.pagination import PageNumberPagination
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from django.utils import timezone
+from web_knowledge.models import QAPair
 
 
 class CustomPagination(PageNumberPagination):
@@ -123,6 +124,31 @@ def submit_message_feedback(request, message_id):
         message.feedback_comment = comment
         message.feedback_at = timezone.now()
         message.save(update_fields=['feedback', 'feedback_comment', 'feedback_at'])
+        
+        # If positive feedback, create QAPair in web_knowledge
+        if feedback_type == 'positive':
+            try:
+                # Find the previous message in the same conversation
+                previous_message = Message.objects.filter(
+                    conversation=message.conversation,
+                    created_at__lt=message.created_at
+                ).order_by('-created_at').first()
+                
+                if previous_message:
+                    # Create QAPair with previous message as question and current message as answer
+                    QAPair.objects.create(
+                        question=previous_message.content,
+                        answer=message.content,
+                        user=message.conversation.user,
+                        created_by_ai=True,
+                        generation_status='completed',
+                        confidence_score=1.0,  # High confidence since it's user-validated
+                        context='',  # Can be empty or add conversation context if needed
+                    )
+            except Exception as e:
+                # Log error but don't fail the feedback submission
+                # You might want to add logging here
+                pass
         
         return Response(
             {
