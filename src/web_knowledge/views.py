@@ -711,8 +711,8 @@ class QAPairViewSet(viewsets.ModelViewSet):
         qa_data = {
             'id': str(qa_pair.id),
             'question': qa_pair.question,
-            'page_title': qa_pair.page.title,
-            'website_name': qa_pair.page.website.name
+            'page_title': qa_pair.page.title if qa_pair.page else None,
+            'website_name': qa_pair.page.website.name if qa_pair.page and qa_pair.page.website else None
         }
         
         # Delete the Q&A pair
@@ -749,10 +749,11 @@ class QAPairViewSet(viewsets.ModelViewSet):
                 'error': 'qa_pair_ids is required'
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        # Get Q&A pairs that belong to the user
+        # Get Q&A pairs that belong to the user (either through page->website or directly by user)
         qa_pairs = QAPair.objects.filter(
-            id__in=qa_pair_ids,
-            page__website__user=request.user
+            id__in=qa_pair_ids
+        ).filter(
+            Q(page__website__user=request.user) | Q(user=request.user)
         )
         
         if not qa_pairs.exists():
@@ -766,8 +767,8 @@ class QAPairViewSet(viewsets.ModelViewSet):
             deleted_qa_info.append({
                 'id': str(qa_pair.id),
                 'question': qa_pair.question,
-                'page_title': qa_pair.page.title,
-                'website_name': qa_pair.page.website.name
+                'page_title': qa_pair.page.title if qa_pair.page else None,
+                'website_name': qa_pair.page.website.name if qa_pair.page and qa_pair.page.website else None
             })
         
         # Delete the Q&A pairs
