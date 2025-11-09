@@ -859,6 +859,18 @@ Provide a concise summary (max 100 words):"""
                 + memory_guidance
             )
             
+            # ✅ REINFORCE CRITICAL RULES at the end (after trimming) for maximum impact
+            critical_rules = trimmed.get('critical_rules', '')
+            if critical_rules:
+                prompt_parts.append(
+                    "\n\n" + "=" * 80 +
+                    "\n🚨🚨🚨 CRITICAL RULES - MUST FOLLOW (READ CAREFULLY):" +
+                    "\n" + "=" * 80 +
+                    "\n" + critical_rules +
+                    "\n" + "=" * 80
+                )
+                logger.info("✅ Critical rules reinforced at end of prompt")
+            
             final_prompt = "\n".join(prompt_parts)
             
             # ✅ LOG FINAL PROMPT FOR DEBUGGING

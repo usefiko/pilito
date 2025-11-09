@@ -83,15 +83,37 @@ class TokenBudgetController:
         result['user_query_tokens'] = user_query_tokens
         
         # 2. System prompt (mandatory)
+        # ✅ Extract CRITICAL rules before trimming to preserve them
         system_prompt = components.get('system_prompt', '')
+        critical_rules = cls._extract_critical_rules(system_prompt)
+        
         system_prompt_tokens = cls._count_tokens(system_prompt)
         
         if system_prompt_tokens > cls.BUDGET['system_prompt']:
-            system_prompt = cls._trim_text_to_tokens(system_prompt, cls.BUDGET['system_prompt'])
-            system_prompt_tokens = cls.BUDGET['system_prompt']
+            # Trim system prompt but preserve critical rules
+            trimmed_prompt = cls._trim_text_to_tokens(system_prompt, cls.BUDGET['system_prompt'])
+            # Re-add critical rules if they were removed
+            if critical_rules and critical_rules not in trimmed_prompt:
+                # Calculate space for critical rules
+                critical_tokens = cls._count_tokens(critical_rules)
+                available_space = cls.BUDGET['system_prompt'] - cls._count_tokens(trimmed_prompt)
+                if available_space >= critical_tokens:
+                    system_prompt = trimmed_prompt + "\n\n" + critical_rules
+                else:
+                    # If no space, trim more to make room for critical rules
+                    space_for_prompt = cls.BUDGET['system_prompt'] - critical_tokens - 20  # 20 for separator
+                    if space_for_prompt > 100:  # At least 100 tokens for main prompt
+                        system_prompt = cls._trim_text_to_tokens(system_prompt, space_for_prompt) + "\n\n" + critical_rules
+                    else:
+                        # Critical rules are more important, keep them
+                        system_prompt = trimmed_prompt + "\n\n" + critical_rules
+            else:
+                system_prompt = trimmed_prompt
+            system_prompt_tokens = cls._count_tokens(system_prompt)
         
         result['system_prompt'] = system_prompt
         result['system_prompt_tokens'] = system_prompt_tokens
+        result['critical_rules'] = critical_rules  # Store for later use
         
         # 2.5. Bio context for personalization (optional, Instagram only)
         bio_context = components.get('bio_context', '')
@@ -340,4 +362,80 @@ class TokenBudgetController:
                 break
         
         return trimmed, total_tokens
+    
+    @classmethod
+    def _extract_critical_rules(cls, system_prompt: str) -> str:
+        """
+        Extract CRITICAL rules (Anti-Hallucination and Link Handling) from system prompt
+        These rules MUST be preserved even if system prompt is trimmed
+        
+        Args:
+            system_prompt: Full system prompt text
+            
+        Returns:
+            Extracted critical rules as string, or empty string if not found
+        """
+        if not system_prompt:
+            return ""
+        
+        critical_sections = []
+        
+        # Extract Anti-Hallucination rules
+        if "🚨 CRITICAL - Anti-Hallucination:" in system_prompt or "CRITICAL - Anti-Hallucination:" in system_prompt:
+            # Find the section
+            start_marker = "🚨 CRITICAL - Anti-Hallucination:" if "🚨 CRITICAL - Anti-Hallucination:" in system_prompt else "CRITICAL - Anti-Hallucination:"
+            start_idx = system_prompt.find(start_marker)
+            
+            if start_idx != -1:
+                # Find the end of this section (next section marker or end of prompt)
+                remaining = system_prompt[start_idx:]
+                end_markers = [
+                    "🔗 CRITICAL - Links & URLs:",
+                    "🔗 CRITICAL - Links",
+                    "⚡ Additional Instructions:",
+                    "🎓 Pilito",
+                    "🔹 SCENARIO:"
+                ]
+                
+                end_idx = len(remaining)
+                for marker in end_markers:
+                    marker_idx = remaining.find(marker, len(start_marker))
+                    if marker_idx != -1 and marker_idx < end_idx:
+                        end_idx = marker_idx
+                
+                anti_hallucination = remaining[:end_idx].strip()
+                if anti_hallucination:
+                    critical_sections.append(anti_hallucination)
+        
+        # Extract Link Handling rules
+        if "🔗 CRITICAL - Links & URLs:" in system_prompt or "🔗 CRITICAL - Links" in system_prompt:
+            # Find the section
+            start_marker = "🔗 CRITICAL - Links & URLs:" if "🔗 CRITICAL - Links & URLs:" in system_prompt else "🔗 CRITICAL - Links"
+            start_idx = system_prompt.find(start_marker)
+            
+            if start_idx != -1:
+                # Find the end of this section (next section marker or end of prompt)
+                remaining = system_prompt[start_idx:]
+                end_markers = [
+                    "🚨 CRITICAL - Anti-Hallucination:",
+                    "⚡ Additional Instructions:",
+                    "🎓 Pilito",
+                    "🔹 SCENARIO:"
+                ]
+                
+                end_idx = len(remaining)
+                for marker in end_markers:
+                    marker_idx = remaining.find(marker, len(start_marker))
+                    if marker_idx != -1 and marker_idx < end_idx:
+                        end_idx = marker_idx
+                
+                link_handling = remaining[:end_idx].strip()
+                if link_handling:
+                    critical_sections.append(link_handling)
+        
+        # Combine all critical sections
+        if critical_sections:
+            return "\n\n".join(critical_sections)
+        
+        return ""
 
