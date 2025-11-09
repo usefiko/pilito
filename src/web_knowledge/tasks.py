@@ -1012,10 +1012,12 @@ def generate_prompt_async_task(self, user_id: int, manual_prompt: str) -> Dict[s
     # Update status to processing
     cache.set(f'prompt_generation_{task_id}', {
         'status': 'processing',
+        'status_fa': 'در حال پردازش',
         'progress': 10,
         'message': 'Initializing AI generation...',
+        'message_fa': 'در حال راه‌اندازی تولید هوش مصنوعی...',
         'created_at': timezone.now().isoformat()
-    }, timeout=600)  # 10 minutes
+    }, timeout=300)  # 5 minutes (reduced from 10)
     
     try:
         user = User.objects.get(id=user_id)
@@ -1031,10 +1033,12 @@ def generate_prompt_async_task(self, user_id: int, manual_prompt: str) -> Dict[s
         # Update status
         cache.set(f'prompt_generation_{task_id}', {
             'status': 'processing',
+            'status_fa': 'در حال پردازش',
             'progress': 30,
             'message': 'Checking tokens...',
+            'message_fa': 'در حال بررسی توکن‌ها...',
             'created_at': timezone.now().isoformat()
-        }, timeout=600)
+        }, timeout=300)
         
         # ✅ CHECK TOKENS AND SUBSCRIPTION BEFORE AI USAGE
         from billing.utils import check_ai_access_for_user
@@ -1050,14 +1054,16 @@ def generate_prompt_async_task(self, user_id: int, manual_prompt: str) -> Dict[s
             logger.error(f"Token check failed for async prompt enhancement: {error_message}")
             cache.set(f'prompt_generation_{task_id}', {
                 'status': 'failed',
+                'status_fa': 'ناموفق',
                 'progress': 100,
                 'message': error_message,
+                'message_fa': f'خطا: {error_message}',
                 'error': error_message,
                 'error_code': access_check['reason'],
                 'tokens_remaining': access_check['tokens_remaining'],
                 'days_remaining': access_check['days_remaining'],
                 'created_at': timezone.now().isoformat()
-            }, timeout=600)
+            }, timeout=300)
             return {
                 'success': False,
                 'error': error_message,
@@ -1069,10 +1075,12 @@ def generate_prompt_async_task(self, user_id: int, manual_prompt: str) -> Dict[s
         # Update status
         cache.set(f'prompt_generation_{task_id}', {
             'status': 'processing',
+            'status_fa': 'در حال پردازش',
             'progress': 50,
             'message': 'Generating enhanced prompt with AI...',
+            'message_fa': 'در حال تولید پرامپت بهبود یافته با هوش مصنوعی...',
             'created_at': timezone.now().isoformat()
-        }, timeout=600)
+        }, timeout=300)
         
         # Generate with AI
         try:
@@ -1088,13 +1096,13 @@ def generate_prompt_async_task(self, user_id: int, manual_prompt: str) -> Dict[s
                 raise ValueError("Gemini API key not configured")
             
             genai.configure(api_key=api_key)
-            model_name = 'gemini-2.5-pro'
+            model_name = 'gemini-2.0-flash-exp'  # ⚡ Faster and cheaper than 2.5-pro
             
             model = genai.GenerativeModel(
                 model_name=model_name,
                 generation_config={
                     'temperature': 0.7,
-                    'max_output_tokens': 3000,
+                    'max_output_tokens': 2000,  # Reduced from 3000 for faster generation
                 }
             )
             
@@ -1128,10 +1136,12 @@ Output ONLY the improved prompt, nothing else."""
             # Update status
             cache.set(f'prompt_generation_{task_id}', {
                 'status': 'processing',
+                'status_fa': 'در حال پردازش',
                 'progress': 70,
                 'message': 'Waiting for AI response...',
+                'message_fa': 'در انتظار پاسخ هوش مصنوعی...',
                 'created_at': timezone.now().isoformat()
-            }, timeout=600)
+            }, timeout=300)
             
             # Configure safety settings
             safety_settings = [
@@ -1155,10 +1165,12 @@ Output ONLY the improved prompt, nothing else."""
             # Update status
             cache.set(f'prompt_generation_{task_id}', {
                 'status': 'processing',
+                'status_fa': 'در حال پردازش',
                 'progress': 90,
                 'message': 'Finalizing...',
+                'message_fa': 'در حال نهایی‌سازی...',
                 'created_at': timezone.now().isoformat()
-            }, timeout=600)
+            }, timeout=300)
             
             # ✅ Extract token usage
             prompt_tokens = 0
@@ -1207,15 +1219,17 @@ Output ONLY the improved prompt, nothing else."""
             # Success - update cache
             result = {
                 'status': 'completed',
+                'status_fa': 'تکمیل شد',
                 'progress': 100,
                 'message': 'Prompt generated successfully',
+                'message_fa': 'پرامپت با موفقیت تولید شد',
                 'prompt': enhanced_prompt,
                 'generated_by_ai': True,
                 'created_at': timezone.now().isoformat(),
                 'completed_at': timezone.now().isoformat()
             }
             
-            cache.set(f'prompt_generation_{task_id}', result, timeout=600)
+            cache.set(f'prompt_generation_{task_id}', result, timeout=300)
             
             logger.info(f"Successfully generated prompt asynchronously for user {user.username}")
             
@@ -1239,7 +1253,7 @@ Output ONLY the improved prompt, nothing else."""
                     completion_tokens=0,
                     response_time_ms=0,
                     success=False,
-                    model_name='gemini-2.5-pro',
+                    model_name='gemini-2.0-flash-exp',
                     error_message=error_msg,
                     metadata={'business_type': business_type, 'async': True, 'error': error_msg}
                 )
@@ -1256,16 +1270,19 @@ Output ONLY the improved prompt, nothing else."""
             
             result = {
                 'status': 'completed',
+                'status_fa': 'تکمیل شد',
                 'progress': 100,
                 'message': 'Prompt generated (AI unavailable, using fallback)',
+                'message_fa': 'پرامپت تولید شد (هوش مصنوعی در دسترس نبود، از روش جایگزین استفاده شد)',
                 'prompt': enhanced_prompt,
                 'generated_by_ai': False,
                 'warning': 'AI generation failed, using simple combination',
+                'warning_fa': 'تولید هوش مصنوعی ناموفق بود، از ترکیب ساده استفاده شد',
                 'created_at': timezone.now().isoformat(),
                 'completed_at': timezone.now().isoformat()
             }
             
-            cache.set(f'prompt_generation_{task_id}', result, timeout=600)
+            cache.set(f'prompt_generation_{task_id}', result, timeout=300)
             
             return {
                 'success': True,
@@ -1280,11 +1297,13 @@ Output ONLY the improved prompt, nothing else."""
         # Update cache with error
         cache.set(f'prompt_generation_{task_id}', {
             'status': 'failed',
+            'status_fa': 'ناموفق',
             'progress': 100,
             'message': f'Failed to generate prompt: {str(e)}',
+            'message_fa': f'تولید پرامپت ناموفق بود: {str(e)}',
             'error': str(e),
             'created_at': timezone.now().isoformat()
-        }, timeout=600)
+        }, timeout=300)
         
         return {
             'success': False,
