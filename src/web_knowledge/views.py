@@ -1720,11 +1720,9 @@ class GeneratePromptAsyncAPIView(APIView):
             # Store initial status in cache
             from django.core.cache import cache
             cache.set(f'prompt_generation_{task.id}', {
-                'status': 'queued',
-                'status_fa': 'در صف',
+                'status': 'در صف',
                 'progress': 0,
-                'message': 'Task queued, waiting to start...',
-                'message_fa': 'در صف انتظار، منتظر شروع...',
+                'message': 'در صف انتظار، منتظر شروع...',
                 'created_at': timezone.now().isoformat()
             }, timeout=300)
             
@@ -1733,10 +1731,8 @@ class GeneratePromptAsyncAPIView(APIView):
             return Response({
                 'success': True,
                 'task_id': task.id,
-                'status': 'queued',
-                'status_fa': 'در صف',
-                'message': 'Prompt generation started. Use task_id to check status.',
-                'message_fa': 'تولید پرامپت شروع شد. از task_id برای بررسی وضعیت استفاده کنید.',
+                'status': 'در صف',
+                'message': 'تولید پرامپت شروع شد. از task_id برای بررسی وضعیت استفاده کنید.',
                 'status_url': f'/api/v1/web-knowledge/generate-prompt-async/status/{task.id}/'
             }, status=status.HTTP_202_ACCEPTED)
             
@@ -1810,18 +1806,14 @@ class GeneratePromptStatusAPIView(APIView):
                 
                 if task.state == 'PENDING':
                     return Response({
-                        'status': 'not_found',
-                        'status_fa': 'یافت نشد',
-                        'message': 'Task not found. It may have expired or never existed.',
-                        'message_fa': 'وظیفه یافت نشد. ممکن است منقضی شده باشد یا هرگز وجود نداشته باشد.'
+                        'status': 'یافت نشد',
+                        'message': 'وظیفه یافت نشد. ممکن است منقضی شده باشد یا هرگز وجود نداشته باشد.'
                     }, status=status.HTTP_404_NOT_FOUND)
                 elif task.state == 'FAILURE':
                     return Response({
-                        'status': 'failed',
-                        'status_fa': 'ناموفق',
+                        'status': 'ناموفق',
                         'progress': 100,
-                        'message': 'Task failed',
-                        'message_fa': 'وظیفه ناموفق بود',
+                        'message': 'وظیفه ناموفق بود',
                         'error': str(task.info)
                     })
                 else:
@@ -1834,11 +1826,9 @@ class GeneratePromptStatusAPIView(APIView):
                         'revoked': 'لغو شد',
                     }
                     return Response({
-                        'status': task.state.lower(),
-                        'status_fa': status_fa_map.get(task.state.lower(), task.state.lower()),
+                        'status': status_fa_map.get(task.state.lower(), task.state.lower()),
                         'progress': 0,
-                        'message': f'Task state: {task.state}',
-                        'message_fa': f'وضعیت وظیفه: {status_fa_map.get(task.state.lower(), task.state.lower())}'
+                        'message': f'وضعیت وظیفه: {status_fa_map.get(task.state.lower(), task.state.lower())}'
                     })
             
             return Response(status_data)
@@ -1846,10 +1836,8 @@ class GeneratePromptStatusAPIView(APIView):
         except Exception as e:
             logger.error(f"Error checking prompt generation status: {str(e)}")
             return Response({
-                'status': 'error',
-                'status_fa': 'خطا',
-                'message': 'Failed to check status',
-                'message_fa': 'بررسی وضعیت ناموفق بود',
+                'status': 'خطا',
+                'message': 'بررسی وضعیت ناموفق بود',
                 'error': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

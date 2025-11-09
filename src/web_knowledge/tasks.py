@@ -1011,11 +1011,9 @@ def generate_prompt_async_task(self, user_id: int, manual_prompt: str) -> Dict[s
     
     # Update status to processing
     cache.set(f'prompt_generation_{task_id}', {
-        'status': 'processing',
-        'status_fa': 'در حال پردازش',
+        'status': 'در حال پردازش',
         'progress': 10,
-        'message': 'Initializing AI generation...',
-        'message_fa': 'در حال راه‌اندازی تولید هوش مصنوعی...',
+        'message': 'در حال راه‌اندازی تولید هوش مصنوعی...',
         'created_at': timezone.now().isoformat()
     }, timeout=300)  # 5 minutes (reduced from 10)
     
@@ -1032,11 +1030,9 @@ def generate_prompt_async_task(self, user_id: int, manual_prompt: str) -> Dict[s
         
         # Update status
         cache.set(f'prompt_generation_{task_id}', {
-            'status': 'processing',
-            'status_fa': 'در حال پردازش',
+            'status': 'در حال پردازش',
             'progress': 30,
-            'message': 'Checking tokens...',
-            'message_fa': 'در حال بررسی توکن‌ها...',
+            'message': 'در حال بررسی توکن‌ها...',
             'created_at': timezone.now().isoformat()
         }, timeout=300)
         
@@ -1053,11 +1049,9 @@ def generate_prompt_async_task(self, user_id: int, manual_prompt: str) -> Dict[s
             error_message = f"{access_check['message']} (Reason: {access_check['reason']})"
             logger.error(f"Token check failed for async prompt enhancement: {error_message}")
             cache.set(f'prompt_generation_{task_id}', {
-                'status': 'failed',
-                'status_fa': 'ناموفق',
+                'status': 'ناموفق',
                 'progress': 100,
-                'message': error_message,
-                'message_fa': f'خطا: {error_message}',
+                'message': f'خطا: {error_message}',
                 'error': error_message,
                 'error_code': access_check['reason'],
                 'tokens_remaining': access_check['tokens_remaining'],
@@ -1074,11 +1068,9 @@ def generate_prompt_async_task(self, user_id: int, manual_prompt: str) -> Dict[s
         
         # Update status
         cache.set(f'prompt_generation_{task_id}', {
-            'status': 'processing',
-            'status_fa': 'در حال پردازش',
+            'status': 'در حال پردازش',
             'progress': 50,
-            'message': 'Generating enhanced prompt with AI...',
-            'message_fa': 'در حال تولید پرامپت بهبود یافته با هوش مصنوعی...',
+            'message': 'در حال تولید پرامپت بهبود یافته با هوش مصنوعی...',
             'created_at': timezone.now().isoformat()
         }, timeout=300)
         
@@ -1135,11 +1127,9 @@ Output ONLY the improved prompt, nothing else."""
             
             # Update status
             cache.set(f'prompt_generation_{task_id}', {
-                'status': 'processing',
-                'status_fa': 'در حال پردازش',
+                'status': 'در حال پردازش',
                 'progress': 70,
-                'message': 'Waiting for AI response...',
-                'message_fa': 'در انتظار پاسخ هوش مصنوعی...',
+                'message': 'در انتظار پاسخ هوش مصنوعی...',
                 'created_at': timezone.now().isoformat()
             }, timeout=300)
             
@@ -1164,11 +1154,9 @@ Output ONLY the improved prompt, nothing else."""
             
             # Update status
             cache.set(f'prompt_generation_{task_id}', {
-                'status': 'processing',
-                'status_fa': 'در حال پردازش',
+                'status': 'در حال پردازش',
                 'progress': 90,
-                'message': 'Finalizing...',
-                'message_fa': 'در حال نهایی‌سازی...',
+                'message': 'در حال نهایی‌سازی...',
                 'created_at': timezone.now().isoformat()
             }, timeout=300)
             
@@ -1218,11 +1206,9 @@ Output ONLY the improved prompt, nothing else."""
             
             # Success - update cache
             result = {
-                'status': 'completed',
-                'status_fa': 'تکمیل شد',
+                'status': 'تکمیل شد',
                 'progress': 100,
-                'message': 'Prompt generated successfully',
-                'message_fa': 'پرامپت با موفقیت تولید شد',
+                'message': 'پرامپت با موفقیت تولید شد',
                 'prompt': enhanced_prompt,
                 'generated_by_ai': True,
                 'created_at': timezone.now().isoformat(),
@@ -1269,15 +1255,12 @@ Output ONLY the improved prompt, nothing else."""
                 enhanced_prompt = manual_prompt
             
             result = {
-                'status': 'completed',
-                'status_fa': 'تکمیل شد',
+                'status': 'تکمیل شد',
                 'progress': 100,
-                'message': 'Prompt generated (AI unavailable, using fallback)',
-                'message_fa': 'پرامپت تولید شد (هوش مصنوعی در دسترس نبود، از روش جایگزین استفاده شد)',
+                'message': 'پرامپت تولید شد (هوش مصنوعی در دسترس نبود، از روش جایگزین استفاده شد)',
                 'prompt': enhanced_prompt,
                 'generated_by_ai': False,
-                'warning': 'AI generation failed, using simple combination',
-                'warning_fa': 'تولید هوش مصنوعی ناموفق بود، از ترکیب ساده استفاده شد',
+                'warning': 'تولید هوش مصنوعی ناموفق بود، از ترکیب ساده استفاده شد',
                 'created_at': timezone.now().isoformat(),
                 'completed_at': timezone.now().isoformat()
             }
@@ -1296,11 +1279,9 @@ Output ONLY the improved prompt, nothing else."""
         
         # Update cache with error
         cache.set(f'prompt_generation_{task_id}', {
-            'status': 'failed',
-            'status_fa': 'ناموفق',
+            'status': 'ناموفق',
             'progress': 100,
-            'message': f'Failed to generate prompt: {str(e)}',
-            'message_fa': f'تولید پرامپت ناموفق بود: {str(e)}',
+            'message': f'تولید پرامپت ناموفق بود: {str(e)}',
             'error': str(e),
             'created_at': timezone.now().isoformat()
         }, timeout=300)
