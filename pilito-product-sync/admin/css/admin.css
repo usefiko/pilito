@@ -1,10 +1,10 @@
-/* Fiko WooCommerce Sync - Admin Styles */
+/* Pilito Product Sync - Admin Styles */
 
-.fiko-wc-settings {
+.pilito-ps-settings {
     max-width: 900px;
 }
 
-.fiko-wc-card {
+.pilito-ps-card {
     background: #fff;
     border: 1px solid #c3c4c7;
     border-radius: 4px;
@@ -12,75 +12,74 @@
     margin-bottom: 20px;
 }
 
-.fiko-wc-card h2 {
+.pilito-ps-card h2 {
     margin-top: 0;
     color: #1d2327;
 }
 
-.fiko-wc-card h3 {
+.pilito-ps-card h3 {
     color: #1d2327;
     margin-top: 15px;
 }
 
-.fiko-wc-card ol,
-.fiko-wc-card ul {
+.pilito-ps-card ol,
+.pilito-ps-card ul {
     margin: 10px 0;
     padding-left: 25px;
 }
 
-.fiko-wc-card li {
+.pilito-ps-card li {
     margin: 8px 0;
     line-height: 1.6;
 }
 
-.fiko-wc-form .form-table th {
+.pilito-ps-form .form-table th {
     width: 200px;
 }
 
-.fiko-wc-form .regular-text {
+.pilito-ps-form .regular-text {
     width: 400px;
 }
 
-#fiko-test-connection {
+#pilito-test-connection {
     margin-right: 10px;
 }
 
-#fiko-test-result .notice {
+#pilito-test-result .notice {
     padding: 12px;
     margin: 0;
 }
 
-#fiko-test-result .notice-success {
+#pilito-test-result .notice-success {
     background: #d1e7dd;
     border-left-color: #198754;
 }
 
-#fiko-test-result .notice-error {
+#pilito-test-result .notice-error {
     background: #f8d7da;
     border-left-color: #dc3545;
 }
 
 /* Loading animation */
-.fiko-loading {
+.pilito-loading {
     display: inline-block;
     width: 16px;
     height: 16px;
     border: 2px solid #f3f3f3;
     border-top: 2px solid #0073aa;
     border-radius: 50%;
-    animation: fiko-spin 1s linear infinite;
+    animation: pilito-spin 1s linear infinite;
     vertical-align: middle;
     margin-right: 5px;
 }
 
-@keyframes fiko-spin {
+@keyframes pilito-spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
 
 /* Status icons in products list */
-.column-fiko_sync {
+.column-pilito_sync {
     width: 50px;
     text-align: center;
 }
-

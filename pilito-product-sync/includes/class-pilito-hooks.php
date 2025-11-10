@@ -6,14 +6,14 @@
 
 defined('ABSPATH') || exit;
 
-class Fiko_WC_Hooks {
+class Pilito_PS_Hooks {
     
     /**
      * Initialize hooks
      */
     public static function init() {
         // Only if token exists
-        if (!get_option('fiko_wc_api_token')) {
+        if (!get_option('pilito_ps_api_token')) {
             return;
         }
         
@@ -53,7 +53,7 @@ class Fiko_WC_Hooks {
             return;
         }
         
-        Fiko_WC_API::delete_product($post_id);
+        Pilito_PS_API::delete_product($post_id);
     }
     
     /**
@@ -76,11 +76,11 @@ class Fiko_WC_Hooks {
         }
         
         // Sync
-        Fiko_WC_API::sync_product($product_id, $event_type);
+        Pilito_PS_API::sync_product($product_id, $event_type);
     }
     
     /**
-     * Add Fiko sync column to products list
+     * Add Pilito sync column to products list
      */
     public static function add_sync_column($columns) {
         $new_columns = [];
@@ -90,7 +90,7 @@ class Fiko_WC_Hooks {
             
             // Add after 'name' column
             if ($key === 'name') {
-                $new_columns['fiko_sync'] = '🔄 Fiko';
+                $new_columns['pilito_sync'] = '🔄 Pilito';
             }
         }
         
@@ -98,24 +98,23 @@ class Fiko_WC_Hooks {
     }
     
     /**
-     * Render Fiko sync column
+     * Render Pilito sync column
      */
     public static function render_sync_column($column, $post_id) {
-        if ($column !== 'fiko_sync') {
+        if ($column !== 'pilito_sync') {
             return;
         }
         
-        $status = get_post_meta($post_id, '_fiko_sync_status', true);
-        $last_sync = get_post_meta($post_id, '_fiko_last_sync', true);
+        $status = get_post_meta($post_id, '_pilito_sync_status', true);
+        $last_sync = get_post_meta($post_id, '_pilito_last_sync', true);
         
         if ($status === 'success') {
             echo '<span style="color: green;" title="آخرین سینک: ' . esc_attr($last_sync) . '">✅</span>';
         } elseif ($status === 'error') {
-            $error = get_post_meta($post_id, '_fiko_sync_error', true);
+            $error = get_post_meta($post_id, '_pilito_sync_error', true);
             echo '<span style="color: red;" title="خطا: ' . esc_attr($error) . '">❌</span>';
         } else {
             echo '<span style="color: gray;" title="هنوز سینک نشده">—</span>';
         }
     }
 }
-

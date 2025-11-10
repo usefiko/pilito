@@ -5,7 +5,7 @@
 
 defined('ABSPATH') || exit;
 
-class Fiko_WC_Admin_Page {
+class Pilito_PS_Admin_Page {
     
     /**
      * Initialize
@@ -16,7 +16,7 @@ class Fiko_WC_Admin_Page {
         add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue_assets']);
         
         // AJAX handlers
-        add_action('wp_ajax_fiko_wc_test_connection', [__CLASS__, 'ajax_test_connection']);
+        add_action('wp_ajax_pilito_ps_test_connection', [__CLASS__, 'ajax_test_connection']);
     }
     
     /**
@@ -25,10 +25,10 @@ class Fiko_WC_Admin_Page {
     public static function add_menu() {
         add_submenu_page(
             'woocommerce',
-            'فیکو - سینک محصولات',
-            'فیکو Sync',
+            'پیلیتو - سینک محصولات',
+            'پیلیتو Sync',
             'manage_woocommerce',
-            'fiko-wc-sync',
+            'pilito-product-sync',
             [__CLASS__, 'render_page']
         );
     }
@@ -37,19 +37,19 @@ class Fiko_WC_Admin_Page {
      * Register settings
      */
     public static function register_settings() {
-        register_setting('fiko_wc_sync', 'fiko_wc_api_token', [
+        register_setting('pilito_ps_sync', 'pilito_ps_api_token', [
             'type' => 'string',
             'sanitize_callback' => 'sanitize_text_field',
         ]);
         
-        register_setting('fiko_wc_sync', 'fiko_wc_enable_logging', [
+        register_setting('pilito_ps_sync', 'pilito_ps_enable_logging', [
             'type' => 'boolean',
         ]);
         
-        register_setting('fiko_wc_sync', 'fiko_wc_api_url', [
+        register_setting('pilito_ps_sync', 'pilito_ps_api_url', [
             'type' => 'string',
             'sanitize_callback' => 'esc_url_raw',
-            'default' => 'https://api.fiko.ai/api/integrations/woocommerce',
+            'default' => 'https://api.pilito.com/api/integrations/woocommerce',
         ]);
     }
     
@@ -57,28 +57,28 @@ class Fiko_WC_Admin_Page {
      * Enqueue assets
      */
     public static function enqueue_assets($hook) {
-        if ($hook !== 'woocommerce_page_fiko-wc-sync') {
+        if ($hook !== 'woocommerce_page_pilito-product-sync') {
             return;
         }
         
         wp_enqueue_style(
-            'fiko-wc-admin',
-            FIKO_WC_SYNC_PLUGIN_URL . 'admin/css/admin.css',
+            'pilito-ps-admin',
+            PILITO_PS_PLUGIN_URL . 'admin/css/admin.css',
             [],
-            FIKO_WC_SYNC_VERSION
+            PILITO_PS_VERSION
         );
         
         wp_enqueue_script(
-            'fiko-wc-admin',
-            FIKO_WC_SYNC_PLUGIN_URL . 'admin/js/admin.js',
+            'pilito-ps-admin',
+            PILITO_PS_PLUGIN_URL . 'admin/js/admin.js',
             ['jquery'],
-            FIKO_WC_SYNC_VERSION,
+            PILITO_PS_VERSION,
             true
         );
         
-        wp_localize_script('fiko-wc-admin', 'fikoWC', [
+        wp_localize_script('pilito-ps-admin', 'pilitoPS', [
             'ajax_url' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('fiko_wc_test'),
+            'nonce' => wp_create_nonce('pilito_ps_test'),
         ]);
     }
     
@@ -86,14 +86,14 @@ class Fiko_WC_Admin_Page {
      * Render settings page
      */
     public static function render_page() {
-        include FIKO_WC_SYNC_PLUGIN_DIR . 'admin/views/settings.php';
+        include PILITO_PS_PLUGIN_DIR . 'admin/views/settings.php';
     }
     
     /**
      * AJAX: Test connection
      */
     public static function ajax_test_connection() {
-        check_ajax_referer('fiko_wc_test', 'nonce');
+        check_ajax_referer('pilito_ps_test', 'nonce');
         
         if (!current_user_can('manage_woocommerce')) {
             wp_send_json_error(['message' => 'عدم دسترسی']);
@@ -105,7 +105,7 @@ class Fiko_WC_Admin_Page {
             wp_send_json_error(['message' => 'لطفاً ابتدا token را وارد کنید']);
         }
         
-        $result = Fiko_WC_API::test_connection($token);
+        $result = Pilito_PS_API::test_connection($token);
         
         if ($result['success']) {
             wp_send_json_success($result);
@@ -114,4 +114,3 @@ class Fiko_WC_Admin_Page {
         }
     }
 }
-

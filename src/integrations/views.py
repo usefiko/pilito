@@ -21,14 +21,14 @@ logger = logging.getLogger(__name__)
 
 class IntegrationTokenViewSet(viewsets.ModelViewSet):
     """
-    ViewSet for managing Integration Tokens (Admin only)
+    ViewSet for managing Integration Tokens
     
-    list: Get all tokens
+    list: Get tokens (admin: همه / user: خودش)
     retrieve: Get specific token
     create: Create new token (via generate action)
     destroy: Delete/deactivate token
     """
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated]
     serializer_class = IntegrationTokenSerializer
     queryset = IntegrationToken.objects.all().select_related('user')
     

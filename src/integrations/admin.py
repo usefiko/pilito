@@ -1,7 +1,11 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.utils import timezone
+from django.contrib import messages
+from django.http import HttpResponse
 from integrations.models import IntegrationToken, WooCommerceEventLog
+from integrations.services import TokenGenerator
+import json
 
 
 @admin.register(IntegrationToken)
@@ -15,16 +19,17 @@ class IntegrationTokenAdmin(admin.ModelAdmin):
     list_filter = ['integration_type', 'is_active', 'created_at']
     search_fields = ['name', 'user__email', 'user__username', 'token_preview']
     readonly_fields = [
-        'id', 'token', 'token_preview', 'usage_count', 'last_used_at', 'created_at'
+        'id', 'token_display', 'token_preview', 'usage_count', 'last_used_at', 'created_at'
     ]
+    actions = ['generate_new_token_action']
     
     fieldsets = (
         ('Basic Information', {
             'fields': ('id', 'user', 'name', 'integration_type')
         }),
         ('Token', {
-            'fields': ('token', 'token_preview'),
-            'description': '⚠️ Token فقط در اینجا نمایش داده می‌شود. هرگز آن را در جای دیگری ذخیره نکنید.'
+            'fields': ('token_display', 'token_preview'),
+            'description': '⚠️ Token کامل فقط در لحظه ساخت نمایش داده می‌شود. برای ساخت token جدید از دکمه "Generate New Token" استفاده کنید.'
         }),
         ('Security', {
             'fields': ('is_active', 'allowed_ips', 'expires_at')
@@ -62,6 +67,52 @@ class IntegrationTokenAdmin(admin.ModelAdmin):
             return obj.last_used_at.strftime('%Y-%m-%d %H:%M')
         return format_html('<span style="color: gray;">Never</span>')
     last_used_display.short_description = 'Last Used'
+    
+    def token_display(self, obj):
+        """Show token with copy button"""
+        if obj and obj.token:
+            return format_html(
+                '<div style="background: #f0f0f0; padding: 10px; border-radius: 4px;">'
+                '<code style="font-size: 12px; user-select: all;">{}</code><br>'
+                '<small style="color: #666;">⚠️ این token امنیتی است. با احتیاط استفاده کنید.</small>'
+                '</div>',
+                obj.token
+            )
+        return '-'
+    token_display.short_description = 'Full Token'
+    
+    def generate_new_token_action(self, request, queryset):
+        """Generate new token for selected users"""
+        if queryset.count() != 1:
+            self.message_user(request, 'لطفاً فقط یک کاربر را انتخاب کنید', messages.ERROR)
+            return
+        
+        token_obj = queryset.first()
+        
+        # Generate new token
+        if token_obj.integration_type == 'woocommerce':
+            new_token_string = TokenGenerator.generate_woocommerce_token()
+        else:
+            new_token_string = TokenGenerator.generate_shopify_token()
+        
+        token_preview = TokenGenerator.get_token_preview(new_token_string)
+        
+        # Update token
+        token_obj.token = new_token_string
+        token_obj.token_preview = token_preview
+        token_obj.save()
+        
+        self.message_user(
+            request,
+            format_html(
+                '✅ Token جدید ساخته شد!<br><br>'
+                '<strong>Token:</strong> <code style="background: #f0f0f0; padding: 5px;">{}</code><br><br>'
+                '⚠️ این token فقط اینجا نمایش داده می‌شود. لطفاً کپی کنید!',
+                new_token_string
+            ),
+            messages.SUCCESS
+        )
+    generate_new_token_action.short_description = '🔑 ساخت Token جدید برای انتخاب شده'
 
 
 @admin.register(WooCommerceEventLog)

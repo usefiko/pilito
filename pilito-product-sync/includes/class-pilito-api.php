@@ -1,18 +1,18 @@
 <?php
 /**
- * Fiko API Communication Class
- * Handles all communication with Fiko backend
+ * Pilito API Communication Class
+ * Handles all communication with Pilito backend
  */
 
 defined('ABSPATH') || exit;
 
-class Fiko_WC_API {
+class Pilito_PS_API {
     
     /**
-     * Sync product to Fiko
+     * Sync product to Pilito
      */
     public static function sync_product($product_id, $event_type = 'product.updated') {
-        $token = get_option('fiko_wc_api_token');
+        $token = get_option('pilito_ps_api_token');
         
         if (empty($token)) {
             self::log('No API token configured', 'error');
@@ -20,7 +20,7 @@ class Fiko_WC_API {
         }
         
         // Debounce check (prevent spam)
-        $transient_key = 'fiko_sync_' . $product_id;
+        $transient_key = 'pilito_sync_' . $product_id;
         if (get_transient($transient_key)) {
             self::log("Product $product_id debounced (too soon)", 'debug');
             return new WP_Error('debounced', 'درخواست قبلی در حال پردازش است');
@@ -64,10 +64,10 @@ class Fiko_WC_API {
     }
     
     /**
-     * Delete product from Fiko
+     * Delete product from Pilito
      */
     public static function delete_product($product_id) {
-        $token = get_option('fiko_wc_api_token');
+        $token = get_option('pilito_ps_api_token');
         if (empty($token)) {
             return;
         }
@@ -207,9 +207,9 @@ class Fiko_WC_API {
      * Get API URL
      */
     private static function get_api_url() {
-        $url = get_option('fiko_wc_api_url');
+        $url = get_option('pilito_ps_api_url');
         if (empty($url)) {
-            $url = 'https://api.fiko.ai/api/integrations/woocommerce';
+            $url = 'https://api.pilito.com/api/integrations/woocommerce';
         }
         return rtrim($url, '/');
     }
@@ -218,26 +218,26 @@ class Fiko_WC_API {
      * Log product success
      */
     private static function log_product_success($product_id, $action) {
-        update_post_meta($product_id, '_fiko_last_sync', current_time('mysql'));
-        update_post_meta($product_id, '_fiko_sync_status', 'success');
-        update_post_meta($product_id, '_fiko_sync_action', $action);
-        delete_post_meta($product_id, '_fiko_sync_error');
+        update_post_meta($product_id, '_pilito_last_sync', current_time('mysql'));
+        update_post_meta($product_id, '_pilito_sync_status', 'success');
+        update_post_meta($product_id, '_pilito_sync_action', $action);
+        delete_post_meta($product_id, '_pilito_sync_error');
     }
     
     /**
      * Log product error
      */
     private static function log_product_error($product_id, $message) {
-        update_post_meta($product_id, '_fiko_last_sync', current_time('mysql'));
-        update_post_meta($product_id, '_fiko_sync_status', 'error');
-        update_post_meta($product_id, '_fiko_sync_error', $message);
+        update_post_meta($product_id, '_pilito_last_sync', current_time('mysql'));
+        update_post_meta($product_id, '_pilito_sync_status', 'error');
+        update_post_meta($product_id, '_pilito_sync_error', $message);
     }
     
     /**
      * General logging
      */
     private static function log($message, $level = 'info') {
-        if (!get_option('fiko_wc_enable_logging')) {
+        if (!get_option('pilito_ps_enable_logging')) {
             return;
         }
         
@@ -248,7 +248,6 @@ class Fiko_WC_API {
             $message
         );
         
-        error_log('Fiko WC Sync: ' . $log_entry);
+        error_log('Pilito Product Sync: ' . $log_entry);
     }
 }
-

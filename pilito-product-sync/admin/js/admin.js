@@ -1,5 +1,5 @@
 /**
- * Fiko WooCommerce Sync - Admin JavaScript
+ * Pilito Product Sync - Admin JavaScript
  */
 
 (function($) {
@@ -10,10 +10,10 @@
         /**
          * Test Connection
          */
-        $('#fiko-test-connection').on('click', function() {
+        $('#pilito-test-connection').on('click', function() {
             const button = $(this);
-            const token = $('#fiko_wc_api_token').val();
-            const resultDiv = $('#fiko-test-result');
+            const token = $('#pilito_ps_api_token').val();
+            const resultDiv = $('#pilito-test-result');
             
             if (!token) {
                 alert('لطفاً ابتدا API Token را وارد کنید');
@@ -22,16 +22,16 @@
             
             // Disable button and show loading
             button.prop('disabled', true);
-            button.html('<span class="fiko-loading"></span> در حال تست...');
+            button.html('<span class="pilito-loading"></span> در حال تست...');
             resultDiv.hide();
             
             // Send AJAX request
             $.ajax({
-                url: fikoWC.ajax_url,
+                url: pilitoPS.ajax_url,
                 method: 'POST',
                 data: {
-                    action: 'fiko_wc_test_connection',
-                    nonce: fikoWC.nonce,
+                    action: 'pilito_ps_test_connection',
+                    nonce: pilitoPS.nonce,
                     token: token
                 },
                 success: function(response) {
@@ -79,4 +79,3 @@
     });
     
 })(jQuery);
-

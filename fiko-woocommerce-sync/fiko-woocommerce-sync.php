@@ -26,9 +26,10 @@ define('FIKO_WC_SYNC_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('FIKO_WC_SYNC_PLUGIN_BASENAME', plugin_basename(__FILE__));
 
 /**
- * Check if WooCommerce is active
+ * Initialize plugin
  */
-function fiko_wc_check_woocommerce() {
+function fiko_wc_init() {
+    // Check if WooCommerce is active (after all plugins loaded)
     if (!class_exists('WooCommerce')) {
         add_action('admin_notices', function() {
             ?>
@@ -37,15 +38,9 @@ function fiko_wc_check_woocommerce() {
             </div>
             <?php
         });
-        return false;
+        return;
     }
-    return true;
-}
-
-/**
- * Initialize plugin
- */
-function fiko_wc_init() {
+    
     // Load text domain
     load_plugin_textdomain('fiko-woocommerce-sync', false, dirname(FIKO_WC_SYNC_PLUGIN_BASENAME) . '/languages');
     
@@ -64,10 +59,8 @@ function fiko_wc_init() {
     }
 }
 
-// Check WooCommerce and initialize
-if (fiko_wc_check_woocommerce()) {
-    add_action('plugins_loaded', 'fiko_wc_init');
-}
+// Initialize after all plugins loaded
+add_action('plugins_loaded', 'fiko_wc_init');
 
 /**
  * Activation hook
