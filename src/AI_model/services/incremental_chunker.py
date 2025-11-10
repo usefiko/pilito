@@ -94,7 +94,7 @@ class IncrementalChunker:
             if qa.created_by_ai:
                 logger.info(f"✅🌟 Chunked USER-CORRECTED FAQ {qa.id} (priority: 10.0)")
             else:
-            logger.info(f"✅ Chunked QAPair {qa.id} for user {self.user.username}")
+                logger.info(f"✅ Chunked QAPair {qa.id} for user {self.user.username}")
             
             # Invalidate cache
             cache.delete(f'knowledge_stats:{self.user.id}')

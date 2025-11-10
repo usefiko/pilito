@@ -465,6 +465,12 @@ class Product(models.Model):
     )
     
     # ========== Media ==========
+    image = models.ImageField(
+        upload_to='products/images/',
+        blank=True,
+        null=True,
+        help_text="Product image file upload"
+    )
     main_image = models.URLField(
         blank=True,
         help_text="URL of main product image"

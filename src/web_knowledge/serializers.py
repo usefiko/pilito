@@ -109,7 +109,7 @@ class ProductCompactSerializer(serializers.ModelSerializer):
             'id', 'title', 'product_type', 'product_type_display',
             'description', 'short_description', 'link',
             'price', 'final_price', 'currency', 'currency_display',
-            'main_image', 'is_active', 'in_stock',
+            'image', 'main_image', 'is_active', 'in_stock',
             'extraction_method', 'created_at'
         ]
     
@@ -653,7 +653,7 @@ class ProductSerializer(serializers.ModelSerializer):
             # Availability
             'is_active', 'in_stock', 'stock_quantity',
             # Media
-            'main_image', 'images',
+            'image', 'main_image', 'images',
             # SEO
             'meta_title', 'meta_description',
             # Auto-extraction info
@@ -733,7 +733,7 @@ class ProductCreateSerializer(serializers.ModelSerializer):
             # Availability
             'is_active', 'in_stock', 'stock_quantity',
             # Media
-            'main_image', 'images',
+            'image', 'main_image', 'images',
             # SEO
             'meta_title', 'meta_description',
             # Auto-extraction (for API-created products)
@@ -755,6 +755,7 @@ class ProductCreateSerializer(serializers.ModelSerializer):
             'brand': {'required': False},
             'keywords': {'required': False},
             'stock_quantity': {'required': False},
+            'image': {'required': False},
             'main_image': {'required': False},
             'images': {'required': False},
             'meta_title': {'required': False},
@@ -816,7 +817,7 @@ class ProductUpdateSerializer(serializers.ModelSerializer):
             # Availability
             'is_active', 'in_stock', 'stock_quantity',
             # Media
-            'main_image', 'images',
+            'image', 'main_image', 'images',
             # SEO
             'meta_title', 'meta_description',
         ]

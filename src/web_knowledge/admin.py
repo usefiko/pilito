@@ -232,6 +232,10 @@ class ProductAdmin(admin.ModelAdmin):
         ('Details', {
             'fields': ('link', 'price', 'tags', 'is_active')
         }),
+        ('Media', {
+            'fields': ('image', 'main_image', 'images'),
+            'classes': ('collapse',)
+        }),
         ('Timestamps', {
             'fields': ('created_at', 'updated_at'),
             'classes': ('collapse',)
