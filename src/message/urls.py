@@ -1,6 +1,6 @@
 from django.urls import path
 from message.api import FullUserConversationsAPIView,UserConversationsAPIView,ConversationItemAPIView,TagsAPIView,\
-    CustomersListAPIView,CustomerItemAPIView,UserMessagesAPIView,SupportAnswerAPIView,ActivateAllUserConversationsAPIView
+    CustomersListAPIView,CustomerItemAPIView,UserMessagesAPIView,SupportAnswerAPIView,ActivateAllUserConversationsAPIView,DisableAllUserConversationsAPIView
 from message.api.customer import CustomerBulkDeleteAPIView, CustomerBulkExportAPIView
 from message.api.customer_tags import CustomerTagsAPIView, CustomerSingleTagAPIView
 from message.api.tag import TagItemAPIView, TagBulkDeleteAPIView
@@ -30,6 +30,7 @@ urlpatterns = [
     path("user-conversation-full", FullUserConversationsAPIView.as_view(), name="user-conversation-full"),
     path("conversation-item/<str:id>/", ConversationItemAPIView.as_view(), name="conversation-item"),
     path("conversations/activate-all/", ActivateAllUserConversationsAPIView.as_view(), name="activate-all-conversations"),
+    path("conversations/disable-all/", DisableAllUserConversationsAPIView.as_view(), name="disable-all-conversations"),
     path("customers", CustomersListAPIView.as_view(), name="customers"),
     path("customer-item/<int:id>/", CustomerItemAPIView.as_view(), name="customer-item"),
     path("customers/bulk-delete/", CustomerBulkDeleteAPIView.as_view(), name="customers-bulk-delete"),

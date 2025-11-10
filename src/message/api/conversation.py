@@ -159,3 +159,44 @@ class ActivateAllUserConversationsAPIView(APIView):
                 {"error": f"Error: {str(e)}"},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+
+class DisableAllUserConversationsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    @swagger_auto_schema(
+        operation_description="Disable all AI conversations of the authenticated user (set status to 'support_active' to disable AI)",
+        responses={
+            200: openapi.Response(
+                description="All conversations disabled for AI successfully",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'updated_count': openapi.Schema(type=openapi.TYPE_INTEGER)
+                    }
+                )
+            ),
+            400: "Bad request"
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        try:
+            # Get all conversations of the authenticated user
+            conversations = Conversation.objects.filter(user=request.user)
+            
+            # Update all conversations to status='support_active' (disables AI)
+            updated_count = conversations.update(status='support_active')
+            
+            return Response(
+                {
+                    "message": f"Successfully disabled AI for {updated_count} conversation(s)",
+                    "updated_count": updated_count
+                },
+                status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            return Response(
+                {"error": f"Error: {str(e)}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
