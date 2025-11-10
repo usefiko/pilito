@@ -526,6 +526,21 @@ class Product(models.Model):
         help_text="Extraction metadata (model, timestamp, etc.)"
     )
     
+    # ========== External Integration (WooCommerce, Shopify, etc.) ==========
+    external_id = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        db_index=True,
+        help_text="External product ID (e.g., woo_414, shopify_789)"
+    )
+    external_source = models.CharField(
+        max_length=20,
+        blank=True,
+        default='manual',
+        help_text="Source of the product (woocommerce, shopify, manual)"
+    )
+    
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -540,6 +555,15 @@ class Product(models.Model):
             models.Index(fields=['created_at']),
             models.Index(fields=['extraction_method']),
             models.Index(fields=['source_website']),
+            models.Index(fields=['user', 'external_source', 'is_active'], name='idx_product_external'),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'external_id'],
+                condition=models.Q(external_id__isnull=False),
+                name='unique_external_product_per_user',
+                violation_error_message='این محصول خارجی قبلاً برای این کاربر وجود دارد'
+            )
         ]
     
     def __str__(self):

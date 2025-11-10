@@ -53,7 +53,7 @@ class WooCommerceProcessor:
         # Check if embedding regeneration needed
         needs_embedding = True
         if existing_product:
-            old_hash = existing_product.metadata.get('content_hash', '')
+            old_hash = existing_product.extraction_metadata.get('content_hash', '')
             if old_hash == content_hash:
                 needs_embedding = False
                 logger.info(f"📝 Content unchanged, updating metadata only")
@@ -72,7 +72,8 @@ class WooCommerceProcessor:
             'is_active': True,
             'tags': product_data.get('tags', []),
             'category': ', '.join(product_data.get('categories', [])),
-            'metadata': {
+            'extraction_method': 'manual',
+            'extraction_metadata': {
                 'woo_product_id': product_data['id'],
                 'sku': product_data.get('sku', ''),
                 'content_hash': content_hash,
