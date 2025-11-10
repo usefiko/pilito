@@ -49,6 +49,9 @@ urlpatterns = [
     path('api/v1/workflow/', include(('workflow.urls', 'workflow'), namespace='workflow')),
     path('api/v1/web-knowledge/', include(('web_knowledge.urls', 'web_knowledge'), namespace='web_knowledge')),
     path('api/v1/workflow-templates/', include(('workflow_template.urls', 'workflow_template'), namespace='workflow_template')),
+    # Integrations (WooCommerce, Shopify, etc.)
+    path('api/integrations/', include(('integrations.urls', 'integrations'), namespace='integrations')),
+    path('api/v1/integrations/', include(('integrations.urls', 'integrations'), namespace='integrations-v1')),
     # Monitoring and metrics
     path('api/v1/metrics', include(('monitoring.urls', 'monitoring'), namespace='monitoring')),
     # Root-level Stripe webhook for external integrations expecting /stripe/webhook

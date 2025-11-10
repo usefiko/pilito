@@ -199,6 +199,12 @@ app.conf.task_routes = {
         'queue': 'low_priority',
         'routing_key': 'low.maintenance',
     },
+    
+    # 🔌 Integration Tasks → Default Priority (WooCommerce, Shopify)
+    'integrations.tasks.process_woocommerce_product': {
+        'queue': 'default',
+        'routing_key': 'default.integration',
+    },
 }
 
 # Rate Limiting: محدود کردن تعداد crawl همزمان
