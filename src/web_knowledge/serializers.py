@@ -660,6 +660,8 @@ class ProductSerializer(serializers.ModelSerializer):
             'extraction_method', 'extraction_confidence', 'extraction_metadata',
             'is_auto_extracted', 'source_website', 'source_website_name',
             'source_page', 'source_page_url',
+            # External Integration (WooCommerce, Shopify, etc.)
+            'external_id', 'external_source',
             # Timestamps
             'created_at', 'updated_at'
         ]

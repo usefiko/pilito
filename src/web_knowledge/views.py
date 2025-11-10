@@ -1161,6 +1161,11 @@ class ProductViewSet(viewsets.ModelViewSet):
                 Q(discount_amount__isnull=False, discount_amount__gt=0)
             )
         
+        # Filter by external source (WooCommerce, Shopify, etc.)
+        external_source = self.request.query_params.get('external_source', None)
+        if external_source:
+            queryset = queryset.filter(external_source=external_source)
+        
         # Search by title, description, or keywords
         search = self.request.query_params.get('search', None)
         if search:
