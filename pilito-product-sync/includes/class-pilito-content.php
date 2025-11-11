@@ -337,8 +337,6 @@ class Pilito_PS_Content {
      * Sync page/post to backend
      */
     public static function sync_page($post_id) {
-        $debug_mode = get_option('pilito_ps_debug_mode', false);
-        $error_details = [];
         
         try {
             // Step 1: Get post
@@ -432,13 +430,6 @@ class Pilito_PS_Content {
                 update_post_meta($post_id, '_pilito_page_sync_status', 'error');
                 update_post_meta($post_id, '_pilito_page_sync_error', $error_msg);
                 
-                if ($debug_mode) {
-                    return [
-                        'success' => false, 
-                        'message' => '❌ خطای اتصال: ' . $error_msg,
-                        'debug' => $error_details
-                    ];
-                }
                 return ['success' => false, 'message' => '❌ خطای اتصال: ' . $error_msg];
             }
             
@@ -463,15 +454,6 @@ class Pilito_PS_Content {
                 update_post_meta($post_id, '_pilito_page_sync_status', 'error');
                 update_post_meta($post_id, '_pilito_page_sync_error', $error_msg . ': ' . substr($body, 0, 200));
                 
-                if ($debug_mode) {
-                    $error_details['status_code'] = $status_code;
-                    $error_details['response_body'] = substr($body, 0, 500);
-                    return [
-                        'success' => false,
-                        'message' => '❌ ' . $error_msg . ' - ' . substr($body, 0, 100),
-                        'debug' => $error_details
-                    ];
-                }
                 return ['success' => false, 'message' => '❌ ' . $error_msg];
             }
             
@@ -480,13 +462,6 @@ class Pilito_PS_Content {
             update_post_meta($post_id, '_pilito_page_sync_status', 'error');
             update_post_meta($post_id, '_pilito_page_sync_error', $error_msg);
             
-            if ($debug_mode) {
-                return [
-                    'success' => false,
-                    'message' => '❌ خطای سیستم: ' . $error_msg,
-                    'debug' => array_merge($error_details, ['exception' => $e->getTraceAsString()])
-                ];
-            }
             return ['success' => false, 'message' => '❌ خطای سیستم: ' . $error_msg];
         }
     }

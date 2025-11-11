@@ -1,9 +1,9 @@
 <?php
 /**
- * Plugin Name: پیلیتو - همگام‌سازی محصولات
+ * Plugin Name: پیلیتو - همگام‌سازی
  * Plugin URI: https://pilito.com
- * Description: همگام‌سازی خودکار محصولات فروشگاه با پلتفرم پیلیتو برای استفاده از هوش مصنوعی
- * Version: 2.9.0
+ * Description: همگام‌سازی خودکار محتوای سایت (محصولات، صفحات و نوشته‌ها) با پلتفرم پیلیتو برای استفاده از هوش مصنوعی
+ * Version: 3.1.0
  * Author: Pilito Team
  * Author URI: https://pilito.com
  * Text Domain: pilito-product-sync
@@ -19,7 +19,7 @@
 defined('ABSPATH') || exit;
 
 // Plugin constants
-define('PILITO_PS_VERSION', '2.9.0');
+define('PILITO_PS_VERSION', '3.1.0');
 define('PILITO_PS_PLUGIN_FILE', __FILE__);
 define('PILITO_PS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('PILITO_PS_PLUGIN_URL', plugin_dir_url(__FILE__));
@@ -48,7 +48,9 @@ function pilito_ps_init() {
         });
     }
     
-    // Load text domain
+    // Load text domain based on WordPress locale
+    $locale = apply_filters('plugin_locale', get_locale(), 'pilito-product-sync');
+    load_textdomain('pilito-product-sync', WP_LANG_DIR . '/pilito-product-sync/pilito-product-sync-' . $locale . '.mo');
     load_plugin_textdomain('pilito-product-sync', false, dirname(PILITO_PS_PLUGIN_BASENAME) . '/languages');
     
     // Load classes

@@ -10,29 +10,27 @@ $token = get_option('pilito_ps_api_token', '');
 <div class="wrap pilito-dashboard">
     
     <h1 class="pilito-page-title">
-        <img src="<?php echo PILITO_PS_PLUGIN_URL . 'assets/logo.svg'; ?>" alt="پیلیتو" class="pilito-page-logo">
-        همگام‌سازی صفحات و نوشته‌ها
+        <img src="<?php echo PILITO_PS_PLUGIN_URL . 'assets/logo.svg'; ?>" alt="<?php esc_attr_e('پیلیتو', 'pilito-product-sync'); ?>" class="pilito-page-logo">
+        <?php esc_html_e('همگام‌سازی صفحات و نوشته‌ها', 'pilito-product-sync'); ?>
     </h1>
-    <p class="pilito-page-description">محتوای سایت خود را با هوش مصنوعی پیلیتو همگام کنید</p>
+    <p class="pilito-page-description"><?php esc_html_e('محتوای سایت خود را با هوش مصنوعی پیلیتو همگام کنید', 'pilito-product-sync'); ?></p>
     
     <?php if (!$token): ?>
     <!-- No Token Alert -->
     <div class="pilito-alert pilito-alert-warning">
-        <strong>⚠️ توکن API تنظیم نشده است</strong><br>
-        لطفاً ابتدا از بخش <a href="<?php echo admin_url('admin.php?page=pilito-dashboard'); ?>">محصولات</a> توکن خود را تنظیم کنید.
+        <strong><?php esc_html_e('⚠️ توکن API تنظیم نشده است', 'pilito-product-sync'); ?></strong><br>
+        <?php esc_html_e('لطفاً ابتدا از بخش', 'pilito-product-sync'); ?> <a href="<?php echo admin_url('admin.php?page=pilito-settings'); ?>"><?php esc_html_e('تنظیمات', 'pilito-product-sync'); ?></a> <?php esc_html_e('توکن خود را تنظیم کنید.', 'pilito-product-sync'); ?>
     </div>
     <?php else: ?>
     
     <!-- Tabs: Pages / Posts -->
     <div class="pilito-nav">
         <button class="pilito-nav-item active" data-tab="pages">
-            <span>📄</span>
-            صفحات
+            <?php esc_html_e('صفحات', 'pilito-product-sync'); ?>
             <span class="pilito-nav-badge" id="pages-count">...</span>
         </button>
         <button class="pilito-nav-item" data-tab="posts">
-            <span>📝</span>
-            نوشته‌ها
+            <?php esc_html_e('نوشته‌ها', 'pilito-product-sync'); ?>
             <span class="pilito-nav-badge" id="posts-count">...</span>
         </button>
     </div>
@@ -41,25 +39,25 @@ $token = get_option('pilito_ps_api_token', '');
     <div id="tab-pages" class="pilito-tab-content active">
         <div class="pilito-card">
             <div class="pilito-card-header">
-                <h2 class="pilito-card-title">صفحات سایت</h2>
+                <h2 class="pilito-card-title"><?php esc_html_e('صفحات سایت', 'pilito-product-sync'); ?></h2>
                 <p class="pilito-card-description">
-                    صفحاتی که می‌خواهید با پیلیتو همگام شوند را انتخاب کنید. هوش مصنوعی از محتوای این صفحات برای پاسخگویی به مشتریان استفاده خواهد کرد.
+                    <?php esc_html_e('صفحاتی که می‌خواهید با پیلیتو همگام شوند را انتخاب کنید. هوش مصنوعی از محتوای این صفحات برای پاسخگویی به مشتریان استفاده خواهد کرد.', 'pilito-product-sync'); ?>
                 </p>
             </div>
             
             <!-- Filters -->
             <div class="pilito-filters">
-                <button class="pilito-filter-btn active" data-filter="all" data-type="page">همه</button>
-                <button class="pilito-filter-btn" data-filter="not_synced" data-type="page">ارسال نشده</button>
-                <button class="pilito-filter-btn" data-filter="need_update" data-type="page">نیاز به آپدیت</button>
-                <button class="pilito-filter-btn" data-filter="synced" data-type="page">همگام شده</button>
+                <button class="pilito-filter-btn active" data-filter="all" data-type="page"><?php esc_html_e('همه', 'pilito-product-sync'); ?></button>
+                <button class="pilito-filter-btn" data-filter="not_synced" data-type="page"><?php esc_html_e('ارسال نشده', 'pilito-product-sync'); ?></button>
+                <button class="pilito-filter-btn" data-filter="need_update" data-type="page"><?php esc_html_e('نیاز به آپدیت', 'pilito-product-sync'); ?></button>
+                <button class="pilito-filter-btn" data-filter="synced" data-type="page"><?php esc_html_e('همگام شده', 'pilito-product-sync'); ?></button>
             </div>
             
             <!-- List -->
             <div id="pages-list" class="pilito-content-list">
                 <div style="padding: 40px; text-align: center; color: #999;">
                     <div class="pilito-spinner"></div>
-                    <div style="margin-top: 12px;">در حال بارگذاری...</div>
+                    <div style="margin-top: 12px;"><?php esc_html_e('در حال بارگذاری...', 'pilito-product-sync'); ?></div>
                 </div>
             </div>
             
@@ -68,14 +66,13 @@ $token = get_option('pilito_ps_api_token', '');
                 <div class="pilito-action-left">
                     <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                         <input type="checkbox" id="select-all-pages">
-                        <span style="font-size: 13px; color: #666;">انتخاب همه</span>
+                        <span style="font-size: 13px; color: #666;"><?php esc_html_e('انتخاب همه', 'pilito-product-sync'); ?></span>
                     </label>
-                    <span id="pages-selected-count" style="color: #999; font-size: 13px;">0 انتخاب شده</span>
+                    <span id="pages-selected-count" style="color: #999; font-size: 13px;"><?php esc_html_e('0 انتخاب شده', 'pilito-product-sync'); ?></span>
                 </div>
                 <div class="pilito-action-right">
                     <button id="send-selected-pages" class="pilito-btn pilito-btn-primary" disabled>
-                        <span>📤</span>
-                        ارسال انتخاب شده
+                        <?php esc_html_e('ارسال انتخاب شده', 'pilito-product-sync'); ?>
                     </button>
                 </div>
             </div>
@@ -86,25 +83,25 @@ $token = get_option('pilito_ps_api_token', '');
     <div id="tab-posts" class="pilito-tab-content">
         <div class="pilito-card">
             <div class="pilito-card-header">
-                <h2 class="pilito-card-title">نوشته‌های بلاگ</h2>
+                <h2 class="pilito-card-title"><?php esc_html_e('نوشته‌های بلاگ', 'pilito-product-sync'); ?></h2>
                 <p class="pilito-card-description">
-                    نوشته‌هایی که می‌خواهید با پیلیتو همگام شوند را انتخاب کنید.
+                    <?php esc_html_e('نوشته‌هایی که می‌خواهید با پیلیتو همگام شوند را انتخاب کنید.', 'pilito-product-sync'); ?>
                 </p>
             </div>
             
             <!-- Filters -->
             <div class="pilito-filters">
-                <button class="pilito-filter-btn active" data-filter="all" data-type="post">همه</button>
-                <button class="pilito-filter-btn" data-filter="not_synced" data-type="post">ارسال نشده</button>
-                <button class="pilito-filter-btn" data-filter="need_update" data-type="post">نیاز به آپدیت</button>
-                <button class="pilito-filter-btn" data-filter="synced" data-type="post">همگام شده</button>
+                <button class="pilito-filter-btn active" data-filter="all" data-type="post"><?php esc_html_e('همه', 'pilito-product-sync'); ?></button>
+                <button class="pilito-filter-btn" data-filter="not_synced" data-type="post"><?php esc_html_e('ارسال نشده', 'pilito-product-sync'); ?></button>
+                <button class="pilito-filter-btn" data-filter="need_update" data-type="post"><?php esc_html_e('نیاز به آپدیت', 'pilito-product-sync'); ?></button>
+                <button class="pilito-filter-btn" data-filter="synced" data-type="post"><?php esc_html_e('همگام شده', 'pilito-product-sync'); ?></button>
             </div>
             
             <!-- List -->
             <div id="posts-list" class="pilito-content-list">
                 <div style="padding: 40px; text-align: center; color: #999;">
                     <div class="pilito-spinner"></div>
-                    <div style="margin-top: 12px;">در حال بارگذاری...</div>
+                    <div style="margin-top: 12px;"><?php esc_html_e('در حال بارگذاری...', 'pilito-product-sync'); ?></div>
                 </div>
             </div>
             
@@ -113,14 +110,13 @@ $token = get_option('pilito_ps_api_token', '');
                 <div class="pilito-action-left">
                     <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                         <input type="checkbox" id="select-all-posts">
-                        <span style="font-size: 13px; color: #666;">انتخاب همه</span>
+                        <span style="font-size: 13px; color: #666;"><?php esc_html_e('انتخاب همه', 'pilito-product-sync'); ?></span>
                     </label>
-                    <span id="posts-selected-count" style="color: #999; font-size: 13px;">0 انتخاب شده</span>
+                    <span id="posts-selected-count" style="color: #999; font-size: 13px;"><?php esc_html_e('0 انتخاب شده', 'pilito-product-sync'); ?></span>
                 </div>
                 <div class="pilito-action-right">
                     <button id="send-selected-posts" class="pilito-btn pilito-btn-primary" disabled>
-                        <span>📤</span>
-                        ارسال انتخاب شده
+                        <?php esc_html_e('ارسال انتخاب شده', 'pilito-product-sync'); ?>
                     </button>
                 </div>
             </div>
@@ -130,7 +126,7 @@ $token = get_option('pilito_ps_api_token', '');
     <!-- Progress Modal -->
     <div id="pilito-sync-progress" style="display:none;">
         <div class="pilito-card">
-            <h3 style="margin-top: 0;">⏳ در حال ارسال...</h3>
+            <h3 style="margin-top: 0;"><?php esc_html_e('در حال ارسال...', 'pilito-product-sync'); ?></h3>
             <div class="pilito-progress-container">
                 <div id="pilito-pages-progress-bar" class="pilito-progress-bar"></div>
             </div>
@@ -221,8 +217,7 @@ jQuery(document).ready(function($) {
         if (items.length === 0) {
             container.html(
                 '<div class="pilito-empty-state">' +
-                '<div class="pilito-empty-icon">📭</div>' +
-                '<div class="pilito-empty-text">موردی یافت نشد</div>' +
+                '<div class="pilito-empty-text"><?php echo esc_js(__('موردی یافت نشد', 'pilito-product-sync')); ?></div>' +
                 '</div>'
             );
             return;
@@ -238,17 +233,17 @@ jQuery(document).ready(function($) {
             }[item.status] || 'pilito-status-pending';
             
             const statusText = {
-                'synced': 'همگام شده',
-                'not_synced': 'ارسال نشده',
-                'need_update': 'نیاز به آپدیت',
-                'error': 'خطا'
-            }[item.status] || 'نامشخص';
+                'synced': '<?php echo esc_js(__('همگام شده', 'pilito-product-sync')); ?>',
+                'not_synced': '<?php echo esc_js(__('ارسال نشده', 'pilito-product-sync')); ?>',
+                'need_update': '<?php echo esc_js(__('نیاز به آپدیت', 'pilito-product-sync')); ?>',
+                'error': '<?php echo esc_js(__('خطا', 'pilito-product-sync')); ?>'
+            }[item.status] || '<?php echo esc_js(__('نامشخص', 'pilito-product-sync')); ?>';
             
             html += `
                 <div class="pilito-content-item">
                     <input type="checkbox" class="pilito-content-checkbox ${type}-checkbox" value="${item.id}">
                     <div class="pilito-content-title">${item.title}</div>
-                    <span class="pilito-content-meta">${item.word_count} کلمه</span>
+                    <span class="pilito-content-meta">${item.word_count} <?php echo esc_js(__('کلمه', 'pilito-product-sync')); ?></span>
                     <span class="pilito-content-status ${statusClass}">${statusText}</span>
                 </div>
             `;
@@ -291,12 +286,12 @@ jQuery(document).ready(function($) {
         
         if (selectedIds.length === 0) return;
         
-        if (!confirm(`${selectedIds.length} مورد ارسال خواهد شد. ادامه می‌دهید؟`)) {
+        if (!confirm('<?php echo esc_js(sprintf(__('%d مورد ارسال خواهد شد. ادامه می‌دهید؟', 'pilito-product-sync'), 'PLACEHOLDER'))); ?>'.replace('PLACEHOLDER', selectedIds.length))) {
             return;
         }
         
         // Send
-        $(this).prop('disabled', true).html('<span class="pilito-spinner"></span> در حال ارسال...');
+        $(this).prop('disabled', true).html('<span class="pilito-spinner"></span> <?php echo esc_js(__('در حال ارسال...', 'pilito-product-sync')); ?>');
         
         $.post(pilitoPS.ajax_url, {
             action: 'pilito_ps_sync_pages',
@@ -305,12 +300,12 @@ jQuery(document).ready(function($) {
         }, function(response) {
             if (response.success) {
                 const data = response.data;
-                let msg = `✅ ${data.success} مورد با موفقیت ارسال شد`;
+                let msg = '<?php echo esc_js(sprintf(__('%d مورد با موفقیت ارسال شد', 'pilito-product-sync'), 'SUCCESS')); ?>'.replace('SUCCESS', data.success);
                 
                 if (data.failed > 0) {
-                    msg += `\n⚠️ ${data.failed} مورد ناموفق`;
+                    msg += '\n' + '<?php echo esc_js(sprintf(__('%d مورد ناموفق', 'pilito-product-sync'), 'FAILED')); ?>'.replace('FAILED', data.failed);
                     if (data.errors && data.errors.length > 0) {
-                        msg += '\n\nخطاها:';
+                        msg += '\n\n<?php echo esc_js(__('خطاها:', 'pilito-product-sync')); ?>';
                         data.errors.slice(0, 3).forEach(err => {
                             msg += `\n- Post ${err.post_id}: ${err.message}`;
                         });
@@ -322,23 +317,11 @@ jQuery(document).ready(function($) {
                 if (isPages) loadPages('all');
                 else loadPosts('all');
             } else {
-                let msg = `❌ خطا: ${response.data.message}`;
-                
-                // نمایش debug info اگر موجود باشد
-                if (response.data && response.data.debug) {
-                    msg += '\n\n🐛 اطلاعات دیباگ:\n';
-                    const debug = response.data.debug;
-                    if (debug.post_id) msg += `Post ID: ${debug.post_id}\n`;
-                    if (debug.api_endpoint) msg += `API: ${debug.api_endpoint}\n`;
-                    if (debug.content_length) msg += `Content Length: ${debug.content_length}\n`;
-                    if (debug.status_code) msg += `Status: ${debug.status_code}\n`;
-                    if (debug.response_body) msg += `Response: ${debug.response_body}\n`;
-                }
-                
+                let msg = '<?php echo esc_js(__('خطا:', 'pilito-product-sync')); ?> ' + response.data.message;
                 alert(msg);
             }
         }).always(function() {
-            $(`#send-selected-${type}`).prop('disabled', false).html('<span>📤</span> ارسال انتخاب شده');
+            $(`#send-selected-${type}`).prop('disabled', false).html('<?php echo esc_js(__('ارسال انتخاب شده', 'pilito-product-sync')); ?>');
         });
     });
 });

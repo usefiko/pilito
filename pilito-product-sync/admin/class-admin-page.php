@@ -30,8 +30,8 @@ class Pilito_PS_Admin_Page {
         $icon_svg = 'data:image/svg+xml;base64,' . base64_encode(file_get_contents(PILITO_PS_PLUGIN_DIR . 'assets/icon.svg'));
         
         add_menu_page(
-            'پیلیتو',
-            'پیلیتو',
+            __('پیلیتو', 'pilito-product-sync'),
+            __('پیلیتو', 'pilito-product-sync'),
             'manage_options',
             'pilito-dashboard',
             [__CLASS__, 'render_dashboard'],
@@ -39,30 +39,53 @@ class Pilito_PS_Admin_Page {
             56
         );
         
-        // زیرمنو: محصولات (بدون ایکون)
+        // زیرمنو: داشبورد
         add_submenu_page(
             'pilito-dashboard',
-            'همگام‌سازی محصولات',
-            'محصولات',
+            __('داشبورد', 'pilito-product-sync'),
+            __('داشبورد', 'pilito-product-sync'),
             'manage_options',
-            'pilito-dashboard'
+            'pilito-dashboard',
+            [__CLASS__, 'render_dashboard']
         );
         
-        // زیرمنو: صفحات (بدون ایکون)
+        // زیرمنو: محصولات (فقط اگر WooCommerce نصب باشد)
+        if (class_exists('WooCommerce')) {
+            add_submenu_page(
+                'pilito-dashboard',
+                __('همگام‌سازی محصولات', 'pilito-product-sync'),
+                __('محصولات', 'pilito-product-sync'),
+                'manage_options',
+                'pilito-products',
+                [__CLASS__, 'render_products']
+            );
+        }
+        
+        // زیرمنو: صفحات
         add_submenu_page(
             'pilito-dashboard',
-            'همگام‌سازی صفحات و نوشته‌ها',
-            'صفحات و نوشته‌ها',
+            __('همگام‌سازی صفحات و نوشته‌ها', 'pilito-product-sync'),
+            __('صفحات و نوشته‌ها', 'pilito-product-sync'),
             'manage_options',
             'pilito-pages',
             [__CLASS__, 'render_pages']
         );
         
-        // زیرمنو: چت (بدون ایکون)
+        // زیرمنو: تنظیمات
         add_submenu_page(
             'pilito-dashboard',
-            'چت آنلاین',
-            'چت آنلاین',
+            __('تنظیمات', 'pilito-product-sync'),
+            __('تنظیمات', 'pilito-product-sync'),
+            'manage_options',
+            'pilito-settings',
+            [__CLASS__, 'render_settings']
+        );
+        
+        // زیرمنو: چت
+        add_submenu_page(
+            'pilito-dashboard',
+            __('چت آنلاین', 'pilito-product-sync'),
+            __('چت آنلاین', 'pilito-product-sync'),
             'manage_options',
             'pilito-chat',
             [__CLASS__, 'render_chat']
@@ -101,15 +124,23 @@ class Pilito_PS_Admin_Page {
      * Enqueue assets
      */
     public static function enqueue_assets($hook) {
-        // Load on all Pilito pages (check both slug and parent)
-        if (strpos($hook, 'pilito-') === false && strpos($hook, 'پیلیتو') === false) {
+        // Load on all Pilito pages
+        if (strpos($hook, 'pilito-') === false) {
             return;
         }
+        
+        // Load Vazirmatn font from Google Fonts
+        wp_enqueue_style(
+            'pilito-vazirmatn-font',
+            'https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&display=swap',
+            [],
+            null
+        );
         
         wp_enqueue_style(
             'pilito-ps-admin',
             PILITO_PS_PLUGIN_URL . 'admin/css/admin.css',
-            [],
+            ['pilito-vazirmatn-font'],
             PILITO_PS_VERSION
         );
         
@@ -131,10 +162,17 @@ class Pilito_PS_Admin_Page {
     }
     
     /**
-     * Render main dashboard (Products)
+     * Render main dashboard
      */
     public static function render_dashboard() {
         include PILITO_PS_PLUGIN_DIR . 'admin/views/dashboard.php';
+    }
+    
+    /**
+     * Render products sync
+     */
+    public static function render_products() {
+        include PILITO_PS_PLUGIN_DIR . 'admin/views/products.php';
     }
     
     /**
@@ -142,6 +180,13 @@ class Pilito_PS_Admin_Page {
      */
     public static function render_pages() {
         include PILITO_PS_PLUGIN_DIR . 'admin/views/pages.php';
+    }
+    
+    /**
+     * Render settings
+     */
+    public static function render_settings() {
+        include PILITO_PS_PLUGIN_DIR . 'admin/views/settings.php';
     }
     
     /**
