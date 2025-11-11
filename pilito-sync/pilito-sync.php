@@ -6,7 +6,7 @@
  * Version: 3.1.0
  * Author: Pilito Team
  * Author URI: https://pilito.com
- * Text Domain: pilito-product-sync
+ * Text Domain: pilito-sync
  * Domain Path: /languages
  * Requires at least: 5.8
  * Requires PHP: 7.4
@@ -49,9 +49,9 @@ function pilito_ps_init() {
     }
     
     // Load text domain based on WordPress locale
-    $locale = apply_filters('plugin_locale', get_locale(), 'pilito-product-sync');
-    load_textdomain('pilito-product-sync', WP_LANG_DIR . '/pilito-product-sync/pilito-product-sync-' . $locale . '.mo');
-    load_plugin_textdomain('pilito-product-sync', false, dirname(PILITO_PS_PLUGIN_BASENAME) . '/languages');
+    $locale = apply_filters('plugin_locale', get_locale(), 'pilito-sync');
+    load_textdomain('pilito-sync', WP_LANG_DIR . '/pilito-sync/pilito-sync-' . $locale . '.mo');
+    load_plugin_textdomain('pilito-sync', false, dirname(PILITO_PS_PLUGIN_BASENAME) . '/languages');
     
     // Load classes
     require_once PILITO_PS_PLUGIN_DIR . 'includes/helpers.php';

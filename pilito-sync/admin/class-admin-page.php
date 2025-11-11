@@ -30,8 +30,8 @@ class Pilito_PS_Admin_Page {
         $icon_svg = 'data:image/svg+xml;base64,' . base64_encode(file_get_contents(PILITO_PS_PLUGIN_DIR . 'assets/icon.svg'));
         
         add_menu_page(
-            __('پیلیتو', 'pilito-product-sync'),
-            __('پیلیتو', 'pilito-product-sync'),
+            __('پیلیتو', 'pilito-sync'),
+            __('پیلیتو', 'pilito-sync'),
             'manage_options',
             'pilito-dashboard',
             [__CLASS__, 'render_dashboard'],
@@ -42,8 +42,8 @@ class Pilito_PS_Admin_Page {
         // زیرمنو: داشبورد
         add_submenu_page(
             'pilito-dashboard',
-            __('داشبورد', 'pilito-product-sync'),
-            __('داشبورد', 'pilito-product-sync'),
+            __('داشبورد', 'pilito-sync'),
+            __('داشبورد', 'pilito-sync'),
             'manage_options',
             'pilito-dashboard',
             [__CLASS__, 'render_dashboard']
@@ -53,8 +53,8 @@ class Pilito_PS_Admin_Page {
         if (class_exists('WooCommerce')) {
             add_submenu_page(
                 'pilito-dashboard',
-                __('همگام‌سازی محصولات', 'pilito-product-sync'),
-                __('محصولات', 'pilito-product-sync'),
+                __('همگام‌سازی محصولات', 'pilito-sync'),
+                __('محصولات', 'pilito-sync'),
                 'manage_options',
                 'pilito-products',
                 [__CLASS__, 'render_products']
@@ -64,8 +64,8 @@ class Pilito_PS_Admin_Page {
         // زیرمنو: صفحات
         add_submenu_page(
             'pilito-dashboard',
-            __('همگام‌سازی صفحات و نوشته‌ها', 'pilito-product-sync'),
-            __('صفحات و نوشته‌ها', 'pilito-product-sync'),
+            __('همگام‌سازی صفحات و نوشته‌ها', 'pilito-sync'),
+            __('صفحات و نوشته‌ها', 'pilito-sync'),
             'manage_options',
             'pilito-pages',
             [__CLASS__, 'render_pages']
@@ -74,8 +74,8 @@ class Pilito_PS_Admin_Page {
         // زیرمنو: تنظیمات
         add_submenu_page(
             'pilito-dashboard',
-            __('تنظیمات', 'pilito-product-sync'),
-            __('تنظیمات', 'pilito-product-sync'),
+            __('تنظیمات', 'pilito-sync'),
+            __('تنظیمات', 'pilito-sync'),
             'manage_options',
             'pilito-settings',
             [__CLASS__, 'render_settings']
@@ -84,8 +84,8 @@ class Pilito_PS_Admin_Page {
         // زیرمنو: چت
         add_submenu_page(
             'pilito-dashboard',
-            __('چت آنلاین', 'pilito-product-sync'),
-            __('چت آنلاین', 'pilito-product-sync'),
+            __('چت آنلاین', 'pilito-sync'),
+            __('چت آنلاین', 'pilito-sync'),
             'manage_options',
             'pilito-chat',
             [__CLASS__, 'render_chat']
