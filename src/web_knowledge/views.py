@@ -29,7 +29,7 @@ from .serializers import (
     ProductUpdateSerializer, QAPairPartialCreateSerializer,
     GeneratePromptSerializer, ProductCompactSerializer
 )
-from .tasks import crawl_website_task, generate_qa_pairs_task, recrawl_website_task
+from .tasks import crawl_website_task, crawl_manual_urls_task
 
 logger = logging.getLogger(__name__)
 

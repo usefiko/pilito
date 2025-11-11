@@ -59,7 +59,7 @@ app.conf.task_routes = {
         'queue': 'low_priority',
         'routing_key': 'low.crawl',
     },
-    'web_knowledge.tasks.recrawl_website_task': {
+    'web_knowledge.tasks.crawl_manual_urls_task': {
         'queue': 'low_priority',
         'routing_key': 'low.crawl',
     },
