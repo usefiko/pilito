@@ -2,8 +2,8 @@
 /**
  * Plugin Name: پیلیتو - همگام‌سازی
  * Plugin URI: https://pilito.com
- * Description: همگام‌سازی خودکار محتوای سایت (محصولات، صفحات و نوشته‌ها) با پلتفرم پیلیتو برای استفاده از هوش مصنوعی
- * Version: 3.1.0
+ * Description: همگام‌سازی خودکار محتوای سایت (محصولات، برگه‌ها و نوشته‌ها) با پلتفرم پیلیتو برای استفاده از هوش مصنوعی
+ * Version: 3.2.0
  * Author: Pilito Team
  * Author URI: https://pilito.com
  * Text Domain: pilito-sync
@@ -19,7 +19,7 @@
 defined('ABSPATH') || exit;
 
 // Plugin constants
-define('PILITO_PS_VERSION', '3.1.0');
+define('PILITO_PS_VERSION', '3.2.0');
 define('PILITO_PS_PLUGIN_FILE', __FILE__);
 define('PILITO_PS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('PILITO_PS_PLUGIN_URL', plugin_dir_url(__FILE__));
@@ -37,7 +37,7 @@ function pilito_ps_init() {
             }
             ?>
             <div class="notice notice-info is-dismissible" data-notice="pilito-wc">
-                <p><strong>پیلیتو:</strong> برای همگام‌سازی محصولات، نیاز به نصب WooCommerce دارید. در غیر این صورت می‌توانید فقط از همگام‌سازی صفحات و نوشته‌ها استفاده کنید.</p>
+                <p><strong>پیلیتو:</strong> برای همگام‌سازی محصولات، نیاز به نصب WooCommerce دارید. در غیر این صورت می‌توانید فقط از همگام‌سازی برگه‌ها و نوشته‌ها استفاده کنید.</p>
             </div>
             <script>
             jQuery(document).on('click', '.notice[data-notice="pilito-wc"] .notice-dismiss', function() {

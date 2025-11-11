@@ -34,12 +34,14 @@
                 },
                 success: function(response) {
                     if (response.success) {
+                        const userEmail = response.data.data.user.email;
+                        $('#pilito-user-email').text(userEmail);
                         showAlert(
-                            `✅ ${response.data.message}<br>` +
-                            `کاربر: ${response.data.data.user.email}`,
+                            `✅ ${response.data.message}`,
                             'success'
                         );
                     } else {
+                        $('#pilito-user-email').text('');
                         showAlert(`❌ ${response.data.message}`, 'error');
                     }
                 },

@@ -1,18 +1,25 @@
 /**
- * Pilito Product Sync - Admin Styles v3.1 (Professional)
+ * Pilito Sync - Admin Styles v3.2 (Professional & Minimal)
  */
+
+/* Import Vazirmatn Font */
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&display=swap');
 
 /* ========== Base ========== */
 .pilito-dashboard {
-    font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, sans-serif;
+    font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, sans-serif !important;
     max-width: 1200px;
     margin: 20px 0;
 }
 
-/* Force Vazirmatn for Persian text */
+/* Force Vazirmatn for all text */
+.pilito-dashboard,
+.pilito-dashboard *,
 body.rtl .pilito-dashboard,
-body[dir="rtl"] .pilito-dashboard {
-    font-family: 'Vazirmatn', Tahoma, Arial, sans-serif;
+body.rtl .pilito-dashboard *,
+body[dir="rtl"] .pilito-dashboard,
+body[dir="rtl"] .pilito-dashboard * {
+    font-family: 'Vazirmatn', Tahoma, Arial, sans-serif !important;
 }
 
 /* ========== Page Title ========== */

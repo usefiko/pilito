@@ -1,6 +1,6 @@
 <?php
 /**
- * Pages & Posts Sync - Minimal & Professional
+ * Pages & Posts Sync
  */
 defined('ABSPATH') || exit;
 
@@ -10,123 +10,110 @@ $token = get_option('pilito_ps_api_token', '');
 <div class="wrap pilito-dashboard">
     
     <h1 class="pilito-page-title">
-        <img src="<?php echo PILITO_PS_PLUGIN_URL . 'assets/logo.svg'; ?>" alt="<?php esc_attr_e('پیلیتو', 'pilito-sync'); ?>" class="pilito-page-logo">
-        <?php esc_html_e('همگام‌سازی صفحات و نوشته‌ها', 'pilito-sync'); ?>
+        <img src="<?php echo PILITO_PS_PLUGIN_URL . 'assets/logo.svg'; ?>" alt="پیلیتو" class="pilito-page-logo">
+        برگه‌ها و نوشته‌ها
     </h1>
-    <p class="pilito-page-description"><?php esc_html_e('محتوای سایت خود را با هوش مصنوعی پیلیتو همگام کنید', 'pilito-sync'); ?></p>
+    <p class="pilito-page-description">محتوای سایت خود را با هوش مصنوعی پیلیتو همگام کنید</p>
     
     <?php if (!$token): ?>
-    <!-- No Token Alert -->
     <div class="pilito-alert pilito-alert-warning">
-        <strong><?php esc_html_e('⚠️ توکن API تنظیم نشده است', 'pilito-sync'); ?></strong><br>
-        <?php esc_html_e('لطفاً ابتدا از بخش', 'pilito-sync'); ?> <a href="<?php echo admin_url('admin.php?page=pilito-settings'); ?>"><?php esc_html_e('تنظیمات', 'pilito-sync'); ?></a> <?php esc_html_e('توکن خود را تنظیم کنید.', 'pilito-sync'); ?>
+        <strong>⚠️ توکن API تنظیم نشده است</strong><br>
+        لطفاً ابتدا از بخش <a href="<?php echo admin_url('admin.php?page=pilito-settings'); ?>">تنظیمات</a> توکن خود را تنظیم کنید.
     </div>
     <?php else: ?>
     
-    <!-- Tabs: Pages / Posts -->
     <div class="pilito-nav">
         <button class="pilito-nav-item active" data-tab="pages">
-            <?php esc_html_e('صفحات', 'pilito-sync'); ?>
+            برگه‌ها
             <span class="pilito-nav-badge" id="pages-count">...</span>
         </button>
         <button class="pilito-nav-item" data-tab="posts">
-            <?php esc_html_e('نوشته‌ها', 'pilito-sync'); ?>
+            نوشته‌ها
             <span class="pilito-nav-badge" id="posts-count">...</span>
         </button>
     </div>
     
-    <!-- Tab Content: Pages -->
     <div id="tab-pages" class="pilito-tab-content active">
         <div class="pilito-card">
             <div class="pilito-card-header">
-                <h2 class="pilito-card-title"><?php esc_html_e('صفحات سایت', 'pilito-sync'); ?></h2>
+                <h2 class="pilito-card-title">برگه‌های سایت</h2>
                 <p class="pilito-card-description">
-                    <?php esc_html_e('صفحاتی که می‌خواهید با پیلیتو همگام شوند را انتخاب کنید. هوش مصنوعی از محتوای این صفحات برای پاسخگویی به مشتریان استفاده خواهد کرد.', 'pilito-sync'); ?>
+                    برگه‌هایی که می‌خواهید با پیلیتو همگام شوند را انتخاب کنید.
                 </p>
             </div>
             
-            <!-- Filters -->
             <div class="pilito-filters">
-                <button class="pilito-filter-btn active" data-filter="all" data-type="page"><?php esc_html_e('همه', 'pilito-sync'); ?></button>
-                <button class="pilito-filter-btn" data-filter="not_synced" data-type="page"><?php esc_html_e('ارسال نشده', 'pilito-sync'); ?></button>
-                <button class="pilito-filter-btn" data-filter="need_update" data-type="page"><?php esc_html_e('نیاز به آپدیت', 'pilito-sync'); ?></button>
-                <button class="pilito-filter-btn" data-filter="synced" data-type="page"><?php esc_html_e('همگام شده', 'pilito-sync'); ?></button>
+                <button class="pilito-filter-btn active" data-filter="all" data-type="page">همه</button>
+                <button class="pilito-filter-btn" data-filter="not_synced" data-type="page">ارسال نشده</button>
+                <button class="pilito-filter-btn" data-filter="need_update" data-type="page">نیاز به آپدیت</button>
+                <button class="pilito-filter-btn" data-filter="synced" data-type="page">همگام شده</button>
             </div>
             
-            <!-- List -->
             <div id="pages-list" class="pilito-content-list">
                 <div style="padding: 40px; text-align: center; color: #999;">
                     <div class="pilito-spinner"></div>
-                    <div style="margin-top: 12px;"><?php esc_html_e('در حال بارگذاری...', 'pilito-sync'); ?></div>
+                    <div style="margin-top: 12px;">در حال بارگذاری...</div>
                 </div>
             </div>
             
-            <!-- Actions -->
             <div class="pilito-action-bar">
                 <div class="pilito-action-left">
                     <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                         <input type="checkbox" id="select-all-pages">
-                        <span style="font-size: 13px; color: #666;"><?php esc_html_e('انتخاب همه', 'pilito-sync'); ?></span>
+                        <span style="font-size: 13px; color: #666;">انتخاب همه</span>
                     </label>
-                    <span id="pages-selected-count" style="color: #999; font-size: 13px;"><?php esc_html_e('0 انتخاب شده', 'pilito-sync'); ?></span>
+                    <span id="pages-selected-count" style="color: #999; font-size: 13px;">0 انتخاب شده</span>
                 </div>
                 <div class="pilito-action-right">
                     <button id="send-selected-pages" class="pilito-btn pilito-btn-primary" disabled>
-                        <?php esc_html_e('ارسال انتخاب شده', 'pilito-sync'); ?>
+                        ارسال انتخاب شده
                     </button>
                 </div>
             </div>
         </div>
     </div>
     
-    <!-- Tab Content: Posts -->
     <div id="tab-posts" class="pilito-tab-content">
         <div class="pilito-card">
             <div class="pilito-card-header">
-                <h2 class="pilito-card-title"><?php esc_html_e('نوشته‌های بلاگ', 'pilito-sync'); ?></h2>
-                <p class="pilito-card-description">
-                    <?php esc_html_e('نوشته‌هایی که می‌خواهید با پیلیتو همگام شوند را انتخاب کنید.', 'pilito-sync'); ?>
-                </p>
+                <h2 class="pilito-card-title">نوشته‌های بلاگ</h2>
+                <p class="pilito-card-description">نوشته‌هایی که می‌خواهید با پیلیتو همگام شوند را انتخاب کنید.</p>
             </div>
             
-            <!-- Filters -->
             <div class="pilito-filters">
-                <button class="pilito-filter-btn active" data-filter="all" data-type="post"><?php esc_html_e('همه', 'pilito-sync'); ?></button>
-                <button class="pilito-filter-btn" data-filter="not_synced" data-type="post"><?php esc_html_e('ارسال نشده', 'pilito-sync'); ?></button>
-                <button class="pilito-filter-btn" data-filter="need_update" data-type="post"><?php esc_html_e('نیاز به آپدیت', 'pilito-sync'); ?></button>
-                <button class="pilito-filter-btn" data-filter="synced" data-type="post"><?php esc_html_e('همگام شده', 'pilito-sync'); ?></button>
+                <button class="pilito-filter-btn active" data-filter="all" data-type="post">همه</button>
+                <button class="pilito-filter-btn" data-filter="not_synced" data-type="post">ارسال نشده</button>
+                <button class="pilito-filter-btn" data-filter="need_update" data-type="post">نیاز به آپدیت</button>
+                <button class="pilito-filter-btn" data-filter="synced" data-type="post">همگام شده</button>
             </div>
             
-            <!-- List -->
             <div id="posts-list" class="pilito-content-list">
                 <div style="padding: 40px; text-align: center; color: #999;">
                     <div class="pilito-spinner"></div>
-                    <div style="margin-top: 12px;"><?php esc_html_e('در حال بارگذاری...', 'pilito-sync'); ?></div>
+                    <div style="margin-top: 12px;">در حال بارگذاری...</div>
                 </div>
             </div>
             
-            <!-- Actions -->
             <div class="pilito-action-bar">
                 <div class="pilito-action-left">
                     <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                         <input type="checkbox" id="select-all-posts">
-                        <span style="font-size: 13px; color: #666;"><?php esc_html_e('انتخاب همه', 'pilito-sync'); ?></span>
+                        <span style="font-size: 13px; color: #666;">انتخاب همه</span>
                     </label>
-                    <span id="posts-selected-count" style="color: #999; font-size: 13px;"><?php esc_html_e('0 انتخاب شده', 'pilito-sync'); ?></span>
+                    <span id="posts-selected-count" style="color: #999; font-size: 13px;">0 انتخاب شده</span>
                 </div>
                 <div class="pilito-action-right">
                     <button id="send-selected-posts" class="pilito-btn pilito-btn-primary" disabled>
-                        <?php esc_html_e('ارسال انتخاب شده', 'pilito-sync'); ?>
+                        ارسال انتخاب شده
                     </button>
                 </div>
             </div>
         </div>
     </div>
     
-    <!-- Progress Modal -->
     <div id="pilito-sync-progress" style="display:none;">
         <div class="pilito-card">
-            <h3 style="margin-top: 0;"><?php esc_html_e('در حال ارسال...', 'pilito-sync'); ?></h3>
+            <h3 style="margin-top: 0;">در حال ارسال...</h3>
             <div class="pilito-progress-container">
                 <div id="pilito-pages-progress-bar" class="pilito-progress-bar"></div>
             </div>
@@ -139,9 +126,7 @@ $token = get_option('pilito_ps_api_token', '');
 </div>
 
 <script>
-// این بخش هنوز کامل نشده - فقط برای نمایش اولیه
 jQuery(document).ready(function($) {
-    // Tab switching
     $('.pilito-nav-item').on('click', function() {
         if ($(this).hasClass('disabled')) return;
         
@@ -153,7 +138,6 @@ jQuery(document).ready(function($) {
         $('.pilito-tab-content').removeClass('active');
         $('#tab-' + tab).addClass('active');
         
-        // Load content if not loaded
         if (tab === 'pages') {
             loadPages('all');
         } else if (tab === 'posts') {
@@ -161,7 +145,6 @@ jQuery(document).ready(function($) {
         }
     });
     
-    // Filter buttons
     $('.pilito-filter-btn').on('click', function() {
         const type = $(this).data('type');
         const filter = $(this).data('filter');
@@ -176,7 +159,6 @@ jQuery(document).ready(function($) {
         }
     });
     
-    // Load pages on init
     loadPages('all');
     
     function loadPages(filter) {
@@ -215,11 +197,7 @@ jQuery(document).ready(function($) {
         const container = $(`#${type}-list`);
         
         if (items.length === 0) {
-            container.html(
-                '<div class="pilito-empty-state">' +
-                '<div class="pilito-empty-text"><?php echo esc_js(__('موردی یافت نشد', 'pilito-sync')); ?></div>' +
-                '</div>'
-            );
+            container.html('<div class="pilito-empty-state"><div class="pilito-empty-text">موردی یافت نشد</div></div>');
             return;
         }
         
@@ -233,17 +211,17 @@ jQuery(document).ready(function($) {
             }[item.status] || 'pilito-status-pending';
             
             const statusText = {
-                'synced': '<?php echo esc_js(__('همگام شده', 'pilito-sync')); ?>',
-                'not_synced': '<?php echo esc_js(__('ارسال نشده', 'pilito-sync')); ?>',
-                'need_update': '<?php echo esc_js(__('نیاز به آپدیت', 'pilito-sync')); ?>',
-                'error': '<?php echo esc_js(__('خطا', 'pilito-sync')); ?>'
-            }[item.status] || '<?php echo esc_js(__('نامشخص', 'pilito-sync')); ?>';
+                'synced': 'همگام شده',
+                'not_synced': 'ارسال نشده',
+                'need_update': 'نیاز به آپدیت',
+                'error': 'خطا'
+            }[item.status] || 'نامشخص';
             
             html += `
                 <div class="pilito-content-item">
                     <input type="checkbox" class="pilito-content-checkbox ${type}-checkbox" value="${item.id}">
                     <div class="pilito-content-title">${item.title}</div>
-                    <span class="pilito-content-meta">${item.word_count} <?php echo esc_js(__('کلمه', 'pilito-sync')); ?></span>
+                    <span class="pilito-content-meta">${item.word_count} کلمه</span>
                     <span class="pilito-content-status ${statusClass}">${statusText}</span>
                 </div>
             `;
@@ -253,7 +231,6 @@ jQuery(document).ready(function($) {
         updateSelectedCount(type);
     }
     
-    // Select all
     $('#select-all-pages').on('change', function() {
         $('.pages-checkbox').prop('checked', $(this).prop('checked'));
         updateSelectedCount('pages');
@@ -264,7 +241,6 @@ jQuery(document).ready(function($) {
         updateSelectedCount('posts');
     });
     
-    // Update count
     $(document).on('change', '.pages-checkbox, .posts-checkbox', function() {
         const type = $(this).hasClass('pages-checkbox') ? 'pages' : 'posts';
         updateSelectedCount(type);
@@ -276,7 +252,6 @@ jQuery(document).ready(function($) {
         $(`#send-selected-${type}`).prop('disabled', count === 0);
     }
     
-    // Send selected
     $('#send-selected-pages, #send-selected-posts').on('click', function() {
         const isPages = $(this).attr('id') === 'send-selected-pages';
         const type = isPages ? 'pages' : 'posts';
@@ -286,12 +261,11 @@ jQuery(document).ready(function($) {
         
         if (selectedIds.length === 0) return;
         
-        if (!confirm('<?php echo esc_js(sprintf(__('%d مورد ارسال خواهد شد. ادامه می‌دهید؟', 'pilito-sync'), 'PLACEHOLDER'))); ?>'.replace('PLACEHOLDER', selectedIds.length))) {
+        if (!confirm(`${selectedIds.length} مورد ارسال خواهد شد. ادامه می‌دهید؟`)) {
             return;
         }
         
-        // Send
-        $(this).prop('disabled', true).html('<span class="pilito-spinner"></span> <?php echo esc_js(__('در حال ارسال...', 'pilito-sync')); ?>');
+        $(this).prop('disabled', true).html('<span class="pilito-spinner"></span> در حال ارسال...');
         
         $.post(pilitoPS.ajax_url, {
             action: 'pilito_ps_sync_pages',
@@ -300,12 +274,12 @@ jQuery(document).ready(function($) {
         }, function(response) {
             if (response.success) {
                 const data = response.data;
-                let msg = '<?php echo esc_js(sprintf(__('%d مورد با موفقیت ارسال شد', 'pilito-sync'), 'SUCCESS')); ?>'.replace('SUCCESS', data.success);
+                let msg = `✅ ${data.success} مورد با موفقیت ارسال شد`;
                 
                 if (data.failed > 0) {
-                    msg += '\n' + '<?php echo esc_js(sprintf(__('%d مورد ناموفق', 'pilito-sync'), 'FAILED')); ?>'.replace('FAILED', data.failed);
+                    msg += `\n⚠️ ${data.failed} مورد ناموفق`;
                     if (data.errors && data.errors.length > 0) {
-                        msg += '\n\n<?php echo esc_js(__('خطاها:', 'pilito-sync')); ?>';
+                        msg += '\n\nخطاها:';
                         data.errors.slice(0, 3).forEach(err => {
                             msg += `\n- Post ${err.post_id}: ${err.message}`;
                         });
@@ -313,19 +287,14 @@ jQuery(document).ready(function($) {
                 }
                 
                 alert(msg);
-                // Reload list
                 if (isPages) loadPages('all');
                 else loadPosts('all');
             } else {
-                let msg = '<?php echo esc_js(__('خطا:', 'pilito-sync')); ?> ' + response.data.message;
-                alert(msg);
+                alert('❌ خطا: ' + response.data.message);
             }
         }).always(function() {
-            $(`#send-selected-${type}`).prop('disabled', false).html('<?php echo esc_js(__('ارسال انتخاب شده', 'pilito-sync')); ?>');
+            $(`#send-selected-${type}`).prop('disabled', false).html('ارسال انتخاب شده');
         });
     });
 });
 </script>
-
-</div>
-

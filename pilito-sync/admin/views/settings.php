@@ -6,17 +6,15 @@ defined('ABSPATH') || exit;
 
 $token = get_option('pilito_ps_api_token', '');
 $enable_logging = get_option('pilito_ps_enable_logging', false);
-$api_url = get_option('pilito_ps_api_url', 'https://api.pilito.com/api/integrations/woocommerce');
+$user_email = '';
 
 // Handle settings save
 if (isset($_POST['pilito_ps_save_settings']) && check_admin_referer('pilito_ps_settings')) {
     update_option('pilito_ps_api_token', sanitize_text_field($_POST['pilito_ps_api_token']));
     update_option('pilito_ps_enable_logging', isset($_POST['pilito_ps_enable_logging']));
-    update_option('pilito_ps_api_url', esc_url_raw($_POST['pilito_ps_api_url']));
     echo '<div class="notice notice-success is-dismissible"><p>' . __('تنظیمات ذخیره شد.', 'pilito-sync') . '</p></div>';
     $token = get_option('pilito_ps_api_token');
     $enable_logging = get_option('pilito_ps_enable_logging');
-    $api_url = get_option('pilito_ps_api_url');
 }
 
 ?>
@@ -48,22 +46,7 @@ if (isset($_POST['pilito_ps_save_settings']) && check_admin_referer('pilito_ps_s
                     placeholder="<?php esc_attr_e('توکن API خود را وارد کنید', 'pilito-sync'); ?>"
                 >
                 <span class="pilito-input-hint">
-                    <?php esc_html_e('از داشبورد Django دریافت کنید. برای همه بخش‌ها یکسان است.', 'pilito-sync'); ?>
-                </span>
-            </div>
-            
-            <div class="pilito-form-group">
-                <label for="pilito_ps_api_url" class="pilito-label"><?php esc_html_e('API URL', 'pilito-sync'); ?></label>
-                <input 
-                    type="url" 
-                    id="pilito_ps_api_url" 
-                    name="pilito_ps_api_url" 
-                    value="<?php echo esc_attr($api_url); ?>" 
-                    class="pilito-input"
-                    placeholder="https://api.pilito.com/api/integrations/woocommerce"
-                >
-                <span class="pilito-input-hint">
-                    <?php esc_html_e('آدرس API سرور پیلیتو (به طور پیش‌فرض تنظیم شده است)', 'pilito-sync'); ?>
+                    <?php esc_html_e('از داشبورد پیلیتو دریافت کنید.', 'pilito-sync'); ?>
                 </span>
             </div>
             
@@ -82,6 +65,7 @@ if (isset($_POST['pilito_ps_save_settings']) && check_admin_referer('pilito_ps_s
                 <div class="pilito-action-left">
                     <?php if ($token): ?>
                     <span class="pilito-connection-status connected">● <?php esc_html_e('متصل', 'pilito-sync'); ?></span>
+                    <span id="pilito-user-email" style="margin-right: 12px; color: #666; font-size: 13px;"></span>
                     <?php else: ?>
                     <span class="pilito-connection-status disconnected">● <?php esc_html_e('غیرمتصل', 'pilito-sync'); ?></span>
                     <?php endif; ?>

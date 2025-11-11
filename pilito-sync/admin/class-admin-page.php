@@ -30,65 +30,55 @@ class Pilito_PS_Admin_Page {
         $icon_svg = 'data:image/svg+xml;base64,' . base64_encode(file_get_contents(PILITO_PS_PLUGIN_DIR . 'assets/icon.svg'));
         
         add_menu_page(
-            __('پیلیتو', 'pilito-sync'),
-            __('پیلیتو', 'pilito-sync'),
+            'پیلیتو',
+            'پیلیتو',
             'manage_options',
-            'pilito-dashboard',
-            [__CLASS__, 'render_dashboard'],
+            'pilito-pages',
+            [__CLASS__, 'render_pages'],
             $icon_svg,
             56
         );
         
-        // زیرمنو: داشبورد
+        // زیرمنو: برگه‌ها (اولین آیتم)
         add_submenu_page(
-            'pilito-dashboard',
-            __('داشبورد', 'pilito-sync'),
-            __('داشبورد', 'pilito-sync'),
+            'pilito-pages',
+            'برگه‌ها و نوشته‌ها',
+            'برگه‌ها و نوشته‌ها',
             'manage_options',
-            'pilito-dashboard',
-            [__CLASS__, 'render_dashboard']
+            'pilito-pages',
+            [__CLASS__, 'render_pages']
         );
         
         // زیرمنو: محصولات (فقط اگر WooCommerce نصب باشد)
         if (class_exists('WooCommerce')) {
             add_submenu_page(
-                'pilito-dashboard',
-                __('همگام‌سازی محصولات', 'pilito-sync'),
-                __('محصولات', 'pilito-sync'),
+                'pilito-pages',
+                'محصولات',
+                'محصولات',
                 'manage_options',
                 'pilito-products',
                 [__CLASS__, 'render_products']
             );
         }
         
-        // زیرمنو: صفحات
-        add_submenu_page(
-            'pilito-dashboard',
-            __('همگام‌سازی صفحات و نوشته‌ها', 'pilito-sync'),
-            __('صفحات و نوشته‌ها', 'pilito-sync'),
-            'manage_options',
-            'pilito-pages',
-            [__CLASS__, 'render_pages']
-        );
-        
-        // زیرمنو: تنظیمات
-        add_submenu_page(
-            'pilito-dashboard',
-            __('تنظیمات', 'pilito-sync'),
-            __('تنظیمات', 'pilito-sync'),
-            'manage_options',
-            'pilito-settings',
-            [__CLASS__, 'render_settings']
-        );
-        
         // زیرمنو: چت
         add_submenu_page(
-            'pilito-dashboard',
-            __('چت آنلاین', 'pilito-sync'),
-            __('چت آنلاین', 'pilito-sync'),
+            'pilito-pages',
+            'چت آنلاین',
+            'چت آنلاین',
             'manage_options',
             'pilito-chat',
             [__CLASS__, 'render_chat']
+        );
+        
+        // زیرمنو: تنظیمات (آخری)
+        add_submenu_page(
+            'pilito-pages',
+            'تنظیمات',
+            'تنظیمات',
+            'manage_options',
+            'pilito-settings',
+            [__CLASS__, 'render_settings']
         );
     }
     
@@ -159,13 +149,6 @@ class Pilito_PS_Admin_Page {
             'pages_nonce' => wp_create_nonce('pilito_ps_pages'),
             'logo_url' => PILITO_PS_PLUGIN_URL . 'assets/logo.svg',
         ]);
-    }
-    
-    /**
-     * Render main dashboard
-     */
-    public static function render_dashboard() {
-        include PILITO_PS_PLUGIN_DIR . 'admin/views/dashboard.php';
     }
     
     /**
