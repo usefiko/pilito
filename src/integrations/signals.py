@@ -13,11 +13,12 @@ logger = logging.getLogger(__name__)
 def sync_wordpress_content_to_knowledge_base(sender, instance, created, **kwargs):
     """
     Auto-chunk WordPress content when created/updated
-    Similar to Product sync but for Pages/Posts
+    + اضافه کردن به WebsitePage برای نمایش در dashboard
     """
     try:
         from AI_model.models import TenantKnowledge
         from AI_model.services.embedding_service import EmbeddingService
+        from web_knowledge.models import WebsiteSource, WebsitePage
         import hashlib
         
         # Skip if not published
@@ -28,8 +29,46 @@ def sync_wordpress_content_to_knowledge_base(sender, instance, created, **kwargs
                 chunk_type='website',
                 source_id=instance.id
             ).delete()
-            logger.info(f"🗑️ Removed unpublished content from KB: {instance.title}")
+            # Delete from WebsitePage
+            WebsitePage.objects.filter(
+                source_type='wordpress',
+                wordpress_post_id=instance.wp_post_id
+            ).delete()
+            logger.info(f"🗑️ Removed unpublished content from KB & Pages: {instance.title}")
             return
+        
+        # ✅ اضافه کردن به WebsitePage (برای نمایش در dashboard)
+        # ابتدا WebsiteSource برای WordPress پیدا یا بساز
+        wordpress_source, _ = WebsiteSource.objects.get_or_create(
+            user=instance.user,
+            url='https://wordpress-sync',
+            defaults={
+                'name': '📝 محتوای WordPress',
+                'description': 'صفحات و نوشته‌های همگام‌سازی شده از WordPress',
+                'max_pages': 10000,
+                'crawl_depth': 1,
+                'crawl_status': 'completed'
+            }
+        )
+        
+        # ایجاد یا به‌روزرسانی WebsitePage
+        webpage, webpage_created = WebsitePage.objects.update_or_create(
+            url=instance.permalink,
+            defaults={
+                'website': wordpress_source,
+                'title': instance.title,
+                'cleaned_content': instance.content,
+                'raw_content': instance.content,  # برای WordPress همانه
+                'word_count': len(instance.content.split()),
+                'processing_status': 'completed',
+                'processed_at': instance.last_synced_at,
+                'source_type': 'wordpress',
+                'wordpress_post_id': instance.wp_post_id,
+                'meta_description': instance.excerpt[:160] if instance.excerpt else '',
+            }
+        )
+        
+        logger.info(f"✅ WordPress content {'added to' if webpage_created else 'updated in'} WebsitePage: {instance.title}")
         
         # Build full text for embedding
         full_text = f"# {instance.title}\n\n"

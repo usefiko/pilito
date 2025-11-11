@@ -89,6 +89,7 @@ class WebsiteSource(models.Model):
 class WebsitePage(models.Model):
     """
     Model to store individual pages crawled from a website
+    یا صفحات/نوشته‌های WordPress که sync شدن
     """
     PROCESSING_STATUS_CHOICES = [
         ('pending', 'Pending'),
@@ -97,10 +98,19 @@ class WebsitePage(models.Model):
         ('failed', 'Failed'),
     ]
     
+    SOURCE_TYPE_CHOICES = [
+        ('crawled', 'Crawled'),
+        ('wordpress', 'WordPress Sync'),
+    ]
+    
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     website = models.ForeignKey(WebsiteSource, on_delete=models.CASCADE, related_name='pages')
     url = models.URLField(unique=True)
     title = models.CharField(max_length=500, blank=True)
+    
+    # Source type (crawled یا WordPress sync)
+    source_type = models.CharField(max_length=20, choices=SOURCE_TYPE_CHOICES, default='crawled')
+    wordpress_post_id = models.IntegerField(null=True, blank=True, help_text="WordPress Post ID if synced")
     
     # Content
     raw_content = models.TextField(help_text="Raw HTML content")
