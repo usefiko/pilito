@@ -501,6 +501,71 @@ class WebsitePageViewSet(viewsets.ModelViewSet):
         }, status=status.HTTP_200_OK)
     
     @swagger_auto_schema(
+        operation_description="Bulk delete website pages (chunks will be automatically cleaned up)",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'page_ids': openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(type=openapi.TYPE_STRING),
+                    description='List of page IDs to delete'
+                )
+            },
+            required=['page_ids']
+        ),
+        responses={200: "Pages deleted successfully"}
+    )
+    @action(detail=False, methods=['post'], url_path='bulk-delete')
+    def bulk_delete(self, request):
+        """Bulk delete website pages (chunks will be automatically cleaned up via signals)"""
+        page_ids = request.data.get('page_ids', [])
+        
+        if not page_ids:
+            return Response({
+                'success': False,
+                'error': 'page_ids is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Get pages that belong to the user
+        pages = WebsitePage.objects.filter(
+            id__in=page_ids,
+            website__user=request.user
+        )
+        
+        if not pages.exists():
+            return Response({
+                'success': False,
+                'error': 'No pages found or access denied'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Collect information before deletion
+        deleted_info = []
+        total_qa_pairs = 0
+        
+        for page in pages:
+            qa_count = page.qa_pairs.count()
+            total_qa_pairs += qa_count
+            deleted_info.append({
+                'id': str(page.id),
+                'title': page.title,
+                'url': page.url,
+                'qa_pairs_count': qa_count
+            })
+        
+        deleted_count = pages.count()
+        
+        # Delete the pages (signals will automatically clean up chunks)
+        pages.delete()
+        
+        return Response({
+            'success': True,
+            'message': f'{deleted_count} page(s) and {total_qa_pairs} Q&A pair(s) deleted successfully',
+            'deleted_count': deleted_count,
+            'qa_pairs_deleted': total_qa_pairs,
+            'deleted_pages': deleted_info
+        }, status=status.HTTP_200_OK)
+    
+    @swagger_auto_schema(
         operation_description="Regenerate Q&A pairs for this page",
         responses={200: "Q&A regeneration started"}
     )
