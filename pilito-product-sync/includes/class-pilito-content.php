@@ -445,14 +445,18 @@ class Pilito_PS_Content {
             $status_code = wp_remote_retrieve_response_code($response);
             $body = wp_remote_retrieve_body($response);
             
-            if ($status_code === 200 || $status_code === 201) {
+            // Success: 200 (OK), 201 (Created), 202 (Accepted - async processing)
+            if ($status_code >= 200 && $status_code < 300) {
                 // Success
                 update_post_meta($post_id, '_pilito_page_sync_status', 'success');
                 update_post_meta($post_id, '_pilito_page_last_sync', current_time('mysql'));
                 update_post_meta($post_id, '_pilito_page_content_hash', md5($full_content));
                 delete_post_meta($post_id, '_pilito_page_sync_error');
                 
-                return ['success' => true, 'message' => '✅ با موفقیت ارسال شد'];
+                $body_data = @json_decode($body, true);
+                $message = isset($body_data['message']) ? $body_data['message'] : 'با موفقیت ارسال شد';
+                
+                return ['success' => true, 'message' => '✅ ' . $message];
             } else {
                 // Error
                 $error_msg = 'خطای سرور ' . $status_code;

@@ -3,7 +3,7 @@
  * Plugin Name: پیلیتو - همگام‌سازی محصولات
  * Plugin URI: https://pilito.com
  * Description: همگام‌سازی خودکار محصولات فروشگاه با پلتفرم پیلیتو برای استفاده از هوش مصنوعی
- * Version: 2.7.1
+ * Version: 2.8.0
  * Author: Pilito Team
  * Author URI: https://pilito.com
  * Text Domain: pilito-product-sync
@@ -19,7 +19,7 @@
 defined('ABSPATH') || exit;
 
 // Plugin constants
-define('PILITO_PS_VERSION', '2.7.1');
+define('PILITO_PS_VERSION', '2.8.0');
 define('PILITO_PS_PLUGIN_FILE', __FILE__);
 define('PILITO_PS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('PILITO_PS_PLUGIN_URL', plugin_dir_url(__FILE__));
