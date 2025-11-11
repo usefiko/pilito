@@ -1,6 +1,6 @@
 import hashlib
 from typing import Dict, Any
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from django.utils import timezone
 import logging
 
@@ -60,10 +60,10 @@ class WooCommerceProcessor:
         
         # Prepare product data
         product_defaults = {
-            'title': product_data['name'],
+            'title': product_data['name'][:255],  # Max 255 chars
             'description': product_data.get('description', ''),
-            'short_description': product_data.get('short_description', ''),
-            'price': Decimal(str(product_data.get('price', 0))) if product_data.get('price') else None,
+            'short_description': product_data.get('short_description', '')[:500],  # Truncate to 500
+            'price': self._safe_decimal(product_data.get('price')),
             'currency': product_data.get('currency', 'IRT'),
             'stock_quantity': product_data.get('stock_quantity'),
             'in_stock': product_data.get('stock_status') == 'instock',
@@ -98,15 +98,12 @@ class WooCommerceProcessor:
         
         # Handle pricing
         if product_data.get('regular_price') and product_data.get('sale_price'):
-            try:
-                regular = Decimal(str(product_data['regular_price']))
-                sale = Decimal(str(product_data['sale_price']))
-                if sale < regular:
-                    product_defaults['original_price'] = regular
-                    product_defaults['price'] = sale
-                    product_defaults['discount_amount'] = regular - sale
-            except (ValueError, TypeError):
-                pass
+            regular = self._safe_decimal(product_data.get('regular_price'))
+            sale = self._safe_decimal(product_data.get('sale_price'))
+            if regular and sale and sale < regular:
+                product_defaults['original_price'] = regular
+                product_defaults['price'] = sale
+                product_defaults['discount_amount'] = regular - sale
         
         # Create or Update
         product, created = Product.objects.update_or_create(
@@ -162,4 +159,26 @@ class WooCommerceProcessor:
         ]
         content = '|'.join(critical_fields)
         return hashlib.sha256(content.encode('utf-8')).hexdigest()
+    
+    def _safe_decimal(self, value) -> Decimal:
+        """
+        Safely convert to Decimal with overflow protection
+        Max: 99,999,999.99 (fits in Decimal(10,2))
+        """
+        if not value:
+            return None
+        
+        try:
+            dec_value = Decimal(str(value))
+            
+            # Check if too large (max 8 digits before decimal)
+            if dec_value >= Decimal('100000000'):  # 100 million
+                logger.warning(f"Price too large: {dec_value}, capping at 99,999,999")
+                return Decimal('99999999.99')
+            
+            return dec_value
+            
+        except (ValueError, TypeError, InvalidOperation) as e:
+            logger.error(f"Invalid decimal value: {value} - {e}")
+            return None
 

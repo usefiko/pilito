@@ -3,7 +3,10 @@ from django.utils.html import format_html
 from django.utils import timezone
 from django.contrib import messages
 from django.http import HttpResponse
-from integrations.models import IntegrationToken, WooCommerceEventLog
+from integrations.models import (
+    IntegrationToken, WooCommerceEventLog,
+    WordPressContent, WordPressContentEventLog
+)
 from integrations.services import TokenGenerator
 import json
 
@@ -207,4 +210,98 @@ class WooCommerceEventLogAdmin(admin.ModelAdmin):
         return obj.created_at.strftime('%Y-%m-%d %H:%M:%S')
     created_at_display.short_description = 'Created At'
     created_at_display.admin_order_field = 'created_at'
+
+
+@admin.register(WordPressContent)
+class WordPressContentAdmin(admin.ModelAdmin):
+    """Admin for WordPress Pages/Posts"""
+    
+    list_display = [
+        'title', 'user_email', 'content_type', 'is_published',
+        'word_count_display', 'last_synced_display'
+    ]
+    list_filter = ['content_type', 'is_published', 'created_at']
+    search_fields = ['title', 'user__email', 'permalink']
+    readonly_fields = ['id', 'content_hash', 'last_synced_at', 'created_at']
+    
+    fieldsets = (
+        ('Basic Info', {
+            'fields': ('id', 'user', 'title', 'content_type', 'post_type_slug')
+        }),
+        ('Content', {
+            'fields': ('content', 'excerpt', 'permalink')
+        }),
+        ('Metadata', {
+            'fields': ('author', 'categories', 'tags', 'featured_image', 'metadata')
+        }),
+        ('Status', {
+            'fields': ('is_published', 'modified_date')
+        }),
+        ('Tracking', {
+            'fields': ('content_hash', 'last_synced_at', 'created_at')
+        }),
+    )
+    
+    def user_email(self, obj):
+        return obj.user.email
+    user_email.short_description = 'User'
+    
+    def word_count_display(self, obj):
+        word_count = len(obj.content.split())
+        if word_count > 1000:
+            return format_html('<span style="color: orange;">{} کلمه</span>', word_count)
+        return f"{word_count} کلمه"
+    word_count_display.short_description = 'Word Count'
+    
+    def last_synced_display(self, obj):
+        if obj.last_synced_at:
+            return obj.last_synced_at.strftime('%Y-%m-%d %H:%M')
+        return '-'
+    last_synced_display.short_description = 'Last Synced'
+
+
+@admin.register(WordPressContentEventLog)
+class WordPressContentEventLogAdmin(admin.ModelAdmin):
+    """Admin for WordPress Content Events"""
+    
+    list_display = [
+        'event_type_display', 'wp_post_id', 'user_email',
+        'status_display', 'created_at_display'
+    ]
+    list_filter = ['event_type', 'processed_successfully', 'created_at']
+    search_fields = ['event_id', 'wp_post_id', 'user__email']
+    readonly_fields = ['id', 'event_id', 'event_type', 'user', 'token', 'wp_post_id', 'payload', 'created_at']
+    
+    def has_add_permission(self, request):
+        return False
+    
+    def has_change_permission(self, request, obj=None):
+        return False
+    
+    def user_email(self, obj):
+        return obj.user.email
+    user_email.short_description = 'User'
+    
+    def event_type_display(self, obj):
+        icons = {
+            'page.created': '📄➕',
+            'page.updated': '📄✏️',
+            'page.deleted': '📄🗑️',
+            'post.created': '📝➕',
+            'post.updated': '📝✏️',
+            'post.deleted': '📝🗑️',
+        }
+        icon = icons.get(obj.event_type, '❓')
+        return format_html('{} {}', icon, obj.get_event_type_display())
+    event_type_display.short_description = 'Event'
+    
+    def status_display(self, obj):
+        if obj.processed_successfully:
+            return format_html('<span style="color: green;">✅</span>')
+        return format_html('<span style="color: red;" title="{}">❌</span>', obj.error_message or '')
+    status_display.short_description = 'Status'
+    
+    def created_at_display(self, obj):
+        return obj.created_at.strftime('%Y-%m-%d %H:%M')
+    created_at_display.short_description = 'Created'
 

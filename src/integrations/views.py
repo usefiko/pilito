@@ -4,15 +4,20 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.decorators import action
 from django.utils import timezone
-from integrations.models import IntegrationToken, WooCommerceEventLog
+from integrations.models import (
+    IntegrationToken, WooCommerceEventLog,
+    WordPressContent, WordPressContentEventLog
+)
 from integrations.backends.integration_auth import IntegrationTokenAuthentication
 from integrations.serializers import (
     IntegrationTokenSerializer,
     IntegrationTokenCreateSerializer,
     WooCommerceEventLogSerializer,
-    WooCommerceWebhookSerializer
+    WooCommerceWebhookSerializer,
+    WordPressContentSerializer,
+    WordPressContentWebhookSerializer
 )
-from integrations.services import TokenGenerator, WooCommerceProcessor
+from integrations.services import TokenGenerator, WooCommerceProcessor, WordPressContentProcessor
 import logging
 import time
 
@@ -282,4 +287,94 @@ class WooCommerceEventLogViewSet(viewsets.ReadOnlyModelViewSet):
         }
         
         return Response(stats)
+
+
+class WordPressContentWebhookView(APIView):
+    """
+    Receive WordPress Pages/Posts webhook events
+    
+    POST /api/integrations/wordpress/content-webhook/
+    """
+    authentication_classes = [IntegrationTokenAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        start_time = time.time()
+        
+        # Validate payload
+        serializer = WordPressContentWebhookSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        payload = serializer.validated_data
+        event_id = payload['event_id']
+        event_type = payload['event_type']
+        content_data = payload['content']
+        
+        # Check for duplicate
+        if WordPressContentEventLog.objects.filter(event_id=event_id).exists():
+            logger.info(f"⏭️ Duplicate event skipped: {event_id}")
+            return Response({
+                'status': 'skipped',
+                'message': 'این رویداد قبلاً پردازش شده است',
+                'event_id': event_id
+            }, status=status.HTTP_200_OK)
+        
+        # Get token
+        token = request.auth
+        
+        # Create event log
+        event_log = WordPressContentEventLog.objects.create(
+            event_id=event_id,
+            event_type=event_type,
+            user=request.user,
+            token=token,
+            wp_post_id=content_data.get('id', 0),
+            payload=request.data
+        )
+        
+        # Dispatch async task
+        from integrations.tasks import process_wordpress_content
+        
+        process_wordpress_content.apply_async(
+            args=[request.data, request.user.id, str(event_log.id)],
+            countdown=2
+        )
+        
+        processing_time = int((time.time() - start_time) * 1000)
+        
+        logger.info(
+            f"✅ WordPress content event accepted: {event_type} for post {content_data.get('id')} "
+            f"(user: {request.user.email}, time: {processing_time}ms)"
+        )
+        
+        return Response({
+            'status': 'accepted',
+            'message': 'محتوا دریافت شد و در صف پردازش قرار گرفت',
+            'event_id': event_id,
+            'processing_time_ms': processing_time
+        }, status=status.HTTP_202_ACCEPTED)
+
+
+class WordPressContentHealthCheckView(APIView):
+    """
+    Test connection for WordPress pages/posts
+    
+    GET /api/integrations/wordpress/content-health/
+    """
+    authentication_classes = [IntegrationTokenAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        token = request.auth
+        
+        return Response({
+            'status': 'ok',
+            'message': 'اتصال برقرار است',
+            'user': {
+                'id': request.user.id,
+                'email': request.user.email,
+            },
+            'timestamp': timezone.now()
+        })
 

@@ -1,5 +1,8 @@
 from rest_framework import serializers
-from integrations.models import IntegrationToken, WooCommerceEventLog
+from integrations.models import (
+    IntegrationToken, WooCommerceEventLog,
+    WordPressContent, WordPressContentEventLog
+)
 
 
 class IntegrationTokenSerializer(serializers.ModelSerializer):
@@ -105,6 +108,45 @@ class WooCommerceWebhookSerializer(serializers.Serializer):
     def validate_product(self, value):
         """Validate product data"""
         required_fields = ['id', 'name']
+        for field in required_fields:
+            if field not in value:
+                raise serializers.ValidationError(f"Missing required field: {field}")
+        return value
+
+
+class WordPressContentSerializer(serializers.ModelSerializer):
+    """Serializer for WordPress Content"""
+    
+    user_email = serializers.CharField(source='user.email', read_only=True)
+    content_type_display = serializers.CharField(source='get_content_type_display', read_only=True)
+    
+    class Meta:
+        model = WordPressContent
+        fields = [
+            'id', 'user', 'user_email',
+            'wp_post_id', 'content_type', 'content_type_display', 'post_type_slug',
+            'title', 'content', 'excerpt', 'permalink',
+            'author', 'categories', 'tags', 'featured_image',
+            'is_published', 'modified_date',
+            'content_hash', 'last_synced_at',
+            'metadata', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'content_hash', 'last_synced_at', 'created_at', 'updated_at']
+
+
+class WordPressContentWebhookSerializer(serializers.Serializer):
+    """Serializer for incoming WordPress content webhook"""
+    
+    event_id = serializers.CharField(required=True)
+    event_type = serializers.ChoiceField(
+        choices=WordPressContentEventLog.EVENT_TYPES,
+        required=True
+    )
+    content = serializers.DictField(required=True)
+    
+    def validate_content(self, value):
+        """Validate content data"""
+        required_fields = ['id', 'title', 'post_type']
         for field in required_fields:
             if field not in value:
                 raise serializers.ValidationError(f"Missing required field: {field}")

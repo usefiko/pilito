@@ -1,5 +1,6 @@
 /**
  * Pilito Product Sync - Admin JavaScript
+ * Minimal & Professional
  */
 
 (function($) {
@@ -16,16 +17,13 @@
             const resultDiv = $('#pilito-test-result');
             
             if (!token) {
-                alert('لطفاً ابتدا API Token را وارد کنید');
+                showAlert('لطفاً ابتدا API Token را وارد کنید', 'error');
                 return;
             }
             
-            // Disable button and show loading
-            button.prop('disabled', true);
-            button.html('<span class="pilito-loading"></span> در حال تست...');
+            button.prop('disabled', true).html('<span class="pilito-spinner"></span> در حال تست...');
             resultDiv.hide();
             
-            // Send AJAX request
             $.ajax({
                 url: pilitoPS.ajax_url,
                 method: 'POST',
@@ -36,46 +34,160 @@
                 },
                 success: function(response) {
                     if (response.success) {
-                        // Success
-                        resultDiv.html(
-                            '<div class="notice notice-success">' +
-                            '<p><strong>✅ ' + response.data.message + '</strong></p>' +
-                            '<p>کاربر: ' + response.data.data.user.email + '</p>' +
-                            '<p>نام توکن: ' + response.data.data.token.name + '</p>' +
-                            '</div>'
-                        ).fadeIn();
+                        showAlert(
+                            `✅ ${response.data.message}<br>` +
+                            `کاربر: ${response.data.data.user.email}`,
+                            'success'
+                        );
                     } else {
-                        // Error
-                        resultDiv.html(
-                            '<div class="notice notice-error">' +
-                            '<p><strong>❌ خطا:</strong> ' + response.data.message + '</p>' +
-                            '</div>'
-                        ).fadeIn();
+                        showAlert(`❌ ${response.data.message}`, 'error');
                     }
                 },
-                error: function(xhr, status, error) {
-                    resultDiv.html(
-                        '<div class="notice notice-error">' +
-                        '<p><strong>❌ خطا در برقراری ارتباط</strong></p>' +
-                        '<p>' + error + '</p>' +
-                        '</div>'
-                    ).fadeIn();
+                error: function() {
+                    showAlert('❌ خطا در برقراری ارتباط', 'error');
                 },
                 complete: function() {
-                    // Re-enable button
-                    button.prop('disabled', false);
-                    button.html('🔍 تست اتصال');
+                    button.prop('disabled', false).html('<span>🔍</span> تست اتصال');
                 }
             });
         });
         
         /**
-         * Auto-hide success messages
+         * Bulk Sync Products
          */
-        setTimeout(function() {
-            $('.notice.is-dismissible').fadeOut();
-        }, 5000);
+        let bulkSyncInProgress = false;
+        let totalErrors = [];
+        
+        $('#pilito-bulk-sync').on('click', function(e) {
+            e.preventDefault();
+            
+            if (bulkSyncInProgress) {
+                showAlert('همگام‌سازی در حال انجام است. لطفاً صبر کنید...', 'warning');
+                return;
+            }
+            
+            if (!confirm('همگام‌سازی همه محصولات شروع می‌شود.\n\nآیا ادامه می‌دهید؟')) {
+                return;
+            }
+            
+            bulkSyncInProgress = true;
+            totalErrors = [];
+            
+            $('#pilito-bulk-sync-progress').fadeIn();
+            $('#pilito-test-result').hide();
+            $(this).prop('disabled', true).html('<span class="pilito-spinner"></span> در حال پردازش...');
+            
+            syncBatch(0);
+        });
+        
+        function syncBatch(offset) {
+            $.ajax({
+                url: pilitoPS.ajax_url,
+                method: 'POST',
+                data: {
+                    action: 'pilito_ps_bulk_sync',
+                    nonce: pilitoPS.bulk_nonce,
+                    offset: offset
+                },
+                success: function(response) {
+                    if (response.success) {
+                        const data = response.data;
+                        
+                        $('#pilito-progress-bar').css('width', data.progress_percent + '%');
+                        $('#pilito-progress-text').html(
+                            `${data.progress_percent}% - ${data.processed} از ${data.total} محصول`
+                        );
+                        
+                        let details = `✅ موفق: ${data.success}`;
+                        if (data.failed > 0) {
+                            details += ` | ❌ خطا: ${data.failed}`;
+                            totalErrors = totalErrors.concat(data.errors);
+                        }
+                        $('#pilito-progress-details').html(details);
+                        
+                        if (data.has_more) {
+                            setTimeout(() => syncBatch(data.next_offset), 1000);
+                        } else {
+                            bulkSyncCompleted(data);
+                        }
+                    } else {
+                        bulkSyncFailed(response.data.message);
+                    }
+                },
+                error: function() {
+                    bulkSyncFailed('خطا در برقراری ارتباط');
+                }
+            });
+        }
+        
+        function bulkSyncCompleted(data) {
+            bulkSyncInProgress = false;
+            $('#pilito-bulk-sync').prop('disabled', false).html('<span>🔄</span> همگام‌سازی همه');
+            
+            let message = `<strong>✅ همگام‌سازی کامل شد!</strong><br>` +
+                `کل: ${data.total} | موفق: ${data.success} | خطا: ${totalErrors.length}`;
+            
+            if (totalErrors.length > 0) {
+                message += '<br><br><strong>محصولات با خطا:</strong><ul style="margin: 8px 0; padding-right: 20px;">';
+                totalErrors.slice(0, 5).forEach(err => {
+                    message += `<li>${err.title} - ${err.error}</li>`;
+                });
+                if (totalErrors.length > 5) {
+                    message += `<li>... و ${totalErrors.length - 5} مورد دیگر</li>`;
+                }
+                message += '</ul>';
+            }
+            
+            showAlert(message, 'success');
+            $('#pilito-progress-text').html('✅ تمام شد!');
+            
+            setTimeout(() => location.reload(), 2000);
+        }
+        
+        function bulkSyncFailed(errorMessage) {
+            bulkSyncInProgress = false;
+            $('#pilito-bulk-sync').prop('disabled', false).html('<span>🔄</span> همگام‌سازی همه');
+            showAlert(`❌ خطا: ${errorMessage}`, 'error');
+            $('#pilito-bulk-sync-progress').fadeOut();
+        }
+        
+        /**
+         * Helper: Show Alert
+         */
+        function showAlert(message, type = 'info') {
+            const alertClass = `pilito-alert pilito-alert-${type}`;
+            const html = `<div class="${alertClass}">${message}</div>`;
+            
+            $('#pilito-test-result').html(html).fadeIn();
+            
+            setTimeout(() => {
+                $('#pilito-test-result').fadeOut();
+            }, 5000);
+        }
         
     });
     
 })(jQuery);
+
+/**
+ * Quick sync from list (global function for inline onclick)
+ */
+function pilitoQuickSyncFromList(postId, nonce) {
+    var confirmed = confirm('آیا می‌خواهید این مورد را به پیلیتو ارسال کنید؟');
+    if (!confirmed) return false;
+    
+    jQuery.post(ajaxurl, {
+        action: 'pilito_ps_quick_sync',
+        nonce: nonce,
+        post_id: postId
+    }, function(response) {
+        if (response.success) {
+            alert('✅ با موفقیت ارسال شد');
+            location.reload();
+        } else {
+            alert('❌ خطا: ' + response.data.message);
+        }
+    });
+    
+    return false;
+}

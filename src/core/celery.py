@@ -200,8 +200,12 @@ app.conf.task_routes = {
         'routing_key': 'low.maintenance',
     },
     
-    # 🔌 Integration Tasks → Default Priority (WooCommerce, Shopify)
+    # 🔌 Integration Tasks → Default Priority (WooCommerce, Shopify, WordPress)
     'integrations.tasks.process_woocommerce_product': {
+        'queue': 'default',
+        'routing_key': 'default.integration',
+    },
+    'integrations.tasks.process_wordpress_content': {
         'queue': 'default',
         'routing_key': 'default.integration',
     },

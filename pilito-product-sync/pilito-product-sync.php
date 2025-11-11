@@ -1,9 +1,9 @@
 <?php
 /**
- * Plugin Name: Pilito Product Sync
+ * Plugin Name: پیلیتو - همگام‌سازی محصولات
  * Plugin URI: https://pilito.com
- * Description: سینک خودکار محصولات فروشگاه با پلتفرم پیلیتو برای استفاده از هوش مصنوعی
- * Version: 1.0.0
+ * Description: همگام‌سازی خودکار محصولات فروشگاه با پلتفرم پیلیتو برای استفاده از هوش مصنوعی
+ * Version: 2.7.1
  * Author: Pilito Team
  * Author URI: https://pilito.com
  * Text Domain: pilito-product-sync
@@ -19,7 +19,7 @@
 defined('ABSPATH') || exit;
 
 // Plugin constants
-define('PILITO_PS_VERSION', '1.0.0');
+define('PILITO_PS_VERSION', '2.7.1');
 define('PILITO_PS_PLUGIN_FILE', __FILE__);
 define('PILITO_PS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('PILITO_PS_PLUGIN_URL', plugin_dir_url(__FILE__));
@@ -29,16 +29,23 @@ define('PILITO_PS_PLUGIN_BASENAME', plugin_basename(__FILE__));
  * Initialize plugin
  */
 function pilito_ps_init() {
-    // Check if WooCommerce is active (after all plugins loaded)
+    // WooCommerce اختیاری است - اگر نباشه فقط همگام‌سازی صفحات کار می‌کنه
     if (!class_exists('WooCommerce')) {
         add_action('admin_notices', function() {
+            if (get_option('pilito_ps_hide_wc_notice')) {
+                return;
+            }
             ?>
-            <div class="notice notice-error">
-                <p><strong>Pilito Product Sync:</strong> این پلاگین نیاز به WooCommerce دارد. لطفاً ابتدا WooCommerce را نصب و فعال کنید.</p>
+            <div class="notice notice-info is-dismissible" data-notice="pilito-wc">
+                <p><strong>پیلیتو:</strong> برای همگام‌سازی محصولات، نیاز به نصب WooCommerce دارید. در غیر این صورت می‌توانید فقط از همگام‌سازی صفحات و نوشته‌ها استفاده کنید.</p>
             </div>
+            <script>
+            jQuery(document).on('click', '.notice[data-notice="pilito-wc"] .notice-dismiss', function() {
+                jQuery.post(ajaxurl, {action: 'pilito_hide_wc_notice'});
+            });
+            </script>
             <?php
         });
-        return;
     }
     
     // Load text domain
@@ -47,10 +54,16 @@ function pilito_ps_init() {
     // Load classes
     require_once PILITO_PS_PLUGIN_DIR . 'includes/helpers.php';
     require_once PILITO_PS_PLUGIN_DIR . 'includes/class-pilito-api.php';
-    require_once PILITO_PS_PLUGIN_DIR . 'includes/class-pilito-hooks.php';
+    require_once PILITO_PS_PLUGIN_DIR . 'includes/class-pilito-content.php';
     
-    // Initialize hooks
-    Pilito_PS_Hooks::init();
+    // Initialize content sync (always available)
+    Pilito_PS_Content::init();
+    
+    // Initialize hooks only if WooCommerce exists
+    if (class_exists('WooCommerce')) {
+        require_once PILITO_PS_PLUGIN_DIR . 'includes/class-pilito-hooks.php';
+        Pilito_PS_Hooks::init();
+    }
     
     // Admin only
     if (is_admin()) {

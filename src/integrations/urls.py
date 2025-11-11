@@ -8,9 +8,13 @@ router.register(r'tokens', views.IntegrationTokenViewSet, basename='integration-
 router.register(r'woocommerce/events', views.WooCommerceEventLogViewSet, basename='woocommerce-event')
 
 urlpatterns = [
-    # Webhook endpoints (public - authenticated via IntegrationToken)
+    # WooCommerce webhook endpoints
     path('woocommerce/webhook/', views.WooCommerceWebhookView.as_view(), name='woocommerce-webhook'),
     path('woocommerce/health/', views.WooCommerceHealthCheckView.as_view(), name='woocommerce-health'),
+    
+    # WordPress content webhook endpoints
+    path('wordpress/content-webhook/', views.WordPressContentWebhookView.as_view(), name='wordpress-content-webhook'),
+    path('wordpress/content-health/', views.WordPressContentHealthCheckView.as_view(), name='wordpress-content-health'),
     
     # Admin endpoints (via router)
     path('', include(router.urls)),
