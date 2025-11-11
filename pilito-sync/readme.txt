@@ -1,9 +1,9 @@
 === Pilito Sync ===
 Contributors: pilito
-Tags: woocommerce, ai, sync, automation, chatbot, pilito, wordpress, content-sync
+Tags: woocommerce, ai, sync, automation, chatbot, pilito, content-sync
 Requires at least: 5.8
-Tested up to: 6.4
-Stable tag: 3.1.0
+Tested up to: 6.8
+Stable tag: 3.2.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html

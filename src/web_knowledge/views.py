@@ -2110,3 +2110,206 @@ Output ONLY the improved prompt, nothing else."""
                 'message': 'Failed to generate prompt',
                 'error': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ManualPageCrawlAPIView(APIView):
+    """
+    API endpoint for manually crawling specific URLs (no internal link discovery)
+    User provides list of URLs, system crawls only those URLs
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    @swagger_auto_schema(
+        operation_description="Manually crawl specific URLs (one per line, no internal links)",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'website_id': openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description='UUID of the website source'
+                ),
+                'urls': openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description='List of URLs, one per line (separated by newline)'
+                ),
+            },
+            required=['website_id', 'urls']
+        ),
+        responses={
+            202: openapi.Response(
+                description="Crawl task started",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'success': openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                        'task_id': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'total_urls': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'status_url': openapi.Schema(type=openapi.TYPE_STRING),
+                    }
+                )
+            ),
+            400: openapi.Response(description="Bad request"),
+        }
+    )
+    def post(self, request):
+        """
+        Start manual crawl of specific URLs
+        
+        Request body:
+        {
+            "website_id": "uuid",
+            "urls": "https://example.com/page1\nhttps://example.com/page2\n..."
+        }
+        """
+        try:
+            website_id = request.data.get('website_id')
+            urls_text = request.data.get('urls', '').strip()
+            
+            if not website_id:
+                return Response({
+                    'success': False,
+                    'message': 'website_id is required'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            if not urls_text:
+                return Response({
+                    'success': False,
+                    'message': 'urls is required (one URL per line)'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Get website source
+            try:
+                website = WebsiteSource.objects.get(id=website_id, user=request.user)
+            except WebsiteSource.DoesNotExist:
+                return Response({
+                    'success': False,
+                    'message': 'Website not found or access denied'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # Parse URLs (split by newline, filter empty lines)
+            urls = [url.strip() for url in urls_text.split('\n') if url.strip()]
+            
+            if not urls:
+                return Response({
+                    'success': False,
+                    'message': 'No valid URLs found'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Start async task
+            from .tasks import crawl_manual_urls_task
+            
+            # Generate task ID
+            task = crawl_manual_urls_task.delay(str(website.id), urls)
+            
+            logger.info(f"Started manual crawl task {task.id} for {len(urls)} URLs (user: {request.user.username})")
+            
+            return Response({
+                'success': True,
+                'task_id': task.id,
+                'message': f'Crawl started for {len(urls)} URL(s)',
+                'total_urls': len(urls),
+                'status_url': f'/api/v1/web-knowledge/manual-crawl/status/{task.id}/'
+            }, status=status.HTTP_202_ACCEPTED)
+            
+        except Exception as e:
+            logger.error(f"Error starting manual crawl: {str(e)}", exc_info=True)
+            return Response({
+                'success': False,
+                'message': 'Failed to start crawl',
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @swagger_auto_schema(
+        operation_description="Get status of manual crawl task",
+        responses={
+            200: openapi.Response(
+                description="Task status",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'status': openapi.Schema(type=openapi.TYPE_STRING),
+                        'progress': openapi.Schema(type=openapi.TYPE_NUMBER),
+                        'pages_crawled': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'total_urls': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                    }
+                )
+            ),
+            404: openapi.Response(description="Task not found"),
+        }
+    )
+    def get(self, request, task_id):
+        """
+        Get status of manual crawl task
+        """
+        try:
+            from celery.result import AsyncResult
+            
+            # Get task result
+            task_result = AsyncResult(task_id)
+            
+            # Get crawl job if exists
+            crawl_job = CrawlJob.objects.filter(celery_task_id=task_id).first()
+            
+            if not crawl_job and not task_result:
+                return Response({
+                    'success': False,
+                    'message': 'Task not found'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # Determine status
+            if task_result.ready():
+                if task_result.successful():
+                    result = task_result.result
+                    if isinstance(result, dict) and result.get('success'):
+                        status_value = 'completed'
+                        progress = 100.0
+                        pages_crawled = result.get('pages_crawled', 0)
+                        total_urls = result.get('total_urls', 0)
+                        message = f'Completed: {pages_crawled} pages crawled'
+                    else:
+                        status_value = 'failed'
+                        progress = 0.0
+                        pages_crawled = 0
+                        total_urls = 0
+                        message = result.get('error', 'Task failed') if isinstance(result, dict) else 'Task failed'
+                else:
+                    status_value = 'failed'
+                    progress = 0.0
+                    pages_crawled = 0
+                    total_urls = 0
+                    message = str(task_result.info) if task_result.info else 'Task failed'
+            else:
+                # Task is still running
+                status_value = 'processing'
+                if crawl_job:
+                    total_urls = crawl_job.pages_to_crawl or 0
+                    pages_crawled = crawl_job.pages_crawled or 0
+                    if total_urls > 0:
+                        progress = round((pages_crawled / total_urls) * 100, 1)
+                    else:
+                        progress = 0.0
+                    message = f'Crawling... {pages_crawled}/{total_urls} pages'
+                else:
+                    progress = 0.0
+                    pages_crawled = 0
+                    total_urls = 0
+                    message = 'Task queued'
+            
+            return Response({
+                'success': True,
+                'status': status_value,
+                'progress': progress,
+                'pages_crawled': pages_crawled,
+                'total_urls': total_urls,
+                'message': message
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error getting manual crawl status: {str(e)}", exc_info=True)
+            return Response({
+                'success': False,
+                'message': 'Failed to get status',
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

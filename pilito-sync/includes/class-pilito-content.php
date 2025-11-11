@@ -66,7 +66,7 @@ class Pilito_PS_Content {
                 <?php else: ?>
                     <div style="padding: 12px; background: #d4edda; border-radius: 4px; margin-bottom: 12px;">
                         <strong style="color: #155724;">✅ همگام شده</strong><br>
-                        <small style="color: #155724;">آخرین همگام‌سازی: <?php echo date_i18n('Y/m/d H:i', strtotime($last_sync)); ?></small>
+                        <small style="color: #155724;">آخرین همگام‌سازی: <?php echo esc_html(date_i18n('Y/m/d H:i', strtotime($last_sync))); ?></small>
                     </div>
                 <?php endif; ?>
             <?php elseif ($sync_status === 'error'): ?>
@@ -84,7 +84,7 @@ class Pilito_PS_Content {
                 <span style="font-size: 13px;">همگام‌سازی خودکار</span>
             </label>
             
-            <button type="button" class="button button-primary button-large" onclick="pilitoQuickSync(<?php echo $post->ID; ?>)" style="width: 100%;">
+            <button type="button" class="button button-primary button-large" onclick="pilitoQuickSync(<?php echo esc_js($post->ID); ?>)" style="width: 100%;">
                 📤 ارسال به پیلیتو
             </button>
             

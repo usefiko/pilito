@@ -19,7 +19,9 @@ class Pilito_PS_Admin_Page {
         add_action('wp_ajax_pilito_ps_test_connection', [__CLASS__, 'ajax_test_connection']);
         add_action('wp_ajax_pilito_ps_bulk_sync', [__CLASS__, 'ajax_bulk_sync']);
         add_action('wp_ajax_pilito_ps_get_pages', [__CLASS__, 'ajax_get_pages']);
-        add_action('wp_ajax_pilito_ps_sync_pages', [__CLASS__, 'ajax_sync_pages']);
+        
+        // Form handler
+        add_action('admin_post_pilito_sync_selected_pages', [__CLASS__, 'handle_sync_selected_pages']);
     }
     
     /**
@@ -114,23 +116,18 @@ class Pilito_PS_Admin_Page {
      * Enqueue assets
      */
     public static function enqueue_assets($hook) {
-        // Load on all Pilito pages
-        if (strpos($hook, 'pilito-') === false) {
+        // Robust check: load ONLY on our plugin pages
+        $currentPage = isset($_GET['page']) ? sanitize_text_field(wp_unslash($_GET['page'])) : '';
+        $ourPages = ['pilito-pages', 'pilito-products', 'pilito-settings', 'pilito-chat'];
+        $isOurHook = (strpos($hook, 'pilito-') !== false);
+        if (!$isOurHook && !in_array($currentPage, $ourPages, true)) {
             return;
         }
-        
-        // Load Vazirmatn font from Google Fonts
-        wp_enqueue_style(
-            'pilito-vazirmatn-font',
-            'https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&display=swap',
-            [],
-            null
-        );
         
         wp_enqueue_style(
             'pilito-ps-admin',
             PILITO_PS_PLUGIN_URL . 'admin/css/admin.css',
-            ['pilito-vazirmatn-font'],
+            [],
             PILITO_PS_VERSION
         );
         
@@ -189,7 +186,7 @@ class Pilito_PS_Admin_Page {
             wp_send_json_error(['message' => 'عدم دسترسی']);
         }
         
-        $token = sanitize_text_field($_POST['token'] ?? '');
+        $token = sanitize_text_field(wp_unslash($_POST['token'] ?? ''));
         
         if (empty($token)) {
             wp_send_json_error(['message' => 'لطفاً ابتدا token را وارد کنید']);
@@ -275,8 +272,8 @@ class Pilito_PS_Admin_Page {
             wp_send_json_error(['message' => 'عدم دسترسی']);
         }
         
-        $post_type = sanitize_text_field($_POST['post_type'] ?? 'page');
-        $filter = sanitize_text_field($_POST['filter'] ?? 'all');
+        $post_type = sanitize_text_field(wp_unslash($_POST['post_type'] ?? 'page'));
+        $filter = sanitize_text_field(wp_unslash($_POST['filter'] ?? 'all'));
         
         $args = [
             'post_type' => $post_type,
@@ -323,7 +320,6 @@ class Pilito_PS_Admin_Page {
                 'title' => $post->post_title,
                 'status' => $status,
                 'last_sync' => $last_sync,
-                'modified' => $post->post_modified,
                 'word_count' => $word_count,
             ];
         }
@@ -335,26 +331,35 @@ class Pilito_PS_Admin_Page {
     }
     
     /**
-     * AJAX: Sync selected pages/posts
+     * Handle sync selected pages/posts (Form submission - more reliable)
      */
-    public static function ajax_sync_pages() {
-        check_ajax_referer('pilito_ps_pages', 'nonce');
+    public static function handle_sync_selected_pages() {
+        check_admin_referer('pilito_sync_pages', 'pilito_sync_nonce');
         
         if (!current_user_can('manage_options')) {
-            wp_send_json_error(['message' => 'عدم دسترسی']);
+            wp_die('عدم دسترسی');
         }
         
-        $post_ids = array_map('intval', $_POST['post_ids'] ?? []);
+        // Get post IDs from comma-separated string or array
+        $post_ids_input = wp_unslash($_POST['post_ids'] ?? []);
+        if (is_string($post_ids_input) && !empty($post_ids_input)) {
+            $post_ids = array_map('intval', explode(',', sanitize_text_field($post_ids_input)));
+        } else {
+            $post_ids = array_map('intval', array_map('sanitize_text_field', (array) $post_ids_input));
+        }
+        $post_ids = array_filter($post_ids);
+        
+        $post_type = sanitize_text_field(wp_unslash($_POST['post_type'] ?? 'page'));
         
         if (empty($post_ids)) {
-            wp_send_json_error(['message' => 'هیچ موردی انتخاب نشده']);
+            wp_safe_redirect(add_query_arg(['pilito_message' => 'no_selection'], admin_url('admin.php?page=pilito-pages&tab=' . ($post_type === 'post' ? 'posts' : 'pages'))));
+            exit;
         }
         
         $results = [
             'total' => count($post_ids),
             'success' => 0,
             'failed' => 0,
-            'errors' => [],
         ];
         
         foreach ($post_ids as $post_id) {
@@ -364,13 +369,19 @@ class Pilito_PS_Admin_Page {
                 $results['success']++;
             } else {
                 $results['failed']++;
-                $results['errors'][] = [
-                    'post_id' => $post_id,
-                    'message' => $result['message']
-                ];
             }
         }
         
-        wp_send_json_success($results);
+        $message = 'success';
+        if ($results['failed'] > 0) {
+            $message = 'partial';
+        }
+        
+        wp_safe_redirect(add_query_arg([
+            'pilito_message' => $message,
+            'success' => $results['success'],
+            'failed' => $results['failed']
+        ], admin_url('admin.php?page=pilito-pages&tab=' . ($post_type === 'post' ? 'posts' : 'pages'))));
+        exit;
     }
 }

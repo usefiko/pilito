@@ -131,7 +131,7 @@ class Pilito_PS_API {
      * Build JSON payload
      */
     private static function build_payload($product, $event_type) {
-        $event_id = 'wc_' . date('Y_m_d_His') . '_' . $product->get_id() . '_' . wp_rand(1000, 9999);
+        $event_id = 'wc_' . gmdate('Y_m_d_His') . '_' . $product->get_id() . '_' . wp_rand(1000, 9999);
         
         return [
             'event_id' => $event_id,
@@ -243,11 +243,14 @@ class Pilito_PS_API {
         
         $log_entry = sprintf(
             '[%s] [%s] %s',
-            date('Y-m-d H:i:s'),
+            gmdate('Y-m-d H:i:s'),
             strtoupper($level),
             $message
         );
         
-        error_log('Pilito Product Sync: ' . $log_entry);
+        // Only log if explicitly enabled
+        if (defined('WP_DEBUG') && WP_DEBUG && defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
+            error_log('Pilito Product Sync: ' . $log_entry);
+        }
     }
 }

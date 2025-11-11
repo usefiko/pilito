@@ -54,8 +54,10 @@ if ($has_woocommerce) {
         <div class="pilito-stat-card-new">
             <h3 class="stat-title"><?php esc_html_e('محصولات', 'pilito-sync'); ?></h3>
             <div class="stat-numbers">
-                <span class="stat-main-number"><?php echo number_format_i18n($products_synced); ?></span>
-                <span class="stat-total-number"><?php echo sprintf(__('از %s', 'pilito-sync'), number_format_i18n($products_count)); ?></span>
+                <span class="stat-main-number"><?php echo esc_html(number_format_i18n($products_synced)); ?></span>
+                <span class="stat-total-number"><?php 
+                /* translators: %s: total number of products */
+                echo esc_html(sprintf(__('از %s', 'pilito-sync'), number_format_i18n($products_count))); ?></span>
             </div>
             <p class="stat-description"><?php esc_html_e('همگام‌سازی شده', 'pilito-sync'); ?></p>
         </div>

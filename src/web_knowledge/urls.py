@@ -16,6 +16,7 @@ from .views import (
     GeneratePromptAPIView,
     GeneratePromptAsyncAPIView,
     GeneratePromptStatusAPIView,
+    ManualPageCrawlAPIView,
 )
 
 router = DefaultRouter()
@@ -38,6 +39,10 @@ urlpatterns = [
     path('generate-prompt/', GeneratePromptAPIView.as_view(), name='generate-prompt'),  # Synchronous (legacy)
     path('generate-prompt-async/', GeneratePromptAsyncAPIView.as_view(), name='generate-prompt-async'),  # Async (recommended)
     path('generate-prompt-async/status/<str:task_id>/', GeneratePromptStatusAPIView.as_view(), name='generate-prompt-status'),  # Status check
+    
+    # Manual Page Crawl (specific URLs only, no internal links)
+    path('manual-crawl/', ManualPageCrawlAPIView.as_view(), name='manual-crawl'),
+    path('manual-crawl/status/<str:task_id>/', ManualPageCrawlAPIView.as_view(), name='manual-crawl-status'),
     
     # Router URLs (these come last to avoid catching specific endpoints)
     path('', include(router.urls)),

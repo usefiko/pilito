@@ -1,9 +1,8 @@
 <?php
 /**
- * Plugin Name: پیلیتو - همگام‌سازی
- * Plugin URI: https://pilito.com
+ * Plugin Name: Pilito Sync
  * Description: همگام‌سازی خودکار محتوای سایت (محصولات، برگه‌ها و نوشته‌ها) با پلتفرم پیلیتو برای استفاده از هوش مصنوعی
- * Version: 3.2.0
+ * Version: 3.2.2
  * Author: Pilito Team
  * Author URI: https://pilito.com
  * Text Domain: pilito-sync
@@ -19,7 +18,7 @@
 defined('ABSPATH') || exit;
 
 // Plugin constants
-define('PILITO_PS_VERSION', '3.2.0');
+define('PILITO_PS_VERSION', '3.2.2');
 define('PILITO_PS_PLUGIN_FILE', __FILE__);
 define('PILITO_PS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('PILITO_PS_PLUGIN_URL', plugin_dir_url(__FILE__));
@@ -48,10 +47,8 @@ function pilito_ps_init() {
         });
     }
     
-    // Load text domain based on WordPress locale
-    $locale = apply_filters('plugin_locale', get_locale(), 'pilito-sync');
-    load_textdomain('pilito-sync', WP_LANG_DIR . '/pilito-sync/pilito-sync-' . $locale . '.mo');
-    load_plugin_textdomain('pilito-sync', false, dirname(PILITO_PS_PLUGIN_BASENAME) . '/languages');
+    // Load text domain (WordPress.org will auto-load translations)
+    // Note: load_plugin_textdomain() is not needed for WordPress.org hosted plugins
     
     // Load classes
     require_once PILITO_PS_PLUGIN_DIR . 'includes/helpers.php';

@@ -8,7 +8,7 @@ defined('ABSPATH') || exit;
 <div class="wrap pilito-dashboard">
     
     <h1 class="pilito-page-title">
-        <img src="<?php echo PILITO_PS_PLUGIN_URL . 'assets/logo.svg'; ?>" alt="پیلیتو" class="pilito-page-logo">
+        <img src="<?php echo esc_url(PILITO_PS_PLUGIN_URL . 'assets/logo.svg'); ?>" alt="پیلیتو" class="pilito-page-logo">
         چت آنلاین
     </h1>
     <p class="pilito-page-description">پشتیبانی هوشمند 24/7 با هوش مصنوعی</p>
