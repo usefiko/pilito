@@ -264,13 +264,16 @@ class Pilito_PS_Admin_Page {
         foreach ($query->posts as $post) {
             $sync_status = get_post_meta($post->ID, '_pilito_page_sync_status', true);
             $last_sync = get_post_meta($post->ID, '_pilito_page_last_sync', true);
-            $content_hash = md5($post->post_content);
+            
+            // Get real content (same as sync process)
+            $full_content = Pilito_PS_Content::get_full_content_for_display($post);
+            $content_hash = md5($full_content);
             $old_hash = get_post_meta($post->ID, '_pilito_page_content_hash', true);
             
             // Determine status
             $status = 'not_synced';
             if ($sync_status === 'success') {
-                if ($content_hash !== $old_hash) {
+                if (!empty($old_hash) && $content_hash !== $old_hash) {
                     $status = 'need_update';
                 } else {
                     $status = 'synced';
@@ -284,8 +287,7 @@ class Pilito_PS_Admin_Page {
             if ($filter === 'need_update' && $status !== 'need_update') continue;
             if ($filter === 'synced' && $status !== 'synced') continue;
             
-            // Get real word count (including page builders)
-            $full_content = Pilito_PS_Content::get_full_content_for_display($post);
+            // Calculate word count from extracted content
             $word_count = count(preg_split('/\s+/u', trim($full_content), -1, PREG_SPLIT_NO_EMPTY));
             
             $items[] = [

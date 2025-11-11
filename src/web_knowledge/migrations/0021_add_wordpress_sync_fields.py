@@ -4,7 +4,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('web_knowledge', '0018_add_external_fields_to_product'),
+        ('web_knowledge', '0020_product_external_id_product_external_source_and_more'),
     ]
 
     operations = [
