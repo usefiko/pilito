@@ -6,6 +6,7 @@ from integrations import views
 router = DefaultRouter()
 router.register(r'tokens', views.IntegrationTokenViewSet, basename='integration-token')
 router.register(r'woocommerce/events', views.WooCommerceEventLogViewSet, basename='woocommerce-event')
+router.register(r'wordpress-content', views.WordPressContentViewSet, basename='wordpress-content')
 
 urlpatterns = [
     # WooCommerce webhook endpoints

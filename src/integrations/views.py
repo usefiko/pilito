@@ -378,3 +378,36 @@ class WordPressContentHealthCheckView(APIView):
             'timestamp': timezone.now()
         })
 
+
+class WordPressContentViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet برای نمایش WordPress Content در dashboard
+    
+    GET /api/v1/integrations/wordpress-content/
+    """
+    permission_classes = [IsAuthenticated]
+    serializer_class = WordPressContentSerializer
+    
+    def get_queryset(self):
+        """فقط content های خود کاربر"""
+        return WordPressContent.objects.filter(
+            user=self.request.user
+        ).order_by('-created_at')
+    
+    @action(detail=False, methods=['get'])
+    def stats(self, request):
+        """آمار کلی"""
+        queryset = self.get_queryset()
+        
+        stats = {
+            'total': queryset.count(),
+            'pages': queryset.filter(content_type='page').count(),
+            'posts': queryset.filter(content_type='post').count(),
+            'published': queryset.filter(is_published=True).count(),
+            'synced_today': queryset.filter(
+                last_synced_at__gte=timezone.now().date()
+            ).count()
+        }
+        
+        return Response(stats)
+
