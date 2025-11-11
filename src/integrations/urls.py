@@ -12,9 +12,9 @@ urlpatterns = [
     path('woocommerce/webhook/', views.WooCommerceWebhookView.as_view(), name='woocommerce-webhook'),
     path('woocommerce/health/', views.WooCommerceHealthCheckView.as_view(), name='woocommerce-health'),
     
-    # WordPress content webhook endpoints
-    path('wordpress/content-webhook/', views.WordPressContentWebhookView.as_view(), name='wordpress-content-webhook'),
-    path('wordpress/content-health/', views.WordPressContentHealthCheckView.as_view(), name='wordpress-content-health'),
+    # WordPress content webhook endpoints (استاندارد با Plugin)
+    path('wordpress-content/webhook/', views.WordPressContentWebhookView.as_view(), name='wordpress-content-webhook'),
+    path('wordpress-content/health/', views.WordPressContentHealthCheckView.as_view(), name='wordpress-content-health'),
     
     # Admin endpoints (via router)
     path('', include(router.urls)),
