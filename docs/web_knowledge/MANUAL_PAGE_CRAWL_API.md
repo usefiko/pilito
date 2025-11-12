@@ -1,8 +1,16 @@
-# API مستندات: کرال دستی صفحات
+# API مستندات: کرال دستی صفحات و Bulk Delete
 
 ## 📋 خلاصه
 
+این مستندات شامل دو بخش اصلی است:
+1. **کرال دستی صفحات**: امکان کرال URLهای مشخص شده (بدون کرال صفحات داخلی)
+2. **Bulk Delete**: امکان انتخاب و پاک کردن چندتایی برای Pages، Products و Q&A Pairs
+
+### کرال دستی صفحات
+
 این API امکان کرال دستی URLهای مشخص شده را فراهم می‌کند. برخلاف کرال عادی که تمام صفحات داخلی سایت را پیدا می‌کند، این API فقط URLهایی که کاربر مشخص کرده را کرال می‌کند.
+
+**✅ وضعیت کرال دستی:** API آماده و تست شده است. تست‌ها نشان می‌دهند که کرال دستی به درستی کار می‌کند و فقط URLهای مشخص شده را کرال می‌کند.
 
 ### تفاوت با کرال عادی:
 
@@ -1066,9 +1074,461 @@ function PagesList() {
 
 ---
 
+## 🎨 مثال کامل React/TypeScript برای Bulk Selection و Delete
+
+### 1. Products Component با Bulk Delete
+
+```tsx
+import React, { useState, useEffect } from 'react';
+
+interface Product {
+  id: string;
+  title: string;
+  product_type: string;
+  price: number;
+  currency: string;
+  description: string;
+}
+
+const ProductsPage: React.FC = () => {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(false);
+  const [selectAll, setSelectAll] = useState(false);
+
+  // بارگذاری محصولات
+  useEffect(() => {
+    loadProducts();
+  }, []);
+
+  const loadProducts = async () => {
+    try {
+      const response = await fetch('/api/v1/web-knowledge/products/', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      const data = await response.json();
+      setProducts(data.results || []);
+    } catch (error) {
+      console.error('Error loading products:', error);
+    }
+  };
+
+  // انتخاب/لغو انتخاب یک آیتم
+  const toggleSelect = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+    setSelectAll(newSelected.size === products.length);
+  };
+
+  // انتخاب/لغو انتخاب همه
+  const toggleSelectAll = () => {
+    if (selectAll) {
+      setSelectedIds(new Set());
+      setSelectAll(false);
+    } else {
+      setSelectedIds(new Set(products.map(p => p.id)));
+      setSelectAll(true);
+    }
+  };
+
+  // Bulk Delete
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+
+    const confirmMessage = `آیا مطمئن هستید که می‌خواهید ${selectedIds.size} محصول را پاک کنید؟`;
+    if (!window.confirm(confirmMessage)) return;
+
+    setLoading(true);
+    try {
+      const response = await fetch('/api/v1/web-knowledge/products/bulk-delete/', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          product_ids: Array.from(selectedIds)
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        alert(`✅ ${data.deleted_count} محصول با موفقیت پاک شد`);
+        setSelectedIds(new Set());
+        setSelectAll(false);
+        loadProducts(); // Refresh لیست
+      } else {
+        alert(`❌ خطا: ${data.error || 'خطای نامشخص'}`);
+      }
+    } catch (error) {
+      console.error('Error deleting products:', error);
+      alert('❌ خطا در پاک کردن محصولات');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="products-page">
+      {/* Header با Bulk Actions */}
+      <div className="page-header">
+        <h1>محصولات</h1>
+        {selectedIds.size > 0 && (
+          <div className="bulk-actions">
+            <span className="selected-count">
+              {selectedIds.size} مورد انتخاب شده
+            </span>
+            <button 
+              onClick={handleBulkDelete}
+              disabled={loading}
+              className="btn btn-danger"
+            >
+              {loading ? 'در حال پاک کردن...' : `پاک کردن ${selectedIds.size} مورد`}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* لیست محصولات */}
+      <div className="products-grid">
+        {/* Select All Checkbox */}
+        <div className="select-all-row">
+          <label>
+            <input
+              type="checkbox"
+              checked={selectAll}
+              onChange={toggleSelectAll}
+            />
+            <span>انتخاب همه</span>
+          </label>
+        </div>
+
+        {/* Product Cards */}
+        {products.map(product => (
+          <div key={product.id} className="product-card">
+            <div className="product-checkbox">
+              <input
+                type="checkbox"
+                checked={selectedIds.has(product.id)}
+                onChange={() => toggleSelect(product.id)}
+              />
+            </div>
+            <div className="product-content">
+              <h3>{product.title}</h3>
+              <p className="product-type">{product.product_type}</p>
+              <p className="product-price">
+                {product.price.toLocaleString('fa-IR')} {product.currency}
+              </p>
+              <p className="product-description">{product.description}</p>
+            </div>
+            <div className="product-actions">
+              <button className="btn-icon" title="ویرایش">
+                ✏️
+              </button>
+              <button 
+                className="btn-icon btn-delete" 
+                title="حذف"
+                onClick={() => toggleSelect(product.id)}
+              >
+                🗑️
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default ProductsPage;
+```
+
+### 2. Q&A Pairs Component با Bulk Delete
+
+```tsx
+import React, { useState, useEffect } from 'react';
+
+interface QAPair {
+  id: string;
+  question: string;
+  answer: string;
+  category: string;
+  confidence_score: number;
+}
+
+const QAPairsPage: React.FC = () => {
+  const [qaPairs, setQAPairs] = useState<QAPair[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    loadQAPairs();
+  }, []);
+
+  const loadQAPairs = async () => {
+    try {
+      const response = await fetch('/api/v1/web-knowledge/qa-pairs/', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      const data = await response.json();
+      setQAPairs(data.results || []);
+    } catch (error) {
+      console.error('Error loading Q&A pairs:', error);
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+
+    if (!window.confirm(`آیا مطمئن هستید که می‌خواهید ${selectedIds.size} سوال و جواب را پاک کنید؟`)) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch('/api/v1/web-knowledge/qa-pairs/bulk_delete/', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          qa_pair_ids: Array.from(selectedIds)
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        alert(`✅ ${data.deleted_count} سوال و جواب با موفقیت پاک شد`);
+        setSelectedIds(new Set());
+        loadQAPairs();
+      } else {
+        alert(`❌ خطا: ${data.error || 'خطای نامشخص'}`);
+      }
+    } catch (error) {
+      console.error('Error deleting Q&A pairs:', error);
+      alert('❌ خطا در پاک کردن سوال و جواب‌ها');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="qa-pairs-page">
+      <div className="page-header">
+        <h1>سوال و جواب‌ها</h1>
+        {selectedIds.size > 0 && (
+          <button 
+            onClick={handleBulkDelete}
+            disabled={loading}
+            className="btn btn-danger"
+          >
+            {loading ? 'در حال پاک کردن...' : `پاک کردن ${selectedIds.size} مورد`}
+          </button>
+        )}
+      </div>
+
+      <div className="qa-list">
+        {qaPairs.map(qa => (
+          <div key={qa.id} className="qa-item">
+            <input
+              type="checkbox"
+              checked={selectedIds.has(qa.id)}
+              onChange={() => toggleSelect(qa.id)}
+              className="qa-checkbox"
+            />
+            <div className="qa-content">
+              <h4>{qa.question}</h4>
+              <p>{qa.answer}</p>
+              <div className="qa-meta">
+                <span className="badge">{qa.category}</span>
+                <span>Confidence: {qa.confidence_score * 100}%</span>
+              </div>
+            </div>
+            <div className="qa-actions">
+              <button className="btn-icon">✏️</button>
+              <button 
+                className="btn-icon btn-delete"
+                onClick={() => toggleSelect(qa.id)}
+              >
+                🗑️
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default QAPairsPage;
+```
+
+### 3. Pages Component با Bulk Delete
+
+```tsx
+const PagesPage: React.FC = () => {
+  const [pages, setPages] = useState<Page[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(false);
+
+  // ... مشابه Products
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+
+    if (!window.confirm(`آیا مطمئن هستید که می‌خواهید ${selectedIds.size} صفحه را پاک کنید؟`)) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch('/api/v1/web-knowledge/pages/bulk-delete/', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          page_ids: Array.from(selectedIds)
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        alert(`✅ ${data.deleted_count} صفحه با موفقیت پاک شد`);
+        setSelectedIds(new Set());
+        loadPages();
+      }
+    } catch (error) {
+      console.error('Error deleting pages:', error);
+      alert('❌ خطا در پاک کردن صفحات');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ... بقیه کد
+};
+```
+
+### 4. CSS برای Bulk Selection UI
+
+```css
+/* Bulk Actions */
+.bulk-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: #fef3c7;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.selected-count {
+  font-weight: 600;
+  color: #92400e;
+}
+
+/* Product Card با Checkbox */
+.product-card {
+  position: relative;
+  border: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.product-card:hover {
+  border-color: #e5e7eb;
+}
+
+.product-card.selected {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+.product-checkbox {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 10;
+}
+
+.product-checkbox input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+
+/* Q&A Item با Checkbox */
+.qa-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  transition: all 0.2s;
+}
+
+.qa-item:hover {
+  background: #f9fafb;
+}
+
+.qa-item.selected {
+  background: #eff6ff;
+  border-color: #3b82f6;
+}
+
+.qa-checkbox {
+  margin-top: 4px;
+  cursor: pointer;
+}
+
+/* Select All Row */
+.select-all-row {
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.select-all-row label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+```
+
 ## ✅ Checklist برای پیاده‌سازی
 
-- [ ] Checkbox برای انتخاب آیتم‌ها
+- [x] API برای Bulk Delete آماده است
+- [ ] Checkbox برای انتخاب آیتم‌ها در Frontend
 - [ ] "Select All" checkbox
 - [ ] دکمه "Delete Selected" (فقط وقتی آیتمی انتخاب شده)
 - [ ] Confirmation dialog قبل از پاک کردن

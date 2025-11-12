@@ -4,6 +4,7 @@ Celery tasks for billing operations
 import logging
 from celery import shared_task
 from django.utils import timezone
+from django.db import models
 from datetime import timedelta
 
 logger = logging.getLogger(__name__)
@@ -113,5 +114,77 @@ def activate_queued_plans():
     return {
         'success': True,
         'activated_count': activated_count
+    }
+
+
+@shared_task(name='billing.expire_free_trial_subscriptions')
+def expire_free_trial_subscriptions():
+    """
+    Daily task to expire Free Trial subscriptions and burn their tokens.
+    
+    This task:
+    1. Finds all Free Trial subscriptions where end_date has passed
+    2. Sets is_active = False
+    3. Burns tokens (sets tokens_remaining = 0) for Free Trial subscriptions
+    4. Ensures AI responses are blocked after trial expiration
+    
+    This is critical because:
+    - Free Trial subscriptions should not allow AI responses after 14 days
+    - Tokens must be burned to prevent any remaining usage
+    - Signal-based expiry only works when subscription is saved, this ensures periodic check
+    """
+    from billing.models import Subscription
+    
+    now = timezone.now()
+    
+    # Find expired Free Trial subscriptions that are still active or have tokens
+    expired_trials = Subscription.objects.filter(
+        full_plan__name='Free Trial',
+        end_date__lte=now
+    ).filter(
+        # Either still marked as active OR still have tokens
+        models.Q(is_active=True) | models.Q(tokens_remaining__gt=0)
+    ).select_related('user', 'full_plan')
+    
+    expired_count = 0
+    tokens_burned = 0
+    
+    for subscription in expired_trials:
+        try:
+            old_tokens = subscription.tokens_remaining or 0
+            was_active = subscription.is_active
+            
+            # Deactivate and burn tokens
+            subscription.is_active = False
+            subscription.tokens_remaining = 0
+            
+            subscription.save(update_fields=['is_active', 'tokens_remaining', 'updated_at'])
+            
+            logger.warning(
+                f"🔥 Expired Free Trial subscription {subscription.id} "
+                f"(user: {subscription.user.username}). "
+                f"Was active: {was_active}, Tokens burned: {old_tokens} → 0"
+            )
+            
+            expired_count += 1
+            tokens_burned += old_tokens
+            
+        except Exception as e:
+            logger.error(
+                f"❌ Failed to expire Free Trial subscription {subscription.id} "
+                f"(user: {subscription.user.username}): {e}",
+                exc_info=True
+            )
+    
+    if expired_count > 0:
+        logger.info(
+            f"✅ Expired {expired_count} Free Trial subscription(s), "
+            f"burned {tokens_burned:,} total tokens"
+        )
+    
+    return {
+        'success': True,
+        'expired_count': expired_count,
+        'tokens_burned': tokens_burned
     }
 

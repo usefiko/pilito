@@ -432,6 +432,10 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'billing.activate_queued_plans',
         'schedule': crontab(hour=4, minute=0),  # Every day at 4:00 AM
     },
+    'expire-free-trial-subscriptions': {
+        'task': 'billing.expire_free_trial_subscriptions',
+        'schedule': crontab(hour=5, minute=0),  # Every day at 5:00 AM (after activate-queued-plans)
+    },
     # AI Model Tasks - از routing در celery.py استفاده می‌کنند
     'cleanup-old-usage-data': {
         'task': 'AI_model.tasks.cleanup_old_usage_data',

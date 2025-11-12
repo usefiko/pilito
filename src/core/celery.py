@@ -169,6 +169,10 @@ app.conf.task_routes = {
         'queue': 'low_priority',
         'routing_key': 'low.billing',
     },
+    'billing.expire_free_trial_subscriptions': {
+        'queue': 'low_priority',
+        'routing_key': 'low.billing',
+    },
     
     # 📊 AI Analytics & Maintenance → Low Priority
     'AI_model.tasks.cleanup_old_usage_data': {

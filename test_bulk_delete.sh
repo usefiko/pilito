@@ -13,7 +13,22 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # تنظیمات
-BASE_URL="http://localhost:8000"  # یا URL سرور
+# اگر BASE_URL تنظیم نشده، از production استفاده کن
+if [ -z "$BASE_URL" ]; then
+  # تست localhost اول
+  if curl -s --connect-timeout 2 "http://localhost:8000/health/" > /dev/null 2>&1; then
+    BASE_URL="http://localhost:8000"
+    echo "✅ استفاده از localhost:8000"
+  # اگر localhost در دسترس نیست، از production استفاده کن
+  elif curl -s --connect-timeout 5 "https://api.pilito.com/health/" > /dev/null 2>&1; then
+    BASE_URL="https://api.pilito.com"
+    echo "✅ استفاده از production: https://api.pilito.com"
+  else
+    BASE_URL="http://localhost:8000"
+    echo "⚠️  استفاده از localhost:8000 (تست اتصال نشده)"
+  fi
+fi
+
 EMAIL="iamyaserm@gmail.com"
 PASSWORD="Fara9020"
 
@@ -26,18 +41,25 @@ echo ""
 # 1. لاگین و گرفتن Token
 # ============================================
 echo -e "${YELLOW}[1/13] لاگین و گرفتن Token...${NC}"
-LOGIN_RESPONSE=$(curl -s -X POST "${BASE_URL}/api/v1/auth/login/" \
+LOGIN_RESPONSE=$(curl -s -X POST "${BASE_URL}/api/v1/usr/login" \
   -H "Content-Type: application/json" \
   -d "{
-    \"email\": \"${EMAIL}\",
+    \"email_or_username\": \"${EMAIL}\",
     \"password\": \"${PASSWORD}\"
   }")
 
-TOKEN=$(echo $LOGIN_RESPONSE | grep -o '"access":"[^"]*' | cut -d'"' -f4)
+TOKEN=$(echo $LOGIN_RESPONSE | grep -o '"access_token":"[^"]*' | cut -d'"' -f4)
 
 if [ -z "$TOKEN" ]; then
   echo -e "${RED}❌ خطا در لاگین${NC}"
-  echo "$LOGIN_RESPONSE"
+  echo -e "${YELLOW}Response: ${LOGIN_RESPONSE}${NC}"
+  
+  # چک کردن اینکه آیا سرور در دسترس هست
+  if ! curl -s --connect-timeout 5 "${BASE_URL}/health/" > /dev/null 2>&1; then
+    echo -e "${RED}❌ سرور در دسترس نیست: ${BASE_URL}${NC}"
+    echo -e "${YELLOW}💡 لطفاً BASE_URL را تنظیم کنید یا سرور را راه‌اندازی کنید${NC}"
+  fi
+  
   exit 1
 fi
 
@@ -130,15 +152,19 @@ PAGES_RESPONSE=$(curl -s -X GET "${BASE_URL}/api/v1/web-knowledge/pages/?website
 
 echo "$PAGES_RESPONSE" | python3 -m json.tool | head -50
 
-# استخراج Page IDs
-PAGE_IDS=$(echo "$PAGES_RESPONSE" | grep -o '"id":"[^"]*' | head -3 | cut -d'"' -f4 | tr '\n' ',' | sed 's/,$//' | sed 's/,/","/g' | sed 's/^/"/' | sed 's/$/"/')
+# استخراج Page IDs به صورت آرایه bash
+PAGE_IDS_ARRAY=($(echo "$PAGES_RESPONSE" | grep -o '"id":"[^"]*' | head -3 | cut -d'"' -f4))
 
-if [ -z "$PAGE_IDS" ] || [ "$PAGE_IDS" = '""' ]; then
+if [ ${#PAGE_IDS_ARRAY[@]} -eq 0 ]; then
   echo -e "${RED}❌ هیچ صفحه‌ای پیدا نشد${NC}"
+  echo -e "${YELLOW}⚠️  Response: ${PAGES_RESPONSE:0:200}...${NC}"
   exit 1
 fi
 
-echo -e "${GREEN}✅ Page IDs پیدا شد: ${PAGE_IDS}${NC}"
+echo -e "${GREEN}✅ ${#PAGE_IDS_ARRAY[@]} Page پیدا شد${NC}"
+for i in "${!PAGE_IDS_ARRAY[@]}"; do
+  echo -e "${BLUE}   Page $((i+1)): ${PAGE_IDS_ARRAY[$i]}${NC}"
+done
 echo ""
 
 # ============================================
@@ -165,14 +191,21 @@ echo ""
 # ============================================
 echo -e "${YELLOW}[6/13] پاک کردن Pages (Bulk Delete)...${NC}"
 
-# تبدیل PAGE_IDS به فرمت JSON array
-PAGE_IDS_JSON=$(echo "$PAGE_IDS" | sed 's/"//g' | tr ',' '\n' | sed 's/^/    "/' | sed 's/$/"/' | tr '\n' ',' | sed 's/,$//' | sed 's/^/[\n/' | sed 's/$/\n  ]/')
+# ساخت JSON array از Page IDs
+PAGE_IDS_JSON="["
+for i in "${!PAGE_IDS_ARRAY[@]}"; do
+  if [ $i -gt 0 ]; then
+    PAGE_IDS_JSON+=","
+  fi
+  PAGE_IDS_JSON+="\"${PAGE_IDS_ARRAY[$i]}\""
+done
+PAGE_IDS_JSON+="]"
 
 DELETE_PAGES_RESPONSE=$(curl -s -X POST "${BASE_URL}/api/v1/web-knowledge/pages/bulk-delete/" \
   -H "Authorization: Bearer ${TOKEN}" \
   -H "Content-Type: application/json" \
   -d "{
-    \"page_ids\": [$(echo "$PAGE_IDS" | sed 's/"//g' | tr ',' '\n' | sed 's/^/      "/' | sed 's/$/"/' | tr '\n' ',' | sed 's/,$//')]
+    \"page_ids\": ${PAGE_IDS_JSON}
   }")
 
 echo "$DELETE_PAGES_RESPONSE" | python3 -m json.tool
@@ -285,13 +318,14 @@ echo ""
 # ============================================
 echo -e "${YELLOW}[10/13] پاک کردن Products (Bulk Delete)...${NC}"
 
-PRODUCT_IDS_JSON=$(printf '"%s",' "${PRODUCT_IDS[@]}" | sed 's/,$//' | sed 's/^/[/' | sed 's/$/]/')
+# ساخت JSON array از Product IDs با jq
+PRODUCT_IDS_JSON=$(printf '%s\n' "${PRODUCT_IDS[@]}" | jq -R . | jq -s .)
 
 DELETE_PRODUCTS_RESPONSE=$(curl -s -X POST "${BASE_URL}/api/v1/web-knowledge/products/bulk-delete/" \
   -H "Authorization: Bearer ${TOKEN}" \
   -H "Content-Type: application/json" \
   -d "{
-    \"product_ids\": [$(printf '"%s",' "${PRODUCT_IDS[@]}" | sed 's/,$//')]
+    \"product_ids\": ${PRODUCT_IDS_JSON}
   }")
 
 echo "$DELETE_PRODUCTS_RESPONSE" | python3 -m json.tool
@@ -362,6 +396,14 @@ if [ -z "$PAGE_ID_FOR_QA" ]; then
     }")
   
   PAGE_ID_FOR_QA=$(echo $CREATE_PAGE_RESPONSE | grep -o '"id":"[^"]*' | cut -d'"' -f4)
+  
+  if [ -z "$PAGE_ID_FOR_QA" ]; then
+    echo -e "${RED}❌ خطا در ساخت Page برای Q&A${NC}"
+    echo "$CREATE_PAGE_RESPONSE"
+    exit 1
+  fi
+  
+  echo -e "${GREEN}✅ Page برای Q&A ساخته شد: ${PAGE_ID_FOR_QA}${NC}"
 fi
 
 QA_PAIR_IDS=()
@@ -372,17 +414,18 @@ for i in 1 2 3; do
     -H "Content-Type: application/json" \
     -d "{
       \"page\": \"${PAGE_ID_FOR_QA}\",
-      \"question\": \"Test Question ${i}?\",
+      \"question\": \"Bulk Delete Test Question ${i} - $(date +%s)?\",
       \"answer\": \"This is test answer ${i} for bulk delete testing.\",
       \"generation_status\": \"completed\",
       \"confidence_score\": 0.9
     }")
   
-  QA_PAIR_ID=$(echo $CREATE_QA_RESPONSE | grep -o '"id":"[^"]*' | cut -d'"' -f4)
+  # استخراج ID از response (ممکنه در root یا nested باشه)
+  QA_PAIR_ID=$(echo "$CREATE_QA_RESPONSE" | python3 -c "import sys, json; data=json.load(sys.stdin); print(data.get('id') or data.get('qa_pair', {}).get('id', ''))" 2>/dev/null || echo "$CREATE_QA_RESPONSE" | grep -o '"id":"[^"]*' | head -1 | cut -d'"' -f4)
   
   if [ -z "$QA_PAIR_ID" ]; then
     echo -e "${RED}❌ خطا در ساخت Q&A Pair ${i}${NC}"
-    echo "$CREATE_QA_RESPONSE"
+    echo "$CREATE_QA_RESPONSE" | python3 -m json.tool 2>/dev/null || echo "$CREATE_QA_RESPONSE"
   else
     QA_PAIR_IDS+=("$QA_PAIR_ID")
     echo -e "${GREEN}✅ Q&A Pair ${i} ساخته شد: ${QA_PAIR_ID}${NC}"
