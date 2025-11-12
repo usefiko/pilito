@@ -1,4 +1,5 @@
 # Generated migration for WooCommerce integration
+# This migration exists in the database as 0020_product_external_id_product_external_source_and_more
 
 from django.db import migrations, models
 
