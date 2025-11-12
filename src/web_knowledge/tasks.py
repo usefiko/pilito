@@ -430,3 +430,306 @@ def process_page_content_task(self, page_id: str) -> Dict[str, Any]:
             pass
         
         return {'success': False, 'error': str(e)}
+
+
+@shared_task(bind=True, max_retries=2, default_retry_delay=30, time_limit=300, soft_time_limit=270)
+def generate_prompt_async_task(self, user_id: int, manual_prompt: str) -> Dict[str, Any]:
+    """
+    Async task to generate AI-enhanced prompt from manual_prompt
+    
+    Args:
+        user_id: ID of the user requesting prompt generation
+        manual_prompt: Raw manual prompt to enhance
+        
+    Returns:
+        Dict with generation results
+    """
+    from django.contrib.auth import get_user_model
+    from django.core.cache import cache
+    from settings.models import BusinessPrompt
+    
+    User = get_user_model()
+    
+    try:
+        # Get user
+        user = User.objects.get(id=user_id)
+        
+        # Update status in cache
+        cache.set(f'prompt_generation_{self.request.id}', {
+        'status': 'در حال پردازش',
+            'progress': 20,
+            'message': 'در حال آماده‌سازی...',
+        'created_at': timezone.now().isoformat()
+        }, timeout=300)
+    
+        logger.info(f"Starting prompt generation for user {user.username}")
+        
+        business_type = user.business_type if hasattr(user, 'business_type') else None
+        
+        # Find matching BusinessPrompt based on business_type
+        business_prompt_obj = None
+        if business_type:
+            business_prompt_obj = BusinessPrompt.objects.filter(
+                name__iexact=business_type.strip()
+            ).first()
+        
+        # ✅ CHECK TOKENS AND SUBSCRIPTION BEFORE AI USAGE
+        from billing.utils import check_ai_access_for_user
+        
+        access_check = check_ai_access_for_user(
+            user=user,
+            estimated_tokens=700,  # Estimated tokens for prompt enhancement
+            feature_name="Prompt Enhancement"
+        )
+        
+        if not access_check['has_access']:
+            logger.warning(
+                f"User {user.username} denied access to Prompt Enhancement. "
+                f"Reason: {access_check['reason']}"
+            )
+            cache.set(f'prompt_generation_{self.request.id}', {
+                'status': 'خطا',
+                'progress': 0,
+                'message': access_check['message'],
+                'error': access_check['message'],
+                'error_code': access_check['reason'],
+                'created_at': timezone.now().isoformat()
+            }, timeout=300)
+            return {
+                'success': False,
+                'error': access_check['message'],
+                'error_code': access_check['reason']
+            }
+        
+        # Update progress
+        cache.set(f'prompt_generation_{self.request.id}', {
+            'status': 'در حال پردازش',
+            'progress': 40,
+            'message': 'در حال تولید پرامپت با هوش مصنوعی...',
+            'created_at': timezone.now().isoformat()
+        }, timeout=300)
+        
+        # Use AI to rewrite and improve the manual_prompt
+        try:
+            # ✅ Setup proxy BEFORE importing Gemini (required for Iran servers)
+            from core.utils import setup_ai_proxy
+            setup_ai_proxy()
+            
+            import google.generativeai as genai
+            from AI_model.services.gemini_service import get_gemini_api_key
+            
+            api_key = get_gemini_api_key()
+            if not api_key:
+                raise ValueError("Gemini API key not configured")
+            
+            genai.configure(api_key=api_key)
+            
+            # Use Flash model for prompt generation (more reliable than Pro)
+            # Try gemini-2.5-flash first, fallback to gemini-2.0-flash-exp
+            model_name = 'gemini-2.5-flash'
+            fallback_model = 'gemini-2.0-flash-exp'
+            
+            try:
+                model = genai.GenerativeModel(
+                    model_name=model_name,
+                    generation_config={
+                        'temperature': 0.7,
+                        'max_output_tokens': 3000,
+                    }
+                )
+            except Exception as model_error:
+                logger.warning(f"Failed to use {model_name}, trying fallback {fallback_model}: {model_error}")
+                model_name = fallback_model
+                model = genai.GenerativeModel(
+                    model_name=model_name,
+                    generation_config={
+                        'temperature': 0.7,
+                        'max_output_tokens': 3000,
+                    }
+                )
+            
+            # Build instruction for AI based on BusinessPrompt.prompt
+            if business_prompt_obj and business_prompt_obj.prompt:
+                instruction = f"""{business_prompt_obj.prompt}
+
+---
+
+## User's Raw Input:
+{manual_prompt}
+
+---
+
+## Your Task:
+Transform the user's raw input above into a complete, professional, and structured Manual Prompt following the guidelines and format specified in the business prompt template above.
+
+Output ONLY the final structured Manual Prompt.
+Do NOT add any explanations or comments outside the prompt structure.
+Ensure all information from the user's input is preserved and properly formatted."""
+            else:
+                instruction = f"""You are an AI assistant helping to create a professional manual prompt for a {business_type or 'business'}.
+
+User's Input:
+{manual_prompt}
+
+Task: Rewrite and improve the user's input into a professional, clear, and well-structured manual prompt ready for an AI assistant. Keep all important details (contact info, addresses, services, etc.) but make it professional, organized, and concise.
+
+Output ONLY the improved prompt, nothing else."""
+            
+            # Configure safety settings
+            safety_settings = [
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
+                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
+                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"},
+            ]
+            
+            # Update progress
+            cache.set(f'prompt_generation_{self.request.id}', {
+                'status': 'در حال پردازش',
+                'progress': 60,
+                'message': 'در حال ارتباط با هوش مصنوعی...',
+                'created_at': timezone.now().isoformat()
+            }, timeout=300)
+            
+            # Track timing
+            import time
+            start_time = time.time()
+            
+            # Generate improved prompt
+            response = model.generate_content(
+                instruction,
+                safety_settings=safety_settings
+            )
+            
+            response_time_ms = int((time.time() - start_time) * 1000)
+            
+            # Extract token usage
+            prompt_tokens = 0
+            completion_tokens = 0
+            if hasattr(response, 'usage_metadata'):
+                prompt_tokens = getattr(response.usage_metadata, 'prompt_token_count', 0)
+                completion_tokens = getattr(response.usage_metadata, 'candidates_token_count', 0)
+            
+            # Track AI usage
+            try:
+                from AI_model.services.usage_tracker import track_ai_usage_safe
+                track_ai_usage_safe(
+                    user=user,
+                    section='prompt_generation',
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    response_time_ms=response_time_ms,
+                    success=True,
+                    model_name=model_name,
+                    metadata={'business_type': business_type}
+                )
+            except Exception as tracking_error:
+                logger.error(f"Failed to track AI usage: {tracking_error}")
+            
+            # Consume tokens for billing
+            if response:
+                try:
+                    actual_tokens = prompt_tokens + completion_tokens
+                    if actual_tokens > 0:
+                        from billing.services import consume_tokens_for_user
+                        consume_tokens_for_user(
+                            user,
+                            actual_tokens,
+                            description='Prompt enhancement (AI)'
+                        )
+                except Exception as token_error:
+                    logger.error(f"Failed to consume tokens: {token_error}")
+            
+            if hasattr(response, 'text') and response.text:
+                enhanced_prompt = response.text.strip()
+            else:
+                raise ValueError("No response from AI")
+            
+            # Update progress - completed
+            cache.set(f'prompt_generation_{self.request.id}', {
+                'status': 'تکمیل شد',
+                'progress': 100,
+                'message': 'پرامپت با موفقیت تولید شد',
+                'prompt': enhanced_prompt,
+                'generated_by_ai': True,
+                'created_at': timezone.now().isoformat()
+            }, timeout=300)
+            
+            logger.info(f"✅ Prompt generation completed for user {user.username}")
+            
+            return {
+                'success': True,
+                'prompt': enhanced_prompt,
+                'generated_by_ai': True
+            }
+            
+        except Exception as ai_error:
+            error_msg = str(ai_error)
+            logger.error(f"AI generation failed: {error_msg}", exc_info=True)
+            
+            # Track failed AI usage
+            try:
+                from AI_model.services.usage_tracker import track_ai_usage_safe
+                track_ai_usage_safe(
+                    user=user,
+                    section='prompt_generation',
+                    prompt_tokens=0,
+                    completion_tokens=0,
+                    response_time_ms=0,
+                    success=False,
+                    model_name='gemini-2.5-pro',
+                    error_message=error_msg,
+                    metadata={'business_type': business_type, 'error': error_msg}
+                )
+            except Exception as tracking_error:
+                logger.error(f"Failed to track failed AI usage: {tracking_error}")
+            
+            # Fallback to simple combination
+            if business_prompt_obj and business_prompt_obj.prompt:
+                enhanced_prompt = f"""{business_prompt_obj.prompt}
+
+{manual_prompt}"""
+            else:
+                enhanced_prompt = manual_prompt
+            
+            # Update progress - completed with fallback
+            cache.set(f'prompt_generation_{self.request.id}', {
+                'status': 'تکمیل شد',
+                'progress': 100,
+                'message': 'پرامپت تولید شد (هوش مصنوعی در دسترس نبود)',
+                'prompt': enhanced_prompt,
+                'generated_by_ai': False,
+                'warning': 'AI generation failed, using simple combination',
+                'created_at': timezone.now().isoformat()
+            }, timeout=300)
+            
+            return {
+                'success': True,
+                'prompt': enhanced_prompt,
+                'generated_by_ai': False,
+                'warning': 'AI generation failed, using simple combination'
+            }
+            
+    except User.DoesNotExist:
+        error_msg = f"User {user_id} not found"
+        logger.error(error_msg)
+        cache.set(f'prompt_generation_{self.request.id}', {
+            'status': 'خطا',
+            'progress': 0,
+            'message': error_msg,
+            'error': error_msg,
+            'created_at': timezone.now().isoformat()
+        }, timeout=300)
+        return {'success': False, 'error': error_msg}
+    
+    except Exception as e:
+        error_msg = f"Error in prompt generation: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        cache.set(f'prompt_generation_{self.request.id}', {
+            'status': 'خطا',
+            'progress': 0,
+            'message': error_msg,
+            'error': error_msg,
+            'created_at': timezone.now().isoformat()
+        }, timeout=300)
+        return {'success': False, 'error': error_msg}

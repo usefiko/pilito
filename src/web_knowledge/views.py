@@ -2020,16 +2020,29 @@ class GeneratePromptAPIView(APIView):
                 
                 genai.configure(api_key=api_key)
                 
-                # Use Pro model for high-quality prompt generation
-                model_name = 'gemini-2.5-pro'
+                # Use Flash model for prompt generation (more reliable than Pro)
+                # Try gemini-2.5-flash first, fallback to gemini-2.0-flash-exp
+                model_name = 'gemini-2.5-flash'
+                fallback_model = 'gemini-2.0-flash-exp'
                 
-                model = genai.GenerativeModel(
-                    model_name=model_name,
-                    generation_config={
-                        'temperature': 0.7,
-                        'max_output_tokens': 3000,
-                    }
-                )
+                try:
+                    model = genai.GenerativeModel(
+                        model_name=model_name,
+                        generation_config={
+                            'temperature': 0.7,
+                            'max_output_tokens': 3000,
+                        }
+                    )
+                except Exception as model_error:
+                    logger.warning(f"Failed to use {model_name}, trying fallback {fallback_model}: {model_error}")
+                    model_name = fallback_model
+                    model = genai.GenerativeModel(
+                        model_name=model_name,
+                        generation_config={
+                            'temperature': 0.7,
+                            'max_output_tokens': 3000,
+                        }
+                    )
                 
                 # Build instruction for AI based on BusinessPrompt.prompt (dynamic per business type)
                 if business_prompt_obj and business_prompt_obj.prompt:

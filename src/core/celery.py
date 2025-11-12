@@ -174,6 +174,12 @@ app.conf.task_routes = {
         'routing_key': 'low.billing',
     },
     
+    # 📝 Web Knowledge Tasks → Default Priority (user-triggered)
+    'web_knowledge.tasks.generate_prompt_async_task': {
+        'queue': 'default',
+        'routing_key': 'default.prompt',
+    },
+    
     # 📊 AI Analytics & Maintenance → Low Priority
     'AI_model.tasks.cleanup_old_usage_data': {
         'queue': 'low_priority',
