@@ -8,9 +8,15 @@
 
 ### کرال دستی صفحات
 
-این API امکان کرال دستی URLهای مشخص شده را فراهم می‌کند. برخلاف کرال عادی که تمام صفحات داخلی سایت را پیدا می‌کند، این API فقط URLهایی که کاربر مشخص کرده را کرال می‌کند.
+این API امکان کرال دستی URLهای مشخص شده را فراهم می‌کند. **فقط و فقط URLهایی که کاربر در لیست داده را کرال می‌کند** و صفحات داخلی یا لینک‌های دیگر را کرال نمی‌کند.
 
-**✅ وضعیت کرال دستی:** API آماده و تست شده است. تست‌ها نشان می‌دهند که کرال دستی به درستی کار می‌کند و فقط URLهای مشخص شده را کرال می‌کند.
+**✅ ویژگی‌های مهم:**
+- ✅ فقط URLهای لیست شده کرال می‌شوند
+- ✅ صفحات داخلی کرال نمی‌شوند (`max_depth=0`)
+- ✅ لینک‌های موجود در صفحات دنبال نمی‌شوند
+- ✅ هر URL به صورت مستقل کرال می‌شود
+
+**✅ وضعیت:** API آماده و تست شده است. تست‌ها نشان می‌دهند که کرال دستی به درستی کار می‌کند و فقط URLهای مشخص شده را کرال می‌کند.
 
 ### تفاوت با کرال عادی:
 
@@ -33,14 +39,25 @@
 **Request Body:**
 ```json
 {
-  "website_id": "uuid-of-website",
+  "urls": "https://example.com/page1\nhttps://example.com/page2\nhttps://example.com/page3"
+}
+```
+
+**یا با `website_id` (اختیاری):**
+```json
+{
+  "website_id": "123e4567-e89b-12d3-a456-426614174000",
   "urls": "https://example.com/page1\nhttps://example.com/page2\nhttps://example.com/page3"
 }
 ```
 
 **Parameters:**
-- `website_id` (string, required): UUID وب‌سایت که صفحات به آن اضافه می‌شوند
-- `urls` (string, required): لیست URLها که با خط جدید (`\n`) از هم جدا شده‌اند
+- `urls` (string, **required**): لیست URLها که با خط جدید (`\n`) از هم جدا شده‌اند
+  - **فقط همین URLها کرال می‌شوند**
+  - **صفحات داخلی یا لینک‌های دیگر کرال نمی‌شوند**
+- `website_id` (string, **optional**): UUID وب‌سایت که صفحات به آن اضافه می‌شوند
+  - **اگر داده نشود**: به صورت خودکار از اولین URL یک Website ایجاد می‌شود (یا اگر Website با همان domain وجود داشته باشد، از همان استفاده می‌شود)
+  - **اگر داده شود**: از Website مشخص شده استفاده می‌شود
 
 **Response (202 Accepted):**
 ```json
@@ -49,9 +66,13 @@
   "task_id": "celery-task-id-12345",
   "message": "Crawl started for 3 URL(s)",
   "total_urls": 3,
+  "website_id": "123e4567-e89b-12d3-a456-426614174000",
+  "website_name": "example.com",
   "status_url": "/api/v1/web-knowledge/manual-crawl/status/celery-task-id-12345/"
 }
 ```
+
+**نکته:** اگر `website_id` داده نشده باشد، `website_id` و `website_name` در response برگردانده می‌شوند تا بدانید کدام Website ایجاد یا استفاده شده است.
 
 **Error Responses:**
 
@@ -59,14 +80,21 @@
 ```json
 {
   "success": false,
-  "message": "website_id is required"
+  "message": "urls is required (one URL per line)"
 }
 ```
 
 ```json
 {
   "success": false,
-  "message": "urls is required (one URL per line)"
+  "message": "No valid URLs found"
+}
+```
+
+```json
+{
+  "success": false,
+  "message": "Failed to create website from URL: [error details]"
 }
 ```
 
@@ -144,6 +172,16 @@
 ### React/TypeScript Example
 
 ```typescript
+// Interface ها
+interface Website {
+  id: string;
+  name: string;
+  url: string;
+  description?: string;
+  pages_crawled: number;
+  total_qa_pairs: number;
+}
+
 interface ManualCrawlRequest {
   website_id: string;
   urls: string;
@@ -166,21 +204,73 @@ interface CrawlStatus {
   message: string;
 }
 
-// شروع کرال
-async function startManualCrawl(
-  websiteId: string, 
-  urls: string[]
-): Promise<ManualCrawlResponse> {
-  const response = await fetch('/api/v1/web-knowledge/manual-crawl/', {
+// دریافت لیست Website ها
+async function getWebsites(): Promise<Website[]> {
+  const response = await fetch('/api/v1/web-knowledge/websites/', {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch websites');
+  }
+  
+  const data = await response.json();
+  return data.results || [];
+}
+
+// ایجاد Website جدید
+async function createWebsite(
+  name: string,
+  url: string,
+  description?: string
+): Promise<Website> {
+  const response = await fetch('/api/v1/web-knowledge/websites/', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`
     },
     body: JSON.stringify({
-      website_id: websiteId,
-      urls: urls.join('\n') // تبدیل آرایه به string با \n
+      name,
+      url,
+      description,
+      max_pages: 50,
+      crawl_depth: 3,
+      include_external_links: false
     })
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to create website');
+  }
+  
+  const data = await response.json();
+  return data.website;
+}
+
+// شروع کرال (website_id اختیاری است)
+async function startManualCrawl(
+  urls: string[],
+  websiteId?: string  // اختیاری - اگر داده نشه، خودکار ساخته می‌شه
+): Promise<ManualCrawlResponse> {
+  const body: any = {
+    urls: urls.join('\n') // تبدیل آرایه به string با \n
+  };
+  
+  // اگر website_id داده شده، اضافه کن
+  if (websiteId) {
+    body.website_id = websiteId;
+  }
+  
+  const response = await fetch('/api/v1/web-knowledge/manual-crawl/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(body)
   });
   
   if (!response.ok) {
@@ -210,22 +300,78 @@ async function getCrawlStatus(taskId: string): Promise<CrawlStatus> {
 
 // مثال استفاده در کامپوننت
 function ManualCrawlComponent() {
+  const [websites, setWebsites] = useState<Website[]>([]);
+  const [selectedWebsiteId, setSelectedWebsiteId] = useState<string>('');
   const [urls, setUrls] = useState('');
   const [taskId, setTaskId] = useState<string | null>(null);
   const [status, setStatus] = useState<CrawlStatus | null>(null);
   const [loading, setLoading] = useState(false);
+  const [creatingWebsite, setCreatingWebsite] = useState(false);
+  
+  // بارگذاری Website ها در ابتدا
+  useEffect(() => {
+    loadWebsites();
+  }, []);
+  
+  const loadWebsites = async () => {
+    try {
+      const websitesList = await getWebsites();
+      setWebsites(websitesList);
+      
+      // اگر فقط یک Website داره، به صورت خودکار انتخاب کن
+      if (websitesList.length === 1) {
+        setSelectedWebsiteId(websitesList[0].id);
+      }
+    } catch (error) {
+      console.error('Error loading websites:', error);
+    }
+  };
+  
+  // ایجاد Website جدید از URL
+  const handleCreateWebsiteFromUrl = async (baseUrl: string) => {
+    setCreatingWebsite(true);
+    try {
+      // استخراج domain از URL
+      const urlObj = new URL(baseUrl);
+      const domain = urlObj.hostname;
+      
+      const newWebsite = await createWebsite(
+        domain,
+        baseUrl,
+        `Website created from manual crawl`
+      );
+      
+      setWebsites([...websites, newWebsite]);
+      setSelectedWebsiteId(newWebsite.id);
+    } catch (error) {
+      console.error('Error creating website:', error);
+      alert('خطا در ایجاد Website');
+    } finally {
+      setCreatingWebsite(false);
+    }
+  };
   
   const handleStartCrawl = async () => {
     setLoading(true);
     try {
       const urlsArray = urls.split('\n').filter(url => url.trim());
-      const response = await startManualCrawl(websiteId, urlsArray);
+      
+      // website_id اختیاری است - اگر داده نشه، خودکار ساخته می‌شه
+      const response = await startManualCrawl(urlsArray, selectedWebsiteId || undefined);
       setTaskId(response.task_id);
+      
+      // اگر website_id در response برگردونده شده، ذخیره کن
+      if (response.website_id && !selectedWebsiteId) {
+        setSelectedWebsiteId(response.website_id);
+        // بارگذاری مجدد لیست Website ها
+        loadWebsites();
+      }
       
       // شروع polling برای بررسی وضعیت
       pollStatus(response.task_id);
     } catch (error) {
       console.error('Error starting crawl:', error);
+      alert('خطا در شروع کرال');
     } finally {
       setLoading(false);
     }
@@ -253,19 +399,67 @@ function ManualCrawlComponent() {
   
   return (
     <div>
-      <textarea
-        value={urls}
-        onChange={(e) => setUrls(e.target.value)}
-        placeholder="Enter URLs, one per line:&#10;https://example.com/page1&#10;https://example.com/page2"
-        rows={10}
-        style={{ width: '100%' }}
-      />
+      {/* انتخاب Website (اختیاری) */}
+      <div style={{ marginBottom: '16px' }}>
+        <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>
+          انتخاب Website (اختیاری):
+        </label>
+        {websites.length > 0 ? (
+          <select
+            value={selectedWebsiteId}
+            onChange={(e) => setSelectedWebsiteId(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '8px',
+              border: '1px solid #ddd',
+              borderRadius: '4px'
+            }}
+            disabled={loading || !!taskId}
+          >
+            <option value="">-- خودکار از URL (پیشنهادی) --</option>
+            {websites.map(website => (
+              <option key={website.id} value={website.id}>
+                {website.name} ({website.url}) - {website.pages_crawled} صفحه
+              </option>
+            ))}
+          </select>
+        ) : (
+          <div style={{ padding: '12px', background: '#f0f9ff', borderRadius: '4px', marginBottom: '8px' }}>
+            <p style={{ margin: 0, color: '#0369a1' }}>
+              ℹ️ Website به صورت خودکار از اولین URL ایجاد می‌شود (یا اگر Website با همان domain وجود داشته باشد، از همان استفاده می‌شود)
+            </p>
+          </div>
+        )}
+      </div>
+      
+      {/* ورودی URLها */}
+      <div style={{ marginBottom: '16px' }}>
+        <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>
+          URLهای صفحات (هر URL در یک خط):
+        </label>
+        <textarea
+          value={urls}
+          onChange={(e) => setUrls(e.target.value)}
+          placeholder="https://example.com/page1&#10;https://example.com/page2&#10;https://example.com/page3"
+          rows={10}
+          style={{ width: '100%', padding: '12px', border: '1px solid #ddd', borderRadius: '4px' }}
+          disabled={loading || !!taskId}
+        />
+      </div>
       
       <button 
         onClick={handleStartCrawl} 
-        disabled={loading || !urls.trim()}
+        disabled={loading || !urls.trim() || creatingWebsite}
+        style={{
+          background: loading ? '#999' : '#2271b1',
+          color: 'white',
+          padding: '10px 20px',
+          border: 'none',
+          borderRadius: '4px',
+          cursor: loading ? 'not-allowed' : 'pointer'
+        }}
       >
-        {loading ? 'Starting...' : 'Scan'}
+        {loading ? 'در حال شروع...' : creatingWebsite ? 'در حال ایجاد Website...' : 'شروع کرال'}
       </button>
       
       {status && (
@@ -476,21 +670,33 @@ example.com/page3
 ## 🔄 Flow Diagram
 
 ```
-User Input URLs
+1. Load Websites List
+   GET /api/v1/web-knowledge/websites/
       ↓
-POST /manual-crawl/
+2. User Selects Website (or creates new one)
+   - Select from dropdown
+   - OR: Create new website from first URL
       ↓
-Get task_id
+3. User Input URLs
+   (one URL per line)
       ↓
-Start Polling (every 2s)
+4. POST /manual-crawl/
+   {
+     "website_id": "selected-or-created-id",
+     "urls": "url1\nurl2\nurl3"
+   }
       ↓
-GET /manual-crawl/status/<task_id>/
+5. Get task_id
       ↓
-Update Progress Bar
+6. Start Polling (every 2s)
+   GET /manual-crawl/status/<task_id>/
       ↓
-Status = completed? → Stop Polling → Show Success
-Status = failed? → Stop Polling → Show Error
-Status = processing? → Continue Polling
+7. Update Progress Bar
+      ↓
+8. Status Check:
+   - completed? → Stop Polling → Show Success
+   - failed? → Stop Polling → Show Error
+   - processing? → Continue Polling
 ```
 
 ---
@@ -500,22 +706,106 @@ Status = processing? → Continue Polling
 ```tsx
 import React, { useState, useEffect } from 'react';
 
+interface Website {
+  id: string;
+  name: string;
+  url: string;
+  description?: string;
+  pages_crawled: number;
+  total_qa_pairs: number;
+}
+
 interface ManualCrawlProps {
-  websiteId: string;
+  websiteId?: string; // اختیاری - اگر داده نشه، از لیست انتخاب می‌شه یا خودکار ایجاد می‌شه
   onComplete?: () => void;
 }
 
-export const ManualCrawl: React.FC<ManualCrawlProps> = ({ websiteId, onComplete }) => {
+export const ManualCrawl: React.FC<ManualCrawlProps> = ({ websiteId: propWebsiteId, onComplete }) => {
+  const [websites, setWebsites] = useState<Website[]>([]);
+  const [selectedWebsiteId, setSelectedWebsiteId] = useState<string>(propWebsiteId || '');
   const [urls, setUrls] = useState('');
   const [taskId, setTaskId] = useState<string | null>(null);
   const [status, setStatus] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // بارگذاری Website ها
+  useEffect(() => {
+    loadWebsites();
+  }, []);
+
+  const loadWebsites = async () => {
+    try {
+      const response = await fetch('/api/v1/web-knowledge/websites/', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      const data = await response.json();
+      setWebsites(data.results || []);
+      
+      // اگر propWebsiteId داده شده، از اون استفاده کن
+      if (propWebsiteId) {
+        setSelectedWebsiteId(propWebsiteId);
+      } else if (data.results && data.results.length === 1) {
+        // اگر فقط یک Website داره، به صورت خودکار انتخاب کن
+        setSelectedWebsiteId(data.results[0].id);
+      }
+    } catch (err) {
+      console.error('Error loading websites:', err);
+    }
+  };
+
   const startCrawl = async () => {
     if (!urls.trim()) {
-      setError('Please enter at least one URL');
+      setError('لطفاً حداقل یک URL وارد کنید');
       return;
+    }
+
+    // اگر Website انتخاب نشده، از اولین URL یک Website بساز
+    let finalWebsiteId = selectedWebsiteId;
+    
+    if (!finalWebsiteId) {
+      const urlsArray = urls.trim().split('\n').filter(url => url.trim());
+      if (urlsArray.length > 0) {
+        try {
+          const firstUrl = urlsArray[0];
+          const urlObj = new URL(firstUrl);
+          const domain = urlObj.hostname;
+          
+          const createResponse = await fetch('/api/v1/web-knowledge/websites/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({
+              name: domain,
+              url: firstUrl,
+              description: 'Website created from manual crawl',
+              max_pages: 50,
+              crawl_depth: 3,
+              include_external_links: false
+            })
+          });
+          
+          const createData = await createResponse.json();
+          if (createData.success && createData.website) {
+            finalWebsiteId = createData.website.id;
+            setSelectedWebsiteId(finalWebsiteId);
+            setWebsites([...websites, createData.website]);
+          } else {
+            setError('خطا در ایجاد Website');
+            return;
+          }
+        } catch (err) {
+          setError('خطا در ایجاد Website');
+          return;
+        }
+      } else {
+        setError('لطفاً یک Website انتخاب کنید یا URL وارد کنید');
+        return;
+      }
     }
 
     setLoading(true);
@@ -529,7 +819,7 @@ export const ManualCrawl: React.FC<ManualCrawlProps> = ({ websiteId, onComplete 
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
         body: JSON.stringify({
-          website_id: websiteId,
+          website_id: finalWebsiteId,
           urls: urls.trim()
         })
       });
@@ -591,15 +881,49 @@ export const ManualCrawl: React.FC<ManualCrawlProps> = ({ websiteId, onComplete 
         Fiko will automatically crawl and save the content of all listed pages.
       </p>
 
+      {/* انتخاب Website */}
+      <div style={{ marginBottom: '16px' }}>
+        <label htmlFor="website-select" style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>
+          انتخاب Website:
+        </label>
+        {websites.length > 0 ? (
+          <select
+            id="website-select"
+            value={selectedWebsiteId}
+            onChange={(e) => setSelectedWebsiteId(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '8px',
+              border: '1px solid #ddd',
+              borderRadius: '4px'
+            }}
+            disabled={loading || !!taskId}
+          >
+            <option value="">-- انتخاب کنید --</option>
+            {websites.map(website => (
+              <option key={website.id} value={website.id}>
+                {website.name} ({website.url}) - {website.pages_crawled} صفحه
+              </option>
+            ))}
+          </select>
+        ) : (
+          <div style={{ padding: '12px', background: '#fef3c7', borderRadius: '4px', marginBottom: '16px' }}>
+            <p style={{ margin: 0, color: '#92400e' }}>
+              هیچ Website ای ندارید. بعد از وارد کردن URLها، Website به صورت خودکار ایجاد می‌شود.
+            </p>
+          </div>
+        )}
+      </div>
+
       <div style={{ marginBottom: '16px' }}>
         <label htmlFor="urls-input" style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>
-          Add your website
+          URLهای صفحات (هر URL در یک خط):
         </label>
         <textarea
           id="urls-input"
           value={urls}
           onChange={(e) => setUrls(e.target.value)}
-          placeholder="https://example.com/page1&#10;https://example.com/page2"
+          placeholder="https://example.com/page1&#10;https://example.com/page2&#10;https://example.com/page3"
           rows={10}
           style={{
             width: '100%',
@@ -639,7 +963,7 @@ export const ManualCrawl: React.FC<ManualCrawlProps> = ({ websiteId, onComplete 
           opacity: (loading || !urls.trim() || !!taskId) ? 0.6 : 1
         }}
       >
-        {loading ? 'Starting...' : taskId ? 'Scanning...' : 'Scan'}
+        {loading ? 'در حال شروع...' : taskId ? 'در حال کرال...' : 'شروع کرال'}
       </button>
 
       {status && (

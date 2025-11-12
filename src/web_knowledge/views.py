@@ -2204,16 +2204,16 @@ class ManualPageCrawlAPIView(APIView):
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             properties={
-                'website_id': openapi.Schema(
-                    type=openapi.TYPE_STRING,
-                    description='UUID of the website source'
-                ),
                 'urls': openapi.Schema(
                     type=openapi.TYPE_STRING,
-                    description='List of URLs, one per line (separated by newline)'
+                    description='List of URLs, one per line (separated by newline) - REQUIRED'
+                ),
+                'website_id': openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description='UUID of the website source (optional - if not provided, will be auto-created from first URL)'
                 ),
             },
-            required=['website_id', 'urls']
+            required=['urls']
         ),
         responses={
             202: openapi.Response(
@@ -2238,34 +2238,21 @@ class ManualPageCrawlAPIView(APIView):
         
         Request body:
         {
-            "website_id": "uuid",
             "urls": "https://example.com/page1\nhttps://example.com/page2\n..."
+            "website_id": "uuid" (optional - if not provided, will be auto-created from first URL)
         }
         """
         try:
+            from urllib.parse import urlparse
+            
             website_id = request.data.get('website_id')
             urls_text = request.data.get('urls', '').strip()
-            
-            if not website_id:
-                return Response({
-                    'success': False,
-                    'message': 'website_id is required'
-                }, status=status.HTTP_400_BAD_REQUEST)
             
             if not urls_text:
                 return Response({
                     'success': False,
                     'message': 'urls is required (one URL per line)'
                 }, status=status.HTTP_400_BAD_REQUEST)
-            
-            # Get website source
-            try:
-                website = WebsiteSource.objects.get(id=website_id, user=request.user)
-            except WebsiteSource.DoesNotExist:
-                return Response({
-                    'success': False,
-                    'message': 'Website not found or access denied'
-                }, status=status.HTTP_404_NOT_FOUND)
             
             # Parse URLs (split by newline, filter empty lines)
             urls = [url.strip() for url in urls_text.split('\n') if url.strip()]
@@ -2276,19 +2263,70 @@ class ManualPageCrawlAPIView(APIView):
                     'message': 'No valid URLs found'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
+            # Get or create website source
+            if website_id:
+                # Use provided website_id
+                try:
+                    website = WebsiteSource.objects.get(id=website_id, user=request.user)
+                except WebsiteSource.DoesNotExist:
+                    return Response({
+                        'success': False,
+                        'message': 'Website not found or access denied'
+                    }, status=status.HTTP_404_NOT_FOUND)
+            else:
+                # Auto-create website from first URL
+                first_url = urls[0]
+                if not first_url.startswith(('http://', 'https://')):
+                    first_url = 'https://' + first_url
+                
+                try:
+                    parsed_url = urlparse(first_url)
+                    domain = parsed_url.netloc or parsed_url.path.split('/')[0]
+                    base_url = f"{parsed_url.scheme or 'https'}://{domain}"
+                    
+                    # Try to find existing website with same base URL
+                    website = WebsiteSource.objects.filter(
+                        user=request.user,
+                        url__startswith=base_url
+                    ).first()
+                    
+                    if not website:
+                        # Create new website
+                        website = WebsiteSource.objects.create(
+                            user=request.user,
+                            name=domain,
+                            url=base_url,
+                            description=f'Auto-created from manual crawl',
+                            max_pages=1000,
+                            crawl_depth=0,
+                            include_external_links=False
+                        )
+                        logger.info(f"Auto-created WebsiteSource {website.id} for domain {domain} (user: {request.user.username})")
+                    else:
+                        logger.info(f"Using existing WebsiteSource {website.id} for domain {domain} (user: {request.user.username})")
+                        
+                except Exception as e:
+                    logger.error(f"Error creating website from URL {first_url}: {str(e)}")
+                    return Response({
+                        'success': False,
+                        'message': f'Failed to create website from URL: {str(e)}'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+            
             # Start async task
             from .tasks import crawl_manual_urls_task
             
             # Generate task ID
             task = crawl_manual_urls_task.delay(str(website.id), urls)
             
-            logger.info(f"Started manual crawl task {task.id} for {len(urls)} URLs (user: {request.user.username})")
+            logger.info(f"Started manual crawl task {task.id} for {len(urls)} URLs (user: {request.user.username}, website: {website.id})")
             
             return Response({
                 'success': True,
                 'task_id': task.id,
                 'message': f'Crawl started for {len(urls)} URL(s)',
                 'total_urls': len(urls),
+                'website_id': str(website.id),
+                'website_name': website.name,
                 'status_url': f'/api/v1/web-knowledge/manual-crawl/status/{task.id}/'
             }, status=status.HTTP_202_ACCEPTED)
             
