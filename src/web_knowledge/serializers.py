@@ -644,7 +644,7 @@ class ProductSerializer(serializers.ModelSerializer):
             'description', 'short_description', 'long_description',
             'link', 'has_link', 
             # Pricing
-            'price', 'original_price', 'currency', 'currency_display', 'final_price',
+            'price', 'sale_price', 'original_price', 'currency', 'currency_display', 'final_price',
             'discount_percentage', 'discount_amount', 'has_discount', 'discount_info',
             'billing_period', 'billing_period_display',
             # Product Details
@@ -727,7 +727,7 @@ class ProductCreateSerializer(serializers.ModelSerializer):
             'title', 'product_type', 'description', 'short_description', 'long_description',
             'link',
             # Pricing
-            'price', 'original_price', 'currency', 'discount_percentage', 'discount_amount',
+            'price', 'sale_price', 'original_price', 'currency', 'discount_percentage', 'discount_amount',
             'billing_period',
             # Product Details
             'features', 'specifications',
@@ -747,6 +747,7 @@ class ProductCreateSerializer(serializers.ModelSerializer):
             'long_description': {'required': False},
             'link': {'required': False},
             'price': {'required': False},
+            'sale_price': {'required': False},
             'original_price': {'required': False},
             'discount_percentage': {'required': False},
             'discount_amount': {'required': False},
@@ -793,6 +794,12 @@ class ProductCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Price cannot be negative")
         return value
     
+    def validate_sale_price(self, value):
+        """Validate sale price"""
+        if value is not None and value < 0:
+            raise serializers.ValidationError("Sale price cannot be negative")
+        return value
+    
     def validate_discount_percentage(self, value):
         """Validate discount percentage"""
         if value is not None and (value < 0 or value > 100):
@@ -811,7 +818,7 @@ class ProductUpdateSerializer(serializers.ModelSerializer):
             'title', 'product_type', 'description', 'short_description', 'long_description',
             'link',
             # Pricing
-            'price', 'original_price', 'currency', 'discount_percentage', 'discount_amount',
+            'price', 'sale_price', 'original_price', 'currency', 'discount_percentage', 'discount_amount',
             'billing_period',
             # Product Details
             'features', 'specifications',
@@ -846,6 +853,12 @@ class ProductUpdateSerializer(serializers.ModelSerializer):
         """Validate price"""
         if value is not None and value < 0:
             raise serializers.ValidationError("Price cannot be negative")
+        return value
+    
+    def validate_sale_price(self, value):
+        """Validate sale price"""
+        if value is not None and value < 0:
+            raise serializers.ValidationError("Sale price cannot be negative")
         return value
     
     def validate_discount_percentage(self, value):

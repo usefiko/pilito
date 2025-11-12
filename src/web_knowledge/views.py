@@ -3,7 +3,7 @@ Views for web_knowledge app
 Provides REST API endpoints for website knowledge management
 """
 import logging
-from rest_framework import viewsets, status, permissions
+from rest_framework import viewsets, status, permissions, parsers
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -1142,8 +1142,10 @@ class PartialQACreateAPIView(APIView):
 class ProductViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing products and services
+    Supports both JSON and multipart/form-data for image uploads
     """
     permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
     
     def get_serializer_class(self):
         if self.action == 'create':

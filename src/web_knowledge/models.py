@@ -395,7 +395,14 @@ class Product(models.Model):
         decimal_places=2, 
         null=True, 
         blank=True,
-        help_text="Current price"
+        help_text="Current price (used by AI extraction, keep null for manual entry)"
+    )
+    sale_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Sale price (final price after discount, used for manual entry)"
     )
     original_price = models.DecimalField(
         max_digits=10,
@@ -586,17 +593,36 @@ class Product(models.Model):
     
     @property
     def final_price(self):
-        """Calculate final price after discount"""
-        if not self.price:
-            return None
+        """Calculate final price after discount
         
-        if self.discount_amount:
-            return self.price - self.discount_amount
-        elif self.discount_percentage:
-            discount = (self.price * self.discount_percentage) / 100
-            return self.price - discount
+        Priority:
+        1. sale_price (for manual entry)
+        2. price (for AI extraction)
+        3. Calculate from original_price - discount
+        """
+        # Priority 1: sale_price (manual entry)
+        if self.sale_price:
+            return self.sale_price
         
-        return self.price
+        # Priority 2: price (AI extraction)
+        if self.price:
+            if self.discount_amount:
+                return self.price - self.discount_amount
+            elif self.discount_percentage:
+                discount = (self.price * self.discount_percentage) / 100
+                return self.price - discount
+            return self.price
+        
+        # Priority 3: Calculate from original_price
+        if self.original_price:
+            if self.discount_amount:
+                return self.original_price - self.discount_amount
+            elif self.discount_percentage:
+                discount = (self.original_price * self.discount_percentage) / 100
+                return self.original_price - discount
+            return self.original_price
+        
+        return None
     
     @property
     def has_discount(self):
