@@ -7,7 +7,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('web_knowledge', '0022_merge_sale_price_and_wordpress_sync'),
+        ('web_knowledge', '0023_product_external_id_product_external_source_and_more'),
     ]
 
     operations = [
