@@ -200,14 +200,22 @@ def crawl_manual_urls_task(self, website_source_id: str, urls: list) -> Dict[str
         # Get website source
         website_source = WebsiteSource.objects.get(id=website_source_id)
         
-        # Create crawl job for progress tracking
+        # Create crawl job for progress tracking (ensure it exists before starting)
+        # Filter out empty URLs first
+        valid_urls = [url.strip() for url in urls if url.strip()]
+        total_urls = len(valid_urls)
+        
+        if total_urls == 0:
+            logger.warning("No valid URLs provided for manual crawl")
+            return {'success': False, 'error': 'No valid URLs provided'}
+        
         crawl_job, created = CrawlJob.objects.get_or_create(
             celery_task_id=self.request.id,
             defaults={
                 'website': website_source,
                 'job_status': 'running',
                 'started_at': timezone.now(),
-                'pages_to_crawl': len(urls),
+                'pages_to_crawl': total_urls,
                 'pages_crawled': 0
             }
         )
@@ -217,16 +225,19 @@ def crawl_manual_urls_task(self, website_source_id: str, urls: list) -> Dict[str
             crawl_job.website = website_source
             crawl_job.job_status = 'running'
             crawl_job.started_at = timezone.now()
-            crawl_job.pages_to_crawl = len(urls)
+            crawl_job.pages_to_crawl = total_urls
             crawl_job.pages_crawled = 0
+            crawl_job.completed_at = None
             crawl_job.save()
         
-        logger.info(f"Starting manual crawl for {len(urls)} URLs")
+        logger.info(f"Created/updated crawl_job {crawl_job.id} for {total_urls} URLs (task_id: {self.request.id})")
+        
+        logger.info(f"Starting manual crawl for {total_urls} URLs")
         
         # Initialize crawler (we'll use it only for _crawl_page method)
         crawler = WebsiteCrawler(
             base_url=website_source.url,
-            max_pages=len(urls),
+            max_pages=total_urls,
             max_depth=0,  # Don't crawl internal links
             include_external=False,
             delay=0.1
@@ -236,13 +247,9 @@ def crawl_manual_urls_task(self, website_source_id: str, urls: list) -> Dict[str
         failed_pages = 0
         
         # Crawl each URL individually (no internal link discovery)
-        for i, url in enumerate(urls):
+        for i, url in enumerate(valid_urls):
             try:
-                # Clean URL
-                url = url.strip()
-                if not url:
-                    continue
-                
+                # URL is already cleaned (we filtered earlier)
                 # Ensure URL has scheme
                 if not url.startswith(('http://', 'https://')):
                     url = 'https://' + url
@@ -284,12 +291,13 @@ def crawl_manual_urls_task(self, website_source_id: str, urls: list) -> Dict[str
                 # Process page content asynchronously
                 process_page_content_task.delay(str(page.id))
                 
-                # Update progress
-                progress = round(((i + 1) / len(urls)) * 100, 1)
+                # Update progress (refresh from DB first to avoid race conditions)
+                crawl_job.refresh_from_db()
+                progress = round(((i + 1) / total_urls) * 100, 1)
                 crawl_job.pages_crawled = i + 1
                 crawl_job.save(update_fields=['pages_crawled'])
                 
-                logger.info(f"Manual crawl progress: {progress}% ({i + 1}/{len(urls)}) - {url}")
+                logger.info(f"Manual crawl progress: {progress}% ({i + 1}/{total_urls}) - {url}")
                 
             except Exception as e:
                 logger.error(f"Failed to crawl URL {url}: {str(e)}")
@@ -309,7 +317,7 @@ def crawl_manual_urls_task(self, website_source_id: str, urls: list) -> Dict[str
             'website_id': str(website_source.id),
             'pages_crawled': saved_pages,
             'pages_failed': failed_pages,
-            'total_urls': len(urls),
+            'total_urls': total_urls,
             'crawl_job_id': str(crawl_job.id)
         }
         

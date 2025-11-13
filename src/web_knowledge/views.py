@@ -2381,8 +2381,26 @@ class ManualPageCrawlAPIView(APIView):
             # Get task result
             task_result = AsyncResult(task_id)
             
-            # Get crawl job if exists
+            # Get crawl job if exists (try multiple ways to find it)
             crawl_job = CrawlJob.objects.filter(celery_task_id=task_id).first()
+            
+            # If not found, try to find by website and recent jobs
+            if not crawl_job and task_result and hasattr(task_result, 'result'):
+                # Try to get website_id from task result if available
+                try:
+                    if isinstance(task_result.result, dict) and 'website_id' in task_result.result:
+                        website_id = task_result.result.get('website_id')
+                        # Find most recent crawl job for this website
+                        from .models import WebsiteSource
+                        try:
+                            website = WebsiteSource.objects.get(id=website_id)
+                            crawl_job = website.crawl_jobs.filter(
+                                job_status__in=['running', 'queued']
+                            ).order_by('-created_at').first()
+                        except:
+                            pass
+                except:
+                    pass
             
             if not crawl_job and not task_result:
                 return Response({
@@ -2416,23 +2434,40 @@ class ManualPageCrawlAPIView(APIView):
                 # Task is still running
                 status_value = 'processing'
                 if crawl_job:
+                    # Refresh from DB to get latest values
+                    crawl_job.refresh_from_db()
                     total_urls = crawl_job.pages_to_crawl or 0
                     pages_crawled = crawl_job.pages_crawled or 0
+                    
                     if total_urls > 0:
                         progress = round((pages_crawled / total_urls) * 100, 1)
+                        # Ensure progress doesn't exceed 100%
+                        progress = min(progress, 100.0)
                     else:
                         progress = 0.0
                     message = f'Crawling... {pages_crawled}/{total_urls} pages'
                 else:
-                    # Try to get task info from Celery
-                    if hasattr(task_result, 'info') and isinstance(task_result.info, dict):
-                        total_urls = task_result.info.get('total_urls', 0)
-                        pages_crawled = task_result.info.get('pages_crawled', 0)
-                        if total_urls > 0:
-                            progress = round((pages_crawled / total_urls) * 100, 1)
-                        else:
+                    # Try to find crawl_job by task_id (maybe it wasn't created yet)
+                    # Wait a bit and try again - task might be queued
+                    from django.utils import timezone
+                    from datetime import timedelta
+                    
+                    # Check if task was just created (within last 5 seconds)
+                    # If so, it might be queued and crawl_job not created yet
+                    if hasattr(task_result, 'date_created'):
+                        time_since_created = timezone.now() - task_result.date_created
+                        if time_since_created < timedelta(seconds=5):
                             progress = 0.0
-                        message = f'Crawling... {pages_crawled}/{total_urls} pages'
+                            pages_crawled = 0
+                            total_urls = 0
+                            message = 'Task queued - waiting to start'
+                        else:
+                            # Task is running but crawl_job not found - log warning
+                            logger.warning(f"Crawl job not found for task {task_id} but task is running")
+                            progress = 0.0
+                            pages_crawled = 0
+                            total_urls = 0
+                            message = 'Task running - progress unavailable'
                     else:
                         progress = 0.0
                         pages_crawled = 0
