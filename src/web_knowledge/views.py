@@ -2403,9 +2403,9 @@ class ManualPageCrawlAPIView(APIView):
             
             # Log for debugging
             if crawl_job:
-                logger.debug(f"Found crawl_job {crawl_job.id} for task {task_id}")
+                logger.info(f"✅ Found crawl_job {crawl_job.id} for task {task_id} - status: {crawl_job.job_status}, pages_crawled: {crawl_job.pages_crawled}, pages_to_crawl: {crawl_job.pages_to_crawl}")
             else:
-                logger.warning(f"No crawl_job found for task {task_id} - checking alternatives...")
+                logger.warning(f"❌ No crawl_job found for task {task_id} - checking alternatives...")
             
             # If not found, try to find by website and recent jobs
             if not crawl_job and task_result and hasattr(task_result, 'result'):
@@ -2463,10 +2463,17 @@ class ManualPageCrawlAPIView(APIView):
                     else:
                         progress = 0.0
                     message = f'Crawling... {pages_crawled}/{total_urls} pages'
-            elif task_result.ready():
+            elif task_result and task_result.ready():
                 # No crawl_job found, fallback to task_result
-                if task_result.successful():
+                # BUT: Only use this if task is actually completed (not just ready)
+                logger.warning(f"Using task_result fallback for task {task_id} - crawl_job not found, task.ready()={task_result.ready()}, task.state={getattr(task_result, 'state', 'UNKNOWN')}")
+                
+                # Check task state more carefully
+                task_state = getattr(task_result, 'state', None)
+                
+                if task_result.successful() and task_state == 'SUCCESS':
                     result = task_result.result
+                    logger.info(f"Task result for {task_id}: {result}")
                     if isinstance(result, dict) and result.get('success'):
                         status_value = 'completed'
                         progress = 100.0
@@ -2479,12 +2486,21 @@ class ManualPageCrawlAPIView(APIView):
                         pages_crawled = 0
                         total_urls = 0
                         message = result.get('error', 'Task failed') if isinstance(result, dict) else 'Task failed'
-                else:
+                elif task_state in ['FAILURE', 'REVOKED']:
                     status_value = 'failed'
                     progress = 0.0
                     pages_crawled = 0
                     total_urls = 0
                     message = str(task_result.info) if task_result.info else 'Task failed'
+                else:
+                    # Task is ready but not successful - might be pending/started
+                    # Don't return 100% - return processing with 0% instead
+                    logger.warning(f"Task {task_id} is ready but state is {task_state} - treating as processing")
+                    status_value = 'processing'
+                    progress = 0.0
+                    pages_crawled = 0
+                    total_urls = 0
+                    message = 'در حال آماده‌سازی...'
             else:
                 # Task is still running but no crawl_job found
                 # Try one more time to find crawl_job (maybe it was just created)
