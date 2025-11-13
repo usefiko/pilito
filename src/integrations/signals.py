@@ -47,9 +47,15 @@ def sync_wordpress_content_to_knowledge_base(sender, instance, created, **kwargs
                 'description': 'صفحات و نوشته‌های همگام‌سازی شده از WordPress',
                 'max_pages': 10000,
                 'crawl_depth': 1,
-                'crawl_status': 'completed'
+                'crawl_status': 'completed',
+                'crawl_progress': 100.0  # WordPress content is always complete (no crawling needed)
             }
         )
+        
+        # Update crawl_progress if it was already created (in case it was 0)
+        if wordpress_source.crawl_progress < 100.0:
+            wordpress_source.crawl_progress = 100.0
+            wordpress_source.save(update_fields=['crawl_progress'])
         
         # ایجاد یا به‌روزرسانی WebsitePage
         webpage, webpage_created = WebsitePage.objects.update_or_create(
