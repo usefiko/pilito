@@ -235,6 +235,12 @@ def crawl_manual_urls_task(self, website_source_id: str, urls: list) -> Dict[str
             )
             logger.warning(f"Created new crawl_job {crawl_job.id} in task (should have been created in view) for {total_urls} URLs (task_id: {self.request.id})")
         
+        # Update website status to crawling
+        website_source.crawl_status = 'crawling'
+        website_source.crawl_progress = 0.0
+        website_source.crawl_started_at = timezone.now()
+        website_source.save(update_fields=['crawl_status', 'crawl_progress', 'crawl_started_at'])
+        
         logger.info(f"Starting manual crawl for {total_urls} URLs")
         
         # Initialize crawler (we'll use it only for _crawl_page method)
@@ -304,6 +310,12 @@ def crawl_manual_urls_task(self, website_source_id: str, urls: list) -> Dict[str
                 crawl_job.job_status = 'running'  # Ensure status is running
                 crawl_job.save(update_fields=['pages_crawled', 'job_status'])
                 
+                # Update website progress (for frontend)
+                website_source.refresh_from_db()
+                website_source.crawl_status = 'crawling'
+                website_source.crawl_progress = progress
+                website_source.save(update_fields=['crawl_status', 'crawl_progress'])
+                
                 logger.info(f"Manual crawl progress: {progress}% ({pages_crawled_count}/{total_urls}) - {url} (crawl_job_id: {crawl_job.id})")
                 
             except Exception as e:
@@ -316,6 +328,12 @@ def crawl_manual_urls_task(self, website_source_id: str, urls: list) -> Dict[str
         crawl_job.pages_crawled = saved_pages
         crawl_job.completed_at = timezone.now()
         crawl_job.save()
+        
+        # Update website status
+        website_source.crawl_status = 'completed'
+        website_source.crawl_progress = 100.0
+        website_source.crawl_completed_at = timezone.now()
+        website_source.save(update_fields=['crawl_status', 'crawl_progress', 'crawl_completed_at'])
         
         logger.info(f"Manual crawl completed: {saved_pages} pages saved, {failed_pages} failed")
         
@@ -335,13 +353,23 @@ def crawl_manual_urls_task(self, website_source_id: str, urls: list) -> Dict[str
     except Exception as e:
         logger.error(f"Error in crawl_manual_urls_task: {str(e)}")
         
-        # Update crawl job on error
+        # Update crawl job and website on error
         try:
             crawl_job = CrawlJob.objects.filter(celery_task_id=self.request.id).first()
             if crawl_job:
                 crawl_job.job_status = 'failed'
+                crawl_job.error_message = str(e)
                 crawl_job.completed_at = timezone.now()
                 crawl_job.save()
+                
+                # Update website status
+                try:
+                    website_source = WebsiteSource.objects.get(id=website_source_id)
+                    website_source.crawl_status = 'failed'
+                    website_source.crawl_error_message = str(e)
+                    website_source.save(update_fields=['crawl_status', 'crawl_error_message'])
+                except:
+                    pass
         except:
             pass
         
