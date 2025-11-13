@@ -17,6 +17,7 @@ FROM base AS system-deps
 RUN apt-get update && apt-get install -y \
     build-essential \
     libpq-dev \
+    postgresql-client \
     netcat-openbsd \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*

@@ -35,9 +35,11 @@ if [[ "$1" == "gunicorn"* ]]; then
     rm -f /app/src/web_knowledge/migrations/0023_change_qapair_page_to_set_null.py || true
     rm -f /app/src/web_knowledge/migrations/0025_change_qapair_page_to_set_null.py || true
     
-    # Remove migration 0025 from database using Python script (before Django migration check)
-    echo "🗑️ Removing migration 0025 from database if exists..."
-    python /app/fix_migration_0025.py 2>/dev/null || echo "⚠️ Could not remove migration 0025 (script may not exist)"
+    # Remove migration 0025 from database using raw SQL (BEFORE Django loads)
+    # Use psql directly to avoid Django migration conflict
+    echo "🗑️ Removing migration 0025 from database (raw SQL, before Django)..."
+    export PGPASSWORD="${POSTGRES_PASSWORD:-pilito_password}"
+    psql -h "${POSTGRES_HOST:-db}" -U "${POSTGRES_USER:-pilito_user}" -d "${POSTGRES_DB:-pilito_db}" -c "DELETE FROM django_migrations WHERE app = 'web_knowledge' AND name = '0025_change_qapair_page_to_set_null';" 2>/dev/null && echo "✅ Migration 0025 removed" || echo "⚠️ Migration 0025 not found (may already be removed)"
     
     # Check and fake migration 0023 if it already exists with different content
     echo "🔧 Checking migration web_knowledge 0023..."
