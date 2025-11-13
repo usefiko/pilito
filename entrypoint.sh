@@ -29,6 +29,14 @@ echo "✅ Redis is up and running!"
 # Only run migrations and collectstatic for web service
 if [[ "$1" == "gunicorn"* ]]; then
     echo "🔄 Running Django migrations..."
+    
+    # Check and fake migration 0023 if it already exists with different content
+    echo "🔧 Checking migration web_knowledge 0023..."
+    if python manage.py showmigrations web_knowledge 2>/dev/null | grep -q "\[X\] 0023"; then
+        echo "Migration 0023 already applied, faking to match local state..."
+        python manage.py migrate web_knowledge 0023 --fake || true
+    fi
+    
     python manage.py migrate --noinput
     
     echo "📦 Collecting static files..."
