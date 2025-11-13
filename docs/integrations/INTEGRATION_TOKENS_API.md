@@ -37,6 +37,7 @@ curl -X GET "https://api.pilito.com/api/v1/integrations/tokens/" \
       "integration_type": "woocommerce",
       "integration_type_display": "WooCommerce",
       "name": "faracoach (woocommerce)",
+      "token": "wc_sk_live_abc123def456ghi789jkl012mno345pqr678stu901vwx234yz",
       "token_preview": "wc_sk...qmy0lk",
       "is_active": true,
       "is_valid_status": true,
@@ -53,6 +54,7 @@ curl -X GET "https://api.pilito.com/api/v1/integrations/tokens/" \
       "integration_type": "woocommerce",
       "integration_type_display": "WooCommerce",
       "name": "Store 2",
+      "token": "wc_sk_live_xyz123abc456def789ghi012jkl345mno678pqr901stu234vwx",
       "token_preview": "wc_sk...xyz123",
       "is_active": true,
       "is_valid_status": true,
@@ -99,9 +101,10 @@ curl -X GET "https://api.pilito.com/api/v1/integrations/tokens/1616a793-eb91-416
   "user_email": "iamyaserm@gmail.com",
   "integration_type": "woocommerce",
   "integration_type_display": "WooCommerce",
-  "name": "faracoach (woocommerce)",
-  "token_preview": "wc_sk...qmy0lk",
-  "is_active": true,
+      "name": "faracoach (woocommerce)",
+      "token": "wc_sk_live_abc123def456ghi789jkl012mno345pqr678stu901vwx234yz",
+      "token_preview": "wc_sk...qmy0lk",
+      "is_active": true,
   "is_valid_status": true,
   "last_used_at": "2025-11-11T21:30:00Z",
   "usage_count": 45,
@@ -120,6 +123,7 @@ curl -X GET "https://api.pilito.com/api/v1/integrations/tokens/1616a793-eb91-416
 
 ---
 
+
 ## 📊 فیلدهای Response
 
 | فیلد | نوع | توضیح |
@@ -130,7 +134,8 @@ curl -X GET "https://api.pilito.com/api/v1/integrations/tokens/1616a793-eb91-416
 | `integration_type` | String | نوع integration (`woocommerce`, `shopify`, `custom`) |
 | `integration_type_display` | String | نام نمایشی نوع integration |
 | `name` | String | نام دلخواه token (مثلاً "faracoach (woocommerce)") |
-| `token_preview` | String | پیش‌نمایش امن token (مثلاً `wc_sk...qmy0lk`) |
+| `token` | String | **Token کامل** (مثلاً `wc_sk_live_abc123...xyz`) |
+| `token_preview` | String | پیش‌نمایش token (مثلاً `wc_sk...qmy0lk`) |
 | `is_active` | Boolean | آیا token فعال است |
 | `is_valid_status` | Boolean | آیا token معتبر است (فعال + منقضی نشده) |
 | `last_used_at` | DateTime/null | آخرین زمان استفاده (null = هرگز استفاده نشده) |
@@ -143,7 +148,102 @@ curl -X GET "https://api.pilito.com/api/v1/integrations/tokens/1616a793-eb91-416
 
 ## 🎨 مثال React/TypeScript
 
-### 1. Component کامل برای نمایش Tokens
+### 1. Component ساده برای نمایش و کپی Token
+
+```tsx
+import React, { useState } from 'react';
+
+interface Token {
+  id: string;
+  name: string;
+  token: string;
+  integration_type: string;
+  is_active: boolean;
+}
+
+interface TokenItemProps {
+  token: Token;
+}
+
+const TokenItem: React.FC<TokenItemProps> = ({ token }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyToken = async () => {
+    try {
+      await navigator.clipboard.writeText(token.token);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = token.token;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  return (
+    <div style={{
+      padding: '16px',
+      border: '1px solid #ddd',
+      borderRadius: '8px',
+      marginBottom: '12px',
+      background: '#fff'
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+        <h3 style={{ margin: 0 }}>{token.name}</h3>
+        <span style={{
+          padding: '4px 8px',
+          borderRadius: '4px',
+          background: token.is_active ? '#d1fae5' : '#fee2e2',
+          color: token.is_active ? '#065f46' : '#991b1b',
+          fontSize: '12px'
+        }}>
+          {token.is_active ? 'فعال' : 'غیرفعال'}
+        </span>
+      </div>
+
+      <div style={{ marginBottom: '12px' }}>
+        <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', color: '#666' }}>
+          Token:
+        </label>
+        <div style={{
+          padding: '8px',
+          background: '#f3f4f6',
+          borderRadius: '4px',
+          fontFamily: 'monospace',
+          fontSize: '14px',
+          wordBreak: 'break-all'
+        }}>
+          {token.token}
+        </div>
+      </div>
+
+      <button
+        onClick={handleCopyToken}
+        style={{
+          padding: '8px 16px',
+          background: copied ? '#10b981' : '#3b82f6',
+          color: 'white',
+          border: 'none',
+          borderRadius: '4px',
+          cursor: 'pointer'
+        }}
+      >
+        {copied ? '✅ کپی شد!' : '📋 کپی Token'}
+      </button>
+    </div>
+  );
+};
+
+export default TokenItem;
+```
+
+### 2. Component کامل برای نمایش Tokens
 
 ```tsx
 import React, { useState, useEffect } from 'react';

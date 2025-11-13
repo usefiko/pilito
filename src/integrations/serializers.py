@@ -6,7 +6,7 @@ from integrations.models import (
 
 
 class IntegrationTokenSerializer(serializers.ModelSerializer):
-    """Serializer for IntegrationToken (safe - doesn't expose full token)"""
+    """Serializer for IntegrationToken (shows full token)"""
     
     user_email = serializers.CharField(source='user.email', read_only=True)
     user_id = serializers.IntegerField(source='user.id', read_only=True)
@@ -21,14 +21,14 @@ class IntegrationTokenSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'user_id', 'user_email',
             'integration_type', 'integration_type_display',
-            'name', 'token_preview',
+            'name', 'token', 'token_preview',
             'is_active', 'is_valid_status',
             'last_used_at', 'usage_count',
             'allowed_ips',
             'created_at', 'expires_at'
         ]
         read_only_fields = [
-            'id', 'token_preview', 'last_used_at', 'usage_count', 'created_at'
+            'id', 'token', 'token_preview', 'last_used_at', 'usage_count', 'created_at'
         ]
     
     def get_is_valid_status(self, obj):
