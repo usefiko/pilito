@@ -35,14 +35,10 @@ if [[ "$1" == "gunicorn"* ]]; then
     rm -f /app/src/web_knowledge/migrations/0023_change_qapair_page_to_set_null.py || true
     rm -f /app/src/web_knowledge/migrations/0025_change_qapair_page_to_set_null.py || true
     
-    # Remove migration 0025 from database if exists
-    echo "🗑️ Removing migration 0025 from database if exists..."
-    python manage.py shell << "PYEOF" 2>/dev/null || true
-from django.db import connection
-cursor = connection.cursor()
-cursor.execute("DELETE FROM django_migrations WHERE app = 'web_knowledge' AND name = '0025_change_qapair_page_to_set_null';")
-connection.commit()
-PYEOF
+    # Remove migration 0025 from database using raw SQL (before Django loads)
+    # Use docker exec to connect to postgres container directly
+    echo "🗑️ Removing migration 0025 from database if exists (raw SQL)..."
+    docker exec postgres_db psql -U "${POSTGRES_USER:-pilito_user}" -d "${POSTGRES_DB:-pilito_db}" -c "DELETE FROM django_migrations WHERE app = 'web_knowledge' AND name = '0025_change_qapair_page_to_set_null';" 2>/dev/null || echo "⚠️ Could not remove migration 0025 from database (may not exist or postgres_db not ready)"
     
     # Check and fake migration 0023 if it already exists with different content
     echo "🔧 Checking migration web_knowledge 0023..."
