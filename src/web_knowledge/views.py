@@ -2313,7 +2313,8 @@ class ManualPageCrawlAPIView(APIView):
                             description=f'Auto-created from manual crawl',
                             max_pages=1000,
                             crawl_depth=0,
-                            include_external_links=False
+                            include_external_links=False,
+                            crawl_status='pending'  # Will be updated to 'crawling' when task starts
                         )
                         logger.info(f"Auto-created WebsiteSource {website.id} for domain {domain} (user: {request.user.username})")
                     else:
