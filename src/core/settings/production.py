@@ -93,7 +93,7 @@ ALLOWED_HOSTS = [
 ]
 
 # Override CORS settings from common.py
-CORS_ORIGIN_ALLOW_ALL = False  # امنیت بیشتر در production
+CORS_ORIGIN_ALLOW_ALL = True  # Allow all origins for API access (frontend can be on any domain)
 CORS_ALLOW_CREDENTIALS = True
 
 # WebSocket CORS Settings - حل مشکل 403
