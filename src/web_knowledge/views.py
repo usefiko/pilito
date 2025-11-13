@@ -2336,7 +2336,7 @@ class ManualPageCrawlAPIView(APIView):
             # This ensures the frontend can query progress even if task is queued
             crawl_job = CrawlJob.objects.create(
                 website=website,
-                celery_task_id=None,  # Will be updated when task starts
+                celery_task_id='',  # Will be updated when task starts (empty string, not None)
                 job_status='queued',
                 started_at=timezone.now(),
                 pages_to_crawl=len(urls),
