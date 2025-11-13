@@ -30,6 +30,11 @@ echo "✅ Redis is up and running!"
 if [[ "$1" == "gunicorn"* ]]; then
     echo "🔄 Running Django migrations..."
     
+    # Clean up conflicting migration files from server
+    echo "🧹 Cleaning up old conflicting migrations..."
+    rm -f /app/src/web_knowledge/migrations/0023_change_qapair_page_to_set_null.py || true
+    rm -f /app/src/web_knowledge/migrations/0024_change_qapair_page_to_set_null.py || true
+    
     # Check and fake migration 0023 if it already exists with different content
     echo "🔧 Checking migration web_knowledge 0023..."
     if python manage.py showmigrations web_knowledge 2>/dev/null | grep -q "\[X\] 0023"; then
