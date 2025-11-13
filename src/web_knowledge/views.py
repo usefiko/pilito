@@ -2408,8 +2408,35 @@ class ManualPageCrawlAPIView(APIView):
                     'message': 'Task not found'
                 }, status=status.HTTP_404_NOT_FOUND)
             
-            # Determine status
-            if task_result.ready():
+            # Determine status - prioritize crawl_job over task_result for progress
+            # Because task might complete quickly but we want real-time progress
+            if crawl_job:
+                # Always check crawl_job first for accurate progress
+                crawl_job.refresh_from_db()
+                total_urls = crawl_job.pages_to_crawl or 0
+                pages_crawled = crawl_job.pages_crawled or 0
+                
+                # Check if job is actually completed
+                if crawl_job.job_status == 'completed':
+                    status_value = 'completed'
+                    progress = 100.0
+                    message = f'Completed: {pages_crawled} pages crawled'
+                elif crawl_job.job_status == 'failed':
+                    status_value = 'failed'
+                    progress = 0.0
+                    message = crawl_job.error_message or 'Task failed'
+                else:
+                    # Job is still running
+                    status_value = 'processing'
+                    if total_urls > 0:
+                        progress = round((pages_crawled / total_urls) * 100, 1)
+                        # Ensure progress doesn't exceed 100%
+                        progress = min(progress, 100.0)
+                    else:
+                        progress = 0.0
+                    message = f'Crawling... {pages_crawled}/{total_urls} pages'
+            elif task_result.ready():
+                # No crawl_job found, fallback to task_result
                 if task_result.successful():
                     result = task_result.result
                     if isinstance(result, dict) and result.get('success'):
@@ -2431,48 +2458,34 @@ class ManualPageCrawlAPIView(APIView):
                     total_urls = 0
                     message = str(task_result.info) if task_result.info else 'Task failed'
             else:
-                # Task is still running
+                # Task is still running but no crawl_job found
                 status_value = 'processing'
-                if crawl_job:
-                    # Refresh from DB to get latest values
-                    crawl_job.refresh_from_db()
-                    total_urls = crawl_job.pages_to_crawl or 0
-                    pages_crawled = crawl_job.pages_crawled or 0
-                    
-                    if total_urls > 0:
-                        progress = round((pages_crawled / total_urls) * 100, 1)
-                        # Ensure progress doesn't exceed 100%
-                        progress = min(progress, 100.0)
-                    else:
-                        progress = 0.0
-                    message = f'Crawling... {pages_crawled}/{total_urls} pages'
-                else:
-                    # Try to find crawl_job by task_id (maybe it wasn't created yet)
-                    # Wait a bit and try again - task might be queued
-                    from django.utils import timezone
-                    from datetime import timedelta
-                    
-                    # Check if task was just created (within last 5 seconds)
-                    # If so, it might be queued and crawl_job not created yet
-                    if hasattr(task_result, 'date_created'):
-                        time_since_created = timezone.now() - task_result.date_created
-                        if time_since_created < timedelta(seconds=5):
-                            progress = 0.0
-                            pages_crawled = 0
-                            total_urls = 0
-                            message = 'Task queued - waiting to start'
-                        else:
-                            # Task is running but crawl_job not found - log warning
-                            logger.warning(f"Crawl job not found for task {task_id} but task is running")
-                            progress = 0.0
-                            pages_crawled = 0
-                            total_urls = 0
-                            message = 'Task running - progress unavailable'
-                    else:
+                # Try to find crawl_job by task_id (maybe it wasn't created yet)
+                # Wait a bit and try again - task might be queued
+                from django.utils import timezone
+                from datetime import timedelta
+                
+                # Check if task was just created (within last 5 seconds)
+                # If so, it might be queued and crawl_job not created yet
+                if hasattr(task_result, 'date_created'):
+                    time_since_created = timezone.now() - task_result.date_created
+                    if time_since_created < timedelta(seconds=5):
                         progress = 0.0
                         pages_crawled = 0
                         total_urls = 0
                         message = 'Task queued - waiting to start'
+                    else:
+                        # Task is running but crawl_job not found - log warning
+                        logger.warning(f"Crawl job not found for task {task_id} but task is running")
+                        progress = 0.0
+                        pages_crawled = 0
+                        total_urls = 0
+                        message = 'Task running - progress unavailable'
+                else:
+                    progress = 0.0
+                    pages_crawled = 0
+                    total_urls = 0
+                    message = 'Task queued - waiting to start'
             
             return Response({
                 'success': True,
