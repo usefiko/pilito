@@ -209,19 +209,12 @@ def crawl_manual_urls_task(self, website_source_id: str, urls: list) -> Dict[str
             logger.warning("No valid URLs provided for manual crawl")
             return {'success': False, 'error': 'No valid URLs provided'}
         
-        crawl_job, created = CrawlJob.objects.get_or_create(
-            celery_task_id=self.request.id,
-            defaults={
-                'website': website_source,
-                'job_status': 'running',
-                'started_at': timezone.now(),
-                'pages_to_crawl': total_urls,
-                'pages_crawled': 0
-            }
-        )
+        # Check if crawl_job already exists for this task (created in view before task started)
+        existing_job = CrawlJob.objects.filter(celery_task_id=self.request.id).first()
         
-        # Update if already exists (shouldn't happen, but just in case)
-        if not created:
+        if existing_job:
+            # Update existing job (created in view)
+            crawl_job = existing_job
             crawl_job.website = website_source
             crawl_job.job_status = 'running'
             crawl_job.started_at = timezone.now()
@@ -229,8 +222,18 @@ def crawl_manual_urls_task(self, website_source_id: str, urls: list) -> Dict[str
             crawl_job.pages_crawled = 0
             crawl_job.completed_at = None
             crawl_job.save()
-        
-        logger.info(f"Created/updated crawl_job {crawl_job.id} for {total_urls} URLs (task_id: {self.request.id})")
+            logger.info(f"Updated existing crawl_job {crawl_job.id} for {total_urls} URLs (task_id: {self.request.id})")
+        else:
+            # Fallback: Create new crawl_job if not created in view (shouldn't happen normally)
+            crawl_job = CrawlJob.objects.create(
+                website=website_source,
+                celery_task_id=self.request.id,
+                job_status='running',
+                started_at=timezone.now(),
+                pages_to_crawl=total_urls,
+                pages_crawled=0
+            )
+            logger.warning(f"Created new crawl_job {crawl_job.id} in task (should have been created in view) for {total_urls} URLs (task_id: {self.request.id})")
         
         logger.info(f"Starting manual crawl for {total_urls} URLs")
         
@@ -293,11 +296,15 @@ def crawl_manual_urls_task(self, website_source_id: str, urls: list) -> Dict[str
                 
                 # Update progress (refresh from DB first to avoid race conditions)
                 crawl_job.refresh_from_db()
-                progress = round(((i + 1) / total_urls) * 100, 1)
-                crawl_job.pages_crawled = i + 1
-                crawl_job.save(update_fields=['pages_crawled'])
+                pages_crawled_count = i + 1
+                progress = round((pages_crawled_count / total_urls) * 100, 1)
                 
-                logger.info(f"Manual crawl progress: {progress}% ({i + 1}/{total_urls}) - {url}")
+                # Update crawl_job with latest progress
+                crawl_job.pages_crawled = pages_crawled_count
+                crawl_job.job_status = 'running'  # Ensure status is running
+                crawl_job.save(update_fields=['pages_crawled', 'job_status'])
+                
+                logger.info(f"Manual crawl progress: {progress}% ({pages_crawled_count}/{total_urls}) - {url} (crawl_job_id: {crawl_job.id})")
                 
             except Exception as e:
                 logger.error(f"Failed to crawl URL {url}: {str(e)}")

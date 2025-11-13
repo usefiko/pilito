@@ -2328,11 +2328,28 @@ class ManualPageCrawlAPIView(APIView):
             
             # Start async task
             from .tasks import crawl_manual_urls_task
+            from .models import CrawlJob
+            from django.utils import timezone
+            
+            # Create crawl_job BEFORE starting task so progress is available immediately
+            # This ensures the frontend can query progress even if task is queued
+            crawl_job = CrawlJob.objects.create(
+                website=website,
+                celery_task_id=None,  # Will be updated when task starts
+                job_status='queued',
+                started_at=timezone.now(),
+                pages_to_crawl=len(urls),
+                pages_crawled=0
+            )
             
             # Generate task ID
             task = crawl_manual_urls_task.delay(str(website.id), urls)
             
-            logger.info(f"Started manual crawl task {task.id} for {len(urls)} URLs (user: {request.user.username}, website: {website.id})")
+            # Update crawl_job with actual task_id
+            crawl_job.celery_task_id = task.id
+            crawl_job.save(update_fields=['celery_task_id'])
+            
+            logger.info(f"Started manual crawl task {task.id} for {len(urls)} URLs (user: {request.user.username}, website: {website.id}, crawl_job: {crawl_job.id})")
             
             return Response({
                 'success': True,
@@ -2384,6 +2401,12 @@ class ManualPageCrawlAPIView(APIView):
             # Get crawl job if exists (try multiple ways to find it)
             crawl_job = CrawlJob.objects.filter(celery_task_id=task_id).first()
             
+            # Log for debugging
+            if crawl_job:
+                logger.debug(f"Found crawl_job {crawl_job.id} for task {task_id}")
+            else:
+                logger.warning(f"No crawl_job found for task {task_id} - checking alternatives...")
+            
             # If not found, try to find by website and recent jobs
             if not crawl_job and task_result and hasattr(task_result, 'result'):
                 # Try to get website_id from task result if available
@@ -2397,10 +2420,12 @@ class ManualPageCrawlAPIView(APIView):
                             crawl_job = website.crawl_jobs.filter(
                                 job_status__in=['running', 'queued']
                             ).order_by('-created_at').first()
-                        except:
-                            pass
-                except:
-                    pass
+                            if crawl_job:
+                                logger.info(f"Found crawl_job {crawl_job.id} by website_id {website_id}")
+                        except Exception as e:
+                            logger.warning(f"Error finding crawl_job by website_id: {e}")
+                except Exception as e:
+                    logger.warning(f"Error checking task_result for website_id: {e}")
             
             if not crawl_job and not task_result:
                 return Response({
@@ -2416,6 +2441,9 @@ class ManualPageCrawlAPIView(APIView):
                 total_urls = crawl_job.pages_to_crawl or 0
                 pages_crawled = crawl_job.pages_crawled or 0
                 
+                # Log for debugging
+                logger.info(f"Manual crawl status check - task_id: {task_id}, crawl_job_id: {crawl_job.id}, status: {crawl_job.job_status}, pages_crawled: {pages_crawled}, pages_to_crawl: {total_urls}, calculated_progress: {round((pages_crawled / total_urls) * 100, 1) if total_urls > 0 else 0}")
+                
                 # Check if job is actually completed
                 if crawl_job.job_status == 'completed':
                     status_value = 'completed'
@@ -2426,12 +2454,12 @@ class ManualPageCrawlAPIView(APIView):
                     progress = 0.0
                     message = crawl_job.error_message or 'Task failed'
                 else:
-                    # Job is still running
+                    # Job is still running (running, queued, etc.)
                     status_value = 'processing'
-                    if total_urls > 0:
+                    if total_urls > 0 and pages_crawled >= 0:
                         progress = round((pages_crawled / total_urls) * 100, 1)
-                        # Ensure progress doesn't exceed 100%
-                        progress = min(progress, 100.0)
+                        # Ensure progress doesn't exceed 100% or go below 0%
+                        progress = max(0.0, min(progress, 100.0))
                     else:
                         progress = 0.0
                     message = f'Crawling... {pages_crawled}/{total_urls} pages'
@@ -2459,33 +2487,77 @@ class ManualPageCrawlAPIView(APIView):
                     message = str(task_result.info) if task_result.info else 'Task failed'
             else:
                 # Task is still running but no crawl_job found
-                status_value = 'processing'
-                # Try to find crawl_job by task_id (maybe it wasn't created yet)
-                # Wait a bit and try again - task might be queued
-                from django.utils import timezone
-                from datetime import timedelta
+                # Try one more time to find crawl_job (maybe it was just created)
+                # Also try to find by website_id from task result
+                crawl_job = None
+                try:
+                    # Try to find by task_id again (maybe it was just created)
+                    crawl_job = CrawlJob.objects.filter(celery_task_id=task_id).first()
+                    
+                    # If still not found, try to get website_id from task kwargs
+                    if not crawl_job and hasattr(task_result, 'kwargs'):
+                        try:
+                            kwargs = task_result.kwargs if hasattr(task_result, 'kwargs') else {}
+                            if 'website_source_id' in kwargs:
+                                from .models import WebsiteSource
+                                website = WebsiteSource.objects.get(id=kwargs['website_source_id'])
+                                # Find most recent crawl job for this website
+                                crawl_job = website.crawl_jobs.filter(
+                                    job_status__in=['queued', 'running']
+                                ).order_by('-created_at').first()
+                        except Exception as e:
+                            logger.debug(f"Could not find crawl_job by website_id: {e}")
+                except Exception as e:
+                    logger.debug(f"Error finding crawl_job: {e}")
                 
-                # Check if task was just created (within last 5 seconds)
-                # If so, it might be queued and crawl_job not created yet
-                if hasattr(task_result, 'date_created'):
-                    time_since_created = timezone.now() - task_result.date_created
-                    if time_since_created < timedelta(seconds=5):
+                if crawl_job:
+                    # Found it! Use crawl_job data
+                    crawl_job.refresh_from_db()
+                    total_urls = crawl_job.pages_to_crawl or 0
+                    pages_crawled = crawl_job.pages_crawled or 0
+                    
+                    if crawl_job.job_status == 'completed':
+                        status_value = 'completed'
+                        progress = 100.0
+                        message = f'Completed: {pages_crawled} pages crawled'
+                    elif crawl_job.job_status == 'failed':
+                        status_value = 'failed'
                         progress = 0.0
-                        pages_crawled = 0
-                        total_urls = 0
-                        message = 'Task queued - waiting to start'
+                        message = crawl_job.error_message or 'Task failed'
                     else:
-                        # Task is running but crawl_job not found - log warning
-                        logger.warning(f"Crawl job not found for task {task_id} but task is running")
+                        status_value = 'processing'
+                        if total_urls > 0 and pages_crawled >= 0:
+                            progress = round((pages_crawled / total_urls) * 100, 1)
+                            progress = max(0.0, min(progress, 100.0))
+                        else:
+                            progress = 0.0
+                        message = f'Crawling... {pages_crawled}/{total_urls} pages'
+                else:
+                    # Still no crawl_job found - task might be queued or just started
+                    status_value = 'processing'
+                    from django.utils import timezone
+                    from datetime import timedelta
+                    
+                    # Check if task was just created (within last 10 seconds)
+                    if hasattr(task_result, 'date_created'):
+                        time_since_created = timezone.now() - task_result.date_created
+                        if time_since_created < timedelta(seconds=10):
+                            progress = 0.0
+                            pages_crawled = 0
+                            total_urls = 0
+                            message = 'در حال آماده‌سازی...'
+                        else:
+                            # Task is running but crawl_job not found - log warning
+                            logger.warning(f"Crawl job not found for task {task_id} but task is running (created {time_since_created} ago)")
+                            progress = 0.0
+                            pages_crawled = 0
+                            total_urls = 0
+                            message = 'در حال جستجو...'
+                    else:
                         progress = 0.0
                         pages_crawled = 0
                         total_urls = 0
-                        message = 'Task running - progress unavailable'
-                else:
-                    progress = 0.0
-                    pages_crawled = 0
-                    total_urls = 0
-                    message = 'Task queued - waiting to start'
+                        message = 'در حال آماده‌سازی...'
             
             return Response({
                 'success': True,
