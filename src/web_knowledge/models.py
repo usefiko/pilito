@@ -171,7 +171,7 @@ class QAPair(models.Model):
     ]
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    page = models.ForeignKey(WebsitePage, on_delete=models.CASCADE, related_name='qa_pairs', null=True, blank=True)
+    page = models.ForeignKey(WebsitePage, on_delete=models.SET_NULL, related_name='qa_pairs', null=True, blank=True, help_text="Source page (if deleted, Q&A remains)")
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='qa_pairs', null=True, blank=True)
     
     # Q&A content
