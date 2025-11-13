@@ -33,7 +33,16 @@ if [[ "$1" == "gunicorn"* ]]; then
     # Clean up conflicting migration files from server
     echo "🧹 Cleaning up old conflicting migrations..."
     rm -f /app/src/web_knowledge/migrations/0023_change_qapair_page_to_set_null.py || true
-    rm -f /app/src/web_knowledge/migrations/0024_change_qapair_page_to_set_null.py || true
+    rm -f /app/src/web_knowledge/migrations/0025_change_qapair_page_to_set_null.py || true
+    
+    # Remove migration 0025 from database if exists
+    echo "🗑️ Removing migration 0025 from database if exists..."
+    python manage.py shell << "PYEOF" 2>/dev/null || true
+from django.db import connection
+cursor = connection.cursor()
+cursor.execute("DELETE FROM django_migrations WHERE app = 'web_knowledge' AND name = '0025_change_qapair_page_to_set_null';")
+connection.commit()
+PYEOF
     
     # Check and fake migration 0023 if it already exists with different content
     echo "🔧 Checking migration web_knowledge 0023..."
