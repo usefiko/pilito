@@ -1,7 +1,7 @@
 # Generated migration for external_id and external_source fields in Product model
-# This migration exists on server but was missing locally
+# This migration exists on server - created to match server state exactly
 
-from django.db import migrations, models
+from django.db import migrations
 
 
 class Migration(migrations.Migration):
@@ -11,17 +11,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # These fields likely already exist, so this is a placeholder
-        # The actual operations were already applied on server
-        migrations.AlterField(
-            model_name='product',
-            name='external_id',
-            field=models.CharField(blank=True, max_length=255, null=True, help_text='External product ID (e.g., WooCommerce product ID)'),
-        ),
-        migrations.AlterField(
-            model_name='product',
-            name='external_source',
-            field=models.CharField(blank=True, choices=[('woocommerce', 'WooCommerce'), ('shopify', 'Shopify'), ('manual', 'Manual Entry'), ('ai_extracted', 'AI Extracted')], max_length=50, null=True, help_text='Source of the product data'),
-        ),
+        # Empty operations - fields already exist on server
+        # This migration is just a placeholder to match server's migration history
     ]
 
