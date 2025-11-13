@@ -443,15 +443,363 @@ export default AddProductForm;
 
 **Endpoint:** `PUT /api/v1/web-knowledge/products/{id}/` یا `PATCH /api/v1/web-knowledge/products/{id}/`
 
-**مثال:**
+**Content-Type:** `multipart/form-data` (برای image upload) یا `application/json`
+
+**Authentication:** Required (Bearer Token)
+
+### روش 1: Update با JSON (بدون تغییر تصویر)
+
 ```bash
 curl -X PATCH "https://api.pilito.com/api/v1/web-knowledge/products/{id}/" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
+    "title": "کفش اسپرت مردانه نایک (ویرایش شده)",
     "sale_price": "800000.00",
     "original_price": "950000.00"
   }'
+```
+
+### روش 2: Update با Image Upload (تغییر تصویر)
+
+```bash
+curl -X PATCH "https://api.pilito.com/api/v1/web-knowledge/products/{id}/" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -F "title=کفش اسپرت مردانه نایک" \
+  -F "sale_price=800000" \
+  -F "image=@/path/to/new-image.jpg"
+```
+
+### روش 3: حذف تصویر (تنظیم image به null)
+
+```bash
+curl -X PATCH "https://api.pilito.com/api/v1/web-knowledge/products/{id}/" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "image": null
+  }'
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Product updated successfully",
+  "product": {
+    "id": "123e4567-e89b-12d3-a456-426614174000",
+    "title": "کفش اسپرت مردانه نایک (ویرایش شده)",
+    "sale_price": "800000.00",
+    "original_price": "950000.00",
+    "image": "https://api.pilito.com/media/products/images/new-image.jpg",
+    // ... سایر فیلدها
+  }
+}
+```
+
+### ⚠️ نکات مهم برای Update:
+
+1. **PATCH vs PUT:**
+   - `PATCH`: فقط فیلدهای ارسال شده را تغییر می‌دهد (partial update)
+   - `PUT`: همه فیلدها را باید ارسال کنید (full update)
+
+2. **Image Handling:**
+   - **نمایش تصویر فعلی**: در response، فیلد `image` URL تصویر فعلی را نشان می‌دهد
+   - **آپلود تصویر جدید**: از `multipart/form-data` استفاده کنید و فایل را در فیلد `image` ارسال کنید
+   - **حفظ تصویر فعلی**: اگر `image` را در request ارسال نکنید، تصویر فعلی حفظ می‌شود
+   - **حذف تصویر**: `image: null` ارسال کنید
+
+3. **WordPress Products (external_source='woocommerce'):**
+   - ✅ قابل ویرایش هستند
+   - ⚠️ **هشدار**: اگر sync از WordPress دوباره انجام شود، تغییرات شما ممکن است overwrite شود
+   - برای تغییرات دائمی، بهتر است در WordPress تغییرات را اعمال کنید
+
+---
+
+## 🎨 مثال React/TypeScript برای Edit Product
+
+```tsx
+import React, { useState, useEffect } from 'react';
+
+interface Product {
+  id: string;
+  title: string;
+  description: string;
+  sale_price: string;
+  original_price: string;
+  currency: string;
+  image: string | null;
+  external_source?: string;
+}
+
+interface EditProductFormProps {
+  productId: string;
+  onSuccess?: () => void;
+}
+
+const EditProductForm: React.FC<EditProductFormProps> = ({ productId, onSuccess }) => {
+  const [product, setProduct] = useState<Product | null>(null);
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    sale_price: '',
+    original_price: '',
+    currency: 'IRT'
+  });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Load product data
+  useEffect(() => {
+    const loadProduct = async () => {
+      try {
+        const token = localStorage.getItem('access_token');
+        const response = await fetch(`/api/v1/web-knowledge/products/${productId}/`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (!response.ok) throw new Error('Failed to load product');
+        
+        const data = await response.json();
+        setProduct(data);
+        setFormData({
+          title: data.title || '',
+          description: data.description || '',
+          sale_price: data.sale_price || '',
+          original_price: data.original_price || '',
+          currency: data.currency || 'IRT'
+        });
+        setCurrentImageUrl(data.image);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load product');
+      }
+    };
+    
+    loadProduct();
+  }, [productId]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    try {
+      const token = localStorage.getItem('access_token');
+      const formDataToSend = new FormData();
+
+      // Add text fields
+      formDataToSend.append('title', formData.title);
+      formDataToSend.append('description', formData.description);
+      formDataToSend.append('sale_price', formData.sale_price);
+      formDataToSend.append('original_price', formData.original_price);
+      formDataToSend.append('currency', formData.currency);
+
+      // Handle image
+      if (imageFile) {
+        // Upload new image
+        formDataToSend.append('image', imageFile);
+      }
+      // If imageFile is null and user wants to delete, we'd send image: null
+      // But for simplicity, if no imageFile, we keep the existing image
+
+      const response = await fetch(`/api/v1/web-knowledge/products/${productId}/`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`
+          // ❌ Don't set Content-Type for FormData!
+        },
+        body: formDataToSend
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.errors || result.message || 'Failed to update product');
+      }
+
+      if (result.success) {
+        alert('محصول با موفقیت به‌روزرسانی شد!');
+        if (onSuccess) onSuccess();
+        // Update current image URL if new image was uploaded
+        if (imageFile && result.product?.image) {
+          setCurrentImageUrl(result.product.image);
+          setImageFile(null);
+        }
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'خطا در به‌روزرسانی محصول');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteImage = async () => {
+    if (!confirm('آیا مطمئن هستید که می‌خواهید تصویر را حذف کنید؟')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`/api/v1/web-knowledge/products/${productId}/`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ image: null })
+      });
+
+      if (!response.ok) throw new Error('Failed to delete image');
+
+      setCurrentImageUrl(null);
+      setImageFile(null);
+      alert('تصویر با موفقیت حذف شد');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'خطا در حذف تصویر');
+    }
+  };
+
+  if (!product) {
+    return <div>Loading...</div>;
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="product-form">
+      {error && <div className="error-message">{error}</div>}
+
+      {/* Warning for WordPress products */}
+      {product.external_source === 'woocommerce' && (
+        <div className="warning-box" style={{ padding: '12px', background: '#fef3c7', borderRadius: '4px', marginBottom: '16px' }}>
+          ⚠️ این محصول از WordPress sync شده است. تغییرات شما ممکن است در sync بعدی overwrite شود.
+        </div>
+      )}
+
+      {/* Title */}
+      <div className="form-group">
+        <label>Title *</label>
+        <input
+          type="text"
+          value={formData.title}
+          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+          required
+          minLength={3}
+        />
+      </div>
+
+      {/* Description */}
+      <div className="form-group">
+        <label>Description *</label>
+        <textarea
+          value={formData.description}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          required
+          minLength={10}
+          rows={5}
+        />
+      </div>
+
+      {/* Prices */}
+      <div className="form-row">
+        <div className="form-group">
+          <label>Original Price *</label>
+          <input
+            type="number"
+            step="0.01"
+            value={formData.original_price}
+            onChange={(e) => setFormData({ ...formData, original_price: e.target.value })}
+            required
+            min="0"
+          />
+        </div>
+        <div className="form-group">
+          <label>Sale Price *</label>
+          <input
+            type="number"
+            step="0.01"
+            value={formData.sale_price}
+            onChange={(e) => setFormData({ ...formData, sale_price: e.target.value })}
+            required
+            min="0"
+          />
+        </div>
+      </div>
+
+      {/* Currency */}
+      <div className="form-group">
+        <label>Currency *</label>
+        <select
+          value={formData.currency}
+          onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+          required
+        >
+          <option value="USD">USD</option>
+          <option value="EUR">EUR</option>
+          <option value="TRY">TRY</option>
+          <option value="AED">AED</option>
+          <option value="SAR">SAR</option>
+          <option value="IRR">IRR</option>
+          <option value="IRT">IRT</option>
+        </select>
+      </div>
+
+      {/* Current Image */}
+      {currentImageUrl && (
+        <div className="form-group">
+          <label>Current Image</label>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <img 
+              src={currentImageUrl} 
+              alt="Current" 
+              style={{ maxWidth: '200px', maxHeight: '200px', borderRadius: '4px' }}
+            />
+            <button type="button" onClick={handleDeleteImage} className="btn-delete">
+              Delete Image
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* New Image Upload */}
+      <div className="form-group">
+        <label>Change Image (Optional)</label>
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+              setImageFile(file);
+            }
+          }}
+        />
+        {imageFile && (
+          <div className="image-preview" style={{ marginTop: '8px' }}>
+            <img 
+              src={URL.createObjectURL(imageFile)} 
+              alt="Preview" 
+              style={{ maxWidth: '200px', maxHeight: '200px', borderRadius: '4px' }}
+            />
+            <button type="button" onClick={() => setImageFile(null)}>Cancel</button>
+          </div>
+        )}
+      </div>
+
+      {/* Buttons */}
+      <div className="form-actions">
+        <button type="button" className="btn-discard">Cancel</button>
+        <button type="submit" className="btn-save" disabled={loading}>
+          {loading ? 'Saving...' : 'Save Changes'}
+        </button>
+      </div>
+    </form>
+  );
+};
+
+export default EditProductForm;
 ```
 
 ---

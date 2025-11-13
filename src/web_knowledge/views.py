@@ -1267,12 +1267,21 @@ class ProductViewSet(viewsets.ModelViewSet):
         }, status=status.HTTP_400_BAD_REQUEST)
     
     def update(self, request, *args, **kwargs):
-        """Update a product"""
+        """Update a product (supports both PUT and PATCH)"""
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
         
+        # For PATCH requests, always use partial=True
+        if request.method == 'PATCH':
+            partial = True
+        
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
+        
+        # Handle image deletion: if 'image' is explicitly set to null/empty string, delete it
+        if 'image' in request.data:
+            if request.data.get('image') is None or request.data.get('image') == '':
+                instance.image = None
         
         # Save the updated product
         updated_product = serializer.save()
@@ -1284,6 +1293,11 @@ class ProductViewSet(viewsets.ModelViewSet):
             'message': 'Product updated successfully',
             'product': response_serializer.data
         })
+    
+    def partial_update(self, request, *args, **kwargs):
+        """Handle PATCH requests with partial updates"""
+        kwargs['partial'] = True
+        return self.update(request, *args, **kwargs)
     
     def destroy(self, request, *args, **kwargs):
         """Delete a product"""
@@ -2410,10 +2424,20 @@ class ManualPageCrawlAPIView(APIView):
                         progress = 0.0
                     message = f'Crawling... {pages_crawled}/{total_urls} pages'
                 else:
-                    progress = 0.0
-                    pages_crawled = 0
-                    total_urls = 0
-                    message = 'Task queued'
+                    # Try to get task info from Celery
+                    if hasattr(task_result, 'info') and isinstance(task_result.info, dict):
+                        total_urls = task_result.info.get('total_urls', 0)
+                        pages_crawled = task_result.info.get('pages_crawled', 0)
+                        if total_urls > 0:
+                            progress = round((pages_crawled / total_urls) * 100, 1)
+                        else:
+                            progress = 0.0
+                        message = f'Crawling... {pages_crawled}/{total_urls} pages'
+                    else:
+                        progress = 0.0
+                        pages_crawled = 0
+                        total_urls = 0
+                        message = 'Task queued - waiting to start'
             
             return Response({
                 'success': True,

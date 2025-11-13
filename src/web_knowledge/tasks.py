@@ -201,13 +201,25 @@ def crawl_manual_urls_task(self, website_source_id: str, urls: list) -> Dict[str
         website_source = WebsiteSource.objects.get(id=website_source_id)
         
         # Create crawl job for progress tracking
-        crawl_job = CrawlJob.objects.create(
-            website=website_source,
+        crawl_job, created = CrawlJob.objects.get_or_create(
             celery_task_id=self.request.id,
-            job_status='running',
-            started_at=timezone.now(),
-            pages_to_crawl=len(urls)
+            defaults={
+                'website': website_source,
+                'job_status': 'running',
+                'started_at': timezone.now(),
+                'pages_to_crawl': len(urls),
+                'pages_crawled': 0
+            }
         )
+        
+        # Update if already exists (shouldn't happen, but just in case)
+        if not created:
+            crawl_job.website = website_source
+            crawl_job.job_status = 'running'
+            crawl_job.started_at = timezone.now()
+            crawl_job.pages_to_crawl = len(urls)
+            crawl_job.pages_crawled = 0
+            crawl_job.save()
         
         logger.info(f"Starting manual crawl for {len(urls)} URLs")
         
