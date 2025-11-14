@@ -164,11 +164,12 @@ class PersianNormalizer:
     
     def normalize_for_search(self, text: str) -> str:
         """
-        Normalize text specifically for search/retrieval
+        🔥 WORLD-CLASS Normalize text specifically for search/retrieval
         
         Additional steps:
         - Lowercase (for Latin chars)
         - Remove punctuation (keeps Persian chars)
+        - Normalize common misspellings (ادرستون → آدرس, ادرس → آدرس)
         
         Args:
             text: Raw text
@@ -178,6 +179,12 @@ class PersianNormalizer:
         """
         # First, normalize Persian
         normalized = self.normalize(text)
+        
+        # 🔥 Fix common misspellings for better matching
+        # "ادرستون" → "آدرس" (common typo)
+        normalized = normalized.replace('ادرستون', 'آدرس')
+        normalized = normalized.replace('ادرس', 'آدرس')
+        normalized = normalized.replace('ادرست', 'آدرس')
         
         # Remove common punctuation but keep Persian chars
         import re
