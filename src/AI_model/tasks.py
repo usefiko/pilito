@@ -458,8 +458,30 @@ def chunk_qapair_async(self, qapair_id: str) -> Dict[str, Any]:
     from AI_model.services.incremental_chunker import IncrementalChunker
     
     try:
-        qa = QAPair.objects.select_related('page__website__user').get(id=qapair_id)
-        user = qa.page.website.user
+        # Select related to avoid N+1 queries, but handle null relationships
+        qa = QAPair.objects.select_related('page', 'page__website', 'page__website__user', 'user').get(id=qapair_id)
+        
+        # 🔒 FIX: Handle cases where page or website might be None
+        # Priority: page.website.user > qa.user > skip
+        user = None
+        
+        if qa.page and qa.page.website and qa.page.website.user:
+            # Case 1: QAPair has page -> website -> user
+            user = qa.page.website.user
+        elif qa.user:
+            # Case 2: QAPair has direct user reference
+            user = qa.user
+        else:
+            # Case 3: No user found - cannot chunk
+            logger.warning(
+                f"⚠️ QAPair {qapair_id} has no associated user "
+                f"(page={qa.page_id}, user={qa.user_id}) - skipping chunking"
+            )
+            return {
+                'success': False,
+                'qapair_id': str(qapair_id),
+                'message': 'QAPair has no associated user - cannot chunk'
+            }
         
         chunker = IncrementalChunker(user)
         success = chunker.chunk_qapair(qa)

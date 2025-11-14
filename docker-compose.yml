@@ -51,8 +51,11 @@ services:
     image: redis:7
     container_name: redis_cache
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
-    ports:
-      - "6379:6379"
+    # 🔒 SECURITY: Redis port removed from public exposure
+    # Redis is only accessible within Docker network (redis:6379)
+    # This prevents external security attacks
+    # ports:
+    #   - "6379:6379"
     volumes:
       - redis_data:/data
     restart: unless-stopped
