@@ -34,11 +34,13 @@ class PersianNormalizer:
         try:
             from hazm import Normalizer, word_tokenize
             
+            # Newer Hazm versions use correct_spacing instead of affix_spacing
+            # Parameters: correct_spacing, remove_diacritics, remove_specials_chars, etc.
             self.normalizer = Normalizer(
                 persian_style=True,  # Use Persian style (not Arabic)
                 persian_numbers=False,  # Keep numbers as Arabic numerals for consistency
                 remove_diacritics=True,  # Remove Persian diacritics (اعراب)
-                affix_spacing=True,  # Fix spacing around affixes
+                correct_spacing=True,  # Fix spacing around affixes (newer versions)
                 remove_specials_chars=False,  # Keep special chars
             )
             
