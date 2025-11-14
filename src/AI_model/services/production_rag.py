@@ -87,12 +87,12 @@ class ProductionRAG:
             logger.debug(f"Query complexity: {complexity:.2f}, language: {language}")
             
             # === STAGE 2: Hybrid Retrieval ===
+            # ⭐ STANDARD RAG: No token budget at search level - returns all top_k results
             primary_chunks = cls._retrieve_from_source(
                 query=query,
                 user=user,
                 source=primary_source,
-                top_k=cls.DENSE_TOP_K,
-                token_budget=primary_budget
+                top_k=cls.DENSE_TOP_K
             )
             
             secondary_chunks = []
@@ -102,8 +102,7 @@ class ProductionRAG:
                         query=query,
                         user=user,
                         source=source,
-                        top_k=cls.SPARSE_TOP_K,
-                        token_budget=secondary_budget // len(secondary_sources)
+                        top_k=cls.SPARSE_TOP_K
                     )
                     secondary_chunks.extend(chunks)
             
@@ -232,8 +231,7 @@ class ProductionRAG:
         query: str,
         user,
         source: str,
-        top_k: int,
-        token_budget: int
+        top_k: int
     ) -> List:
         """
         Retrieve from a single source using HybridRetriever
@@ -264,13 +262,13 @@ class ProductionRAG:
                 return []
             
             # Hybrid search (use normalized query for BM25 matching)
+            # ⭐ STANDARD RAG: No token budget at search level - returns all top_k results
             results = HybridRetriever.hybrid_search(
                 query=query_normalized,  # Use normalized query for better matching
                 user=user,
                 chunk_type=chunk_type,
                 query_embedding=query_embedding,
-                top_k=top_k,
-                token_budget=token_budget
+                top_k=top_k
             )
             
             return results

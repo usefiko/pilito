@@ -315,7 +315,9 @@ class TokenBudgetController:
     @classmethod
     def _trim_context_items(cls, items: List[Dict], max_tokens: int) -> tuple:
         """
-        Trim list of context items to fit within token budget
+        ⭐ STANDARD RAG APPROACH (Intercom, LangChain, LlamaIndex):
+        Distribute tokens across multiple items instead of taking only the first one.
+        This ensures that if the answer is in Result 3 or 4, it will be included.
         
         Args:
             items: List of dicts with 'title' and 'content'
@@ -330,35 +332,47 @@ class TokenBudgetController:
         trimmed = []
         total_tokens = 0
         
-        for item in items:
+        # Strategy: Try to fit at least 3-5 items (distribute tokens evenly)
+        target_items = min(5, len(items))  # Try to fit 5 items
+        avg_tokens_per_item = max_tokens // target_items
+        min_tokens_per_item = 100  # Minimum to be useful
+        
+        for i, item in enumerate(items):
             content = item.get('content', '')
             title = item.get('title', '')
             
-            # Count tokens for title + content
-            full_text = f"{title}: {content}" if title else content
-            item_tokens = cls._count_tokens(full_text)
+            # Calculate tokens needed
+            title_tokens = cls._count_tokens(title) if title else 0
+            full_tokens = cls._count_tokens(f"{title}: {content}") if title else cls._count_tokens(content)
             
-            if total_tokens + item_tokens <= max_tokens:
+            # Allocate tokens for this item
+            if i < target_items:
+                allocated_tokens = avg_tokens_per_item
+            else:
+                allocated_tokens = max_tokens - total_tokens
+            
+            # Check if item fits in allocated budget
+            if full_tokens <= allocated_tokens:
                 # Item fits completely
                 trimmed.append(item)
-                total_tokens += item_tokens
+                total_tokens += full_tokens
             else:
-                # Check if we can fit a trimmed version
-                remaining = max_tokens - total_tokens
-                if remaining > 100:  # Minimum 100 tokens per item to be useful
-                    # Trim the content to fit
-                    title_tokens = cls._count_tokens(title) if title else 0
-                    content_budget = remaining - title_tokens - 10  # Reserve 10 for formatting
-                    
-                    if content_budget > 50:
-                        trimmed_content = cls._trim_text_to_tokens(content, content_budget)
-                        trimmed.append({
-                            **item,
-                            'content': trimmed_content
-                        })
-                        total_tokens += remaining
+                # Trim content to fit allocated budget
+                content_budget = allocated_tokens - title_tokens - 10  # Reserve 10 for formatting
                 
-                # Budget exhausted
+                if content_budget >= min_tokens_per_item:
+                    trimmed_content = cls._trim_text_to_tokens(content, content_budget)
+                    trimmed.append({
+                        **item,
+                        'content': trimmed_content
+                    })
+                    total_tokens += allocated_tokens
+                else:
+                    # Not enough budget for this item, stop
+                    break
+            
+            # Stop if budget exhausted
+            if total_tokens >= max_tokens:
                 break
         
         return trimmed, total_tokens

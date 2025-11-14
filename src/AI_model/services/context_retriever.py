@@ -89,12 +89,12 @@ class ContextRetriever:
                 return cls._fallback_retrieval(user, primary_source, secondary_sources)
             
             # Retrieve from primary source (use normalized query)
+            # ⭐ STANDARD RAG: No token budget at search level - returns all top_k results
             primary_chunks = cls._search_source(
                 user=user,
                 source=primary_source,
                 query_embedding=query_embedding,
                 top_k=cls.DEFAULT_TOP_K,
-                token_budget=primary_budget,
                 query_text=query_normalized  # ✅ Use normalized query for hybrid search
             )
             
@@ -107,7 +107,6 @@ class ContextRetriever:
                         source=source,
                         query_embedding=query_embedding,
                         top_k=3,  # Fewer chunks for secondary
-                        token_budget=int(secondary_budget / len(secondary_sources)),
                         query_text=query_normalized  # ✅ Use normalized query for hybrid search
                     )
                     secondary_chunks.extend(chunks)
@@ -136,7 +135,6 @@ class ContextRetriever:
         source: str,
         query_embedding: List[float],
         top_k: int,
-        token_budget: int,
         query_text: str = ""  # ✅ Added for keyword search
     ) -> List[Dict]:
         """
@@ -161,14 +159,14 @@ class ContextRetriever:
             chunk_type = cls.SOURCE_TO_CHUNK_TYPE.get(source, source)
             
             # ✅ Use Hybrid Search (BM25 + Vector)
+            # ⭐ STANDARD RAG: No token budget at search level - returns all top_k results
             if PGVECTOR_AVAILABLE and query_text:
                 results = HybridRetriever.hybrid_search(
                     query=query_text,
                     user=user,
                     chunk_type=chunk_type,
                     query_embedding=query_embedding,
-                    top_k=top_k,
-                    token_budget=token_budget
+                    top_k=top_k
                 )
                 
                 logger.debug(
@@ -213,9 +211,7 @@ class ContextRetriever:
                     if len(results) >= top_k:
                         break
                 
-                # Apply token budget
-                results = cls._trim_to_budget(results, token_budget)
-                
+                # ⭐ STANDARD RAG: No token budget at search level - returns all top_k results
                 logger.debug(
                     f"Found {len(results)} chunks from {source} (vector only)"
                 )

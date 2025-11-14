@@ -54,8 +54,7 @@ class HybridRetriever:
         user,
         chunk_type: str,
         query_embedding: List[float],
-        top_k: int,
-        token_budget: int
+        top_k: int
     ) -> List[Dict]:
         """
         🔥 WORLD-CLASS Hybrid Search with Language-Aware Dynamic Weights
@@ -63,20 +62,23 @@ class HybridRetriever:
         Performs hybrid search combining BM25 and vector search with optimal weights
         based on detected language.
         
+        ⭐ STANDARD RAG APPROACH (Intercom, LangChain, LlamaIndex):
+        - Returns ALL top_k results (no token budget trimming at search level)
+        - Token budget is applied at prompt level only
+        
         Args:
             query: User's search query (e.g., "ممد داری؟")
             user: User instance
             chunk_type: Type of chunks to search ('product', 'faq', etc.)
             query_embedding: Vector embedding of query
             top_k: Number of results to return
-            token_budget: Maximum tokens for results
             
         Returns:
-            List of chunks with hybrid scores
+            List of chunks with hybrid scores (ALL results, no truncation)
         """
         if not PGVECTOR_AVAILABLE or not query_embedding:
             # Fallback to keyword-only search
-            return cls._keyword_only_search(query, user, chunk_type, top_k, token_budget)
+            return cls._keyword_only_search(query, user, chunk_type, top_k)
         
         # 🔥 Detect language for dynamic weights
         language = cls._detect_language(query)
@@ -102,8 +104,8 @@ class HybridRetriever:
             vector_weight=vector_weight
         )
         
-        # 4. Apply token budget and format results
-        final_results = cls._apply_token_budget(hybrid_results, token_budget, top_k)
+        # 4. Format results (NO token budget trimming - standard RAG approach)
+        final_results = cls._format_results(hybrid_results, top_k)
         
         logger.info(
             f"🔍 Hybrid Search (lang={language}): query='{query[:30]}...', "
@@ -504,14 +506,16 @@ class HybridRetriever:
         return sorted_results
     
     @classmethod
-    def _apply_token_budget(
+    def _format_results(
         cls,
         hybrid_results: List[Tuple[int, float]],
-        token_budget: int,
         top_k: int
     ) -> List[Dict]:
         """
-        Apply token budget and format results
+        Format search results (NO token budget trimming - standard RAG approach)
+        
+        ⭐ STANDARD RAG: Returns ALL top_k results with full content
+        Token budget is applied at prompt level, not search level
         """
         if not hybrid_results:
             return []
@@ -528,38 +532,19 @@ class HybridRetriever:
         # Create score mapping
         score_map = {chunk_id: score for chunk_id, score in hybrid_results}
         
-        # Format results in correct order
+        # Format results in correct order (ALL results, full content)
         results = []
-        total_tokens = 0
-        
-        # Iterate in ranked order (from hybrid_results)
         for chunk_id in chunk_ids:
             chunk = chunks_dict.get(chunk_id)
             if not chunk:
                 continue  # Skip if chunk not found
             
-            if total_tokens >= token_budget:
-                break
-            
-            chunk_tokens = len(chunk.full_text.split())
-            if total_tokens + chunk_tokens > token_budget:
-                # Truncate if needed
-                remaining_tokens = token_budget - total_tokens
-                truncated_text = ' '.join(chunk.full_text.split()[:remaining_tokens])
-                content = truncated_text
-                chunk_tokens = remaining_tokens
-            else:
-                content = chunk.full_text
-            
             results.append({
                 'title': chunk.section_title or 'N/A',
-                'content': content,
+                'content': chunk.full_text,  # ✅ Full content, no truncation
                 'score': score_map.get(chunk.id, 0),
-                'source': chunk.chunk_type,
-                'tokens': chunk_tokens
+                'source': chunk.chunk_type
             })
-            
-            total_tokens += chunk_tokens
         
         return results
     
@@ -569,11 +554,12 @@ class HybridRetriever:
         query: str,
         user,
         chunk_type: str,
-        top_k: int,
-        token_budget: int
+        top_k: int
     ) -> List[Dict]:
         """
         Fallback to keyword-only search when vector search is unavailable
+        
+        ⭐ STANDARD RAG: Returns ALL top_k results (no token budget trimming)
         """
         try:
             from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank
@@ -593,22 +579,13 @@ class HybridRetriever:
             ).order_by('-rank')[:top_k]
             
             results = []
-            total_tokens = 0
-            
             for chunk in chunks:
-                if total_tokens >= token_budget:
-                    break
-                
-                chunk_tokens = len(chunk.full_text.split())
-                if total_tokens + chunk_tokens <= token_budget:
-                    results.append({
-                        'title': chunk.section_title or 'N/A',
-                        'content': chunk.full_text,
-                        'score': float(chunk.rank) if hasattr(chunk, 'rank') else 0.5,
-                        'source': chunk.chunk_type,
-                        'tokens': chunk_tokens
-                    })
-                    total_tokens += chunk_tokens
+                results.append({
+                    'title': chunk.section_title or 'N/A',
+                    'content': chunk.full_text,  # ✅ Full content, no truncation
+                    'score': float(chunk.rank) if hasattr(chunk, 'rank') else 0.5,
+                    'source': chunk.chunk_type
+                })
             
             return results
             
