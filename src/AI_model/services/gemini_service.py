@@ -905,9 +905,11 @@ Provide a concise summary (max 100 words):"""
             
             prompt_parts.append(
                 "\nINSTRUCTION: Answer the customer's question using the knowledge base above. "
-                "Use the provided information to give accurate, helpful answers. "
-                "If a specific detail is missing, provide what you know and offer to help further. "
-                "Be natural, concise, and friendly."
+                "IMPORTANT: "
+                "- If the answer is in the KNOWLEDGE BASE, provide it directly and completely. "
+                "- Only say 'متأسفانه این اطلاعات الان در دسترس نیست' if the information is NOT in the knowledge base. "
+                "- If you see partial information, provide what you have and be helpful. "
+                "- Be natural, concise, and friendly."
                 + memory_guidance
             )
             

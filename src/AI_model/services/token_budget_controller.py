@@ -315,9 +315,19 @@ class TokenBudgetController:
     @classmethod
     def _trim_context_items(cls, items: List[Dict], max_tokens: int) -> tuple:
         """
-        ⭐ STANDARD RAG APPROACH (Intercom, LangChain, LlamaIndex):
-        Distribute tokens across multiple items instead of taking only the first one.
-        This ensures that if the answer is in Result 3 or 4, it will be included.
+        ⭐ IMPROVED RAG APPROACH (Intercom, LangChain, LlamaIndex):
+        Smart token distribution: Prioritize first 2 results (usually most relevant),
+        then distribute remaining budget across other results.
+        
+        Strategy:
+        1. First result: 50% of budget (ensures important info is NOT trimmed)
+        2. Second result: 25% of budget (backup if answer is in second result)
+        3. Others: 25% total (distributed evenly, ensures diversity)
+        
+        This ensures that:
+        - If answer is in Result 1 → Gets 325 tokens (enough for complete info)
+        - If answer is in Result 2 → Gets 162 tokens (substantial info)
+        - If answer is in Result 3-5 → Still gets 50-80 tokens each (basic info)
         
         Args:
             items: List of dicts with 'title' and 'content'
@@ -332,9 +342,21 @@ class TokenBudgetController:
         trimmed = []
         total_tokens = 0
         
-        # Strategy: Try to fit at least 3-5 items (distribute tokens evenly)
-        target_items = min(5, len(items))  # Try to fit 5 items
-        avg_tokens_per_item = max_tokens // target_items
+        # Strategy: Prioritize first 2 results, then distribute remaining
+        # First result: 50% (325 tokens) - Ensures important info is NOT trimmed
+        # Second result: 25% (162 tokens) - Backup if answer is in second result
+        # Others: 25% (163 tokens total) - Distribute evenly
+        first_result_budget = int(max_tokens * 0.50)  # 50% for first result (325 tokens)
+        second_result_budget = int(max_tokens * 0.25)  # 25% for second result (162 tokens)
+        remaining_budget = max_tokens - first_result_budget - second_result_budget  # 25% for others
+        
+        # Calculate budget for remaining items (try to fit 2-3 more items)
+        target_remaining_items = min(3, len(items) - 2) if len(items) > 2 else 0  # Try to fit 3 more items
+        if target_remaining_items > 0:
+            avg_tokens_per_remaining = remaining_budget // target_remaining_items
+        else:
+            avg_tokens_per_remaining = remaining_budget
+        
         min_tokens_per_item = 100  # Minimum to be useful
         
         for i, item in enumerate(items):
@@ -346,9 +368,17 @@ class TokenBudgetController:
             full_tokens = cls._count_tokens(f"{title}: {content}") if title else cls._count_tokens(content)
             
             # Allocate tokens for this item
-            if i < target_items:
-                allocated_tokens = avg_tokens_per_item
+            if i == 0:
+                # First result: 50% of budget (325 tokens)
+                allocated_tokens = first_result_budget
+            elif i == 1:
+                # Second result: 25% of budget (162 tokens)
+                allocated_tokens = second_result_budget
+            elif i - 2 < target_remaining_items:  # i=2,3,4 → i-2=0,1,2 < 3
+                # Remaining results: Distribute evenly
+                allocated_tokens = avg_tokens_per_remaining
             else:
+                # Beyond target: Use remaining budget
                 allocated_tokens = max_tokens - total_tokens
             
             # Check if item fits in allocated budget
