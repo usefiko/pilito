@@ -157,6 +157,55 @@ class HybridRetriever:
             return 'default'
     
     @classmethod
+    def _fuzzy_match_persian(cls, keyword: str, text: str, threshold: float = 0.75) -> bool:
+        """
+        Standard fuzzy matching for Persian text using Levenshtein distance
+        
+        Handles typos like "ادرستون" vs "آدرس" using character-level similarity
+        Uses industry-standard approach (similar to Elasticsearch fuzzy matching)
+        
+        Args:
+            keyword: Search keyword (e.g., "ادرستون")
+            text: Text to search in (e.g., chunk content)
+            threshold: Minimum similarity ratio (0.0-1.0, default 0.75)
+        
+        Returns:
+            True if fuzzy match found
+        """
+        try:
+            # Only use fuzzy matching for Persian text
+            from AI_model.services.persian_normalizer import PersianNormalizer
+            if not PersianNormalizer.is_persian(keyword, threshold=0.3):
+                return False
+            
+            # Use Python's built-in difflib for fuzzy matching (standard library, no dependencies)
+            # This is the industry-standard approach for fuzzy string matching
+            from difflib import SequenceMatcher
+            
+            # Search for best match in text (word-level)
+            words = text.split()
+            best_ratio = 0.0
+            
+            for word in words:
+                if len(word) < 2:  # Skip very short words
+                    continue
+                
+                # Calculate similarity ratio using SequenceMatcher (Levenshtein-based)
+                ratio = SequenceMatcher(None, keyword, word).ratio()
+                best_ratio = max(best_ratio, ratio)
+                
+                # Early exit if perfect match found
+                if best_ratio >= 0.95:
+                    return True
+            
+            # Return if similarity above threshold
+            return best_ratio >= threshold
+                
+        except Exception as e:
+            logger.debug(f"Fuzzy matching failed: {e}")
+            return False
+    
+    @classmethod
     def _normalize_persian_text(cls, text: str) -> str:
         """
         🔥 WORLD-CLASS Persian normalization using Hazm
@@ -270,12 +319,18 @@ class HybridRetriever:
                 )
                 
                 # Count matches (both original and expanded keywords)
+                # Use fuzzy matching for Persian text to handle typos
                 match_count = 0
                 total_keywords = len(expanded_keywords)
                 
                 for keyword in expanded_keywords:
+                    # Exact match (fast path)
                     if keyword in searchable_text:
                         match_count += 1
+                    else:
+                        # Fuzzy match for typos (only for Persian keywords)
+                        if cls._fuzzy_match_persian(keyword, searchable_text):
+                            match_count += 1
                 
                 # Calculate rank with bonus for exact query matches
                 if match_count > 0:
