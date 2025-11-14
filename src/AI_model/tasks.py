@@ -531,6 +531,18 @@ def chunk_product_async(self, product_id: str) -> Dict[str, Any]:
     
     try:
         product = Product.objects.select_related('user').get(id=product_id)
+        
+        # 🔒 FIX: Handle case where user might be None
+        if not product.user:
+            logger.warning(
+                f"⚠️ Product {product_id} has no associated user - skipping chunking"
+            )
+            return {
+                'success': False,
+                'product_id': str(product_id),
+                'message': 'Product has no associated user - cannot chunk'
+            }
+        
         user = product.user
         
         chunker = IncrementalChunker(user)
@@ -581,7 +593,29 @@ def chunk_webpage_async(self, page_id: str) -> Dict[str, Any]:
     from AI_model.services.incremental_chunker import IncrementalChunker
     
     try:
-        page = WebsitePage.objects.select_related('website__user').get(id=page_id)
+        page = WebsitePage.objects.select_related('website', 'website__user').get(id=page_id)
+        
+        # 🔒 FIX: Handle cases where website or user might be None
+        if not page.website:
+            logger.warning(
+                f"⚠️ WebPage {page_id} has no associated website - skipping chunking"
+            )
+            return {
+                'success': False,
+                'page_id': str(page_id),
+                'message': 'WebPage has no associated website - cannot chunk'
+            }
+        
+        if not page.website.user:
+            logger.warning(
+                f"⚠️ WebPage {page_id} has no associated user (website: {page.website.id}) - skipping chunking"
+            )
+            return {
+                'success': False,
+                'page_id': str(page_id),
+                'message': 'WebPage has no associated user - cannot chunk'
+            }
+        
         user = page.website.user
         
         chunker = IncrementalChunker(user)

@@ -245,17 +245,27 @@ class ProductionRAG:
             # Map source name to chunk_type
             chunk_type = cls._map_source_to_type(source)
             
-            # Generate embedding
+            # 🔥 WORLD-CLASS: Normalize query before embedding (matches chunk normalization)
+            from AI_model.services.persian_normalizer import get_normalizer
+            normalizer = get_normalizer()
+            
+            # Normalize query if Persian (same normalization as chunks = better matching)
+            if normalizer.is_persian(query):
+                query_normalized = normalizer.normalize(query)
+            else:
+                query_normalized = query
+            
+            # Generate embedding (with normalized query = better quality)
             embedding_service = EmbeddingService()
-            query_embedding = embedding_service.get_embedding(query)
+            query_embedding = embedding_service.get_embedding(query_normalized, task_type="retrieval_query")
             
             if not query_embedding:
                 logger.warning(f"Failed to generate embedding for query: {query[:50]}")
                 return []
             
-            # Hybrid search
+            # Hybrid search (use normalized query for BM25 matching)
             results = HybridRetriever.hybrid_search(
-                query=query,
+                query=query_normalized,  # Use normalized query for better matching
                 user=user,
                 chunk_type=chunk_type,
                 query_embedding=query_embedding,

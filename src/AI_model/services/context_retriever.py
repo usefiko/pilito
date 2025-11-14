@@ -70,22 +70,32 @@ class ContextRetriever:
         try:
             from AI_model.services.embedding_service import EmbeddingService
             
-            # Generate query embedding
+            # 🔥 WORLD-CLASS: Normalize query before embedding (matches chunk normalization)
+            from AI_model.services.persian_normalizer import get_normalizer
+            normalizer = get_normalizer()
+            
+            # Normalize query if Persian (same normalization as chunks = better matching)
+            if normalizer.is_persian(query):
+                query_normalized = normalizer.normalize(query)
+            else:
+                query_normalized = query
+            
+            # Generate query embedding (with normalized query = better quality)
             embedding_service = EmbeddingService()
-            query_embedding = embedding_service.get_embedding(query)
+            query_embedding = embedding_service.get_embedding(query_normalized, task_type="retrieval_query")
             
             if not query_embedding:
                 logger.warning("Query embedding failed, using fallback")
                 return cls._fallback_retrieval(user, primary_source, secondary_sources)
             
-            # Retrieve from primary source
+            # Retrieve from primary source (use normalized query)
             primary_chunks = cls._search_source(
                 user=user,
                 source=primary_source,
                 query_embedding=query_embedding,
                 top_k=cls.DEFAULT_TOP_K,
                 token_budget=primary_budget,
-                query_text=query  # ✅ Pass query text for hybrid search
+                query_text=query_normalized  # ✅ Use normalized query for hybrid search
             )
             
             # Retrieve from secondary sources (if budget allows)
@@ -98,7 +108,7 @@ class ContextRetriever:
                         query_embedding=query_embedding,
                         top_k=3,  # Fewer chunks for secondary
                         token_budget=int(secondary_budget / len(secondary_sources)),
-                        query_text=query  # ✅ Pass query text for hybrid search
+                        query_text=query_normalized  # ✅ Use normalized query for hybrid search
                     )
                     secondary_chunks.extend(chunks)
             
