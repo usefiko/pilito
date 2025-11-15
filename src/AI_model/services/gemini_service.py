@@ -881,8 +881,8 @@ Provide a concise summary (max 100 words):"""
             
             # Secondary knowledge (if included)
             if trimmed['secondary_context']:
-                secondary_text = "\n".join([
-                    f"- {item['title']}: {item['content'][:150]}..."
+                secondary_text = "\n\n".join([
+                    f"- {item['title']}: {item['content']}"
                     for item in trimmed['secondary_context']
                 ])
                 prompt_parts.append(f"\nADDITIONAL INFO:\n{secondary_text}")

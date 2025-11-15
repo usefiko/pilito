@@ -1,6 +1,6 @@
 """
 Token Budget Controller
-Enforces strict 1700 token limit for Gemini input (optimized for Persian)
+Enforces strict 2200 token limit for Gemini input (optimized for Persian)
 Uses tiktoken for accurate token counting
 """
 import logging
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class TokenBudgetController:
     """
     Strict token budget enforcement
-    Target: ≤ 1700 tokens total input to Gemini (optimized for Persian language)
+    Target: ≤ 2200 tokens total input to Gemini (optimized for Persian language)
     
     Uses tiktoken for accurate counting (not simple word count estimation)
     """
@@ -22,20 +22,20 @@ class TokenBudgetController:
         'system_prompt': 400,      # ✅ Increased for Persian (auto + manual prompts)
         'bio_context': 80,          # Instagram bio for personalization (multilingual)
         'customer_info': 30,        # Customer name, phone, source
-        'conversation': 400,        # ✅ Increased for V2 multi-tier memory
+        'conversation': 300,        # ✅ Reduced to allocate more for context
         'primary_context': 650,     # ✅ Increased - Main knowledge source
-        'secondary_context': 200,   # Optional supplementary
-        # Total: 1760 tokens (max 1700 with safety margin)
+        'secondary_context': 690,   # ✅ INCREASED from 200 to 690 - More room for secondary chunks
+        # Total: 2150 tokens (max 2200 with safety margin)
     }
     
     # Safety margin
-    MAX_TOTAL_TOKENS = 1700  # ✅ Increased from 1500 for Persian language
+    MAX_TOTAL_TOKENS = 2200  # ✅ INCREASED from 1700 to 2200 for better context coverage
     SAFETY_MARGIN = 50  # Reserve 50 tokens for safety
     
     @classmethod
     def trim_to_budget(cls, components: Dict) -> Dict:
         """
-        Trim components to fit within 1700 token budget
+        Trim components to fit within 2200 token budget
         
         Args:
             components: {
@@ -193,10 +193,13 @@ class TokenBudgetController:
             result['secondary_context_tokens'] = secondary_tokens
             result['primary_context'] = []
             result['primary_context_tokens'] = 0
+            
+            # Update used tokens
+            used_tokens += secondary_tokens
         else:
             # Normal case: Primary gets 75%, Secondary gets remaining
             primary_budget = min(remaining * 0.75, cls.BUDGET['primary_context'])
-            
+        
             result['primary_context'], primary_tokens = cls._trim_context_items(
                 primary_context,
                 int(primary_budget)
@@ -402,7 +405,7 @@ class TokenBudgetController:
             else:
                 # Trim content to fit allocated budget
                 content_budget = allocated_tokens - title_tokens - 10  # Reserve 10 for formatting
-                
+                    
                 if content_budget >= min_tokens_per_item:
                     trimmed_content = cls._trim_text_to_tokens(content, content_budget)
                     trimmed.append({
@@ -413,7 +416,7 @@ class TokenBudgetController:
                 else:
                     # Not enough budget for this item, stop
                     break
-            
+                
             # Stop if budget exhausted
             if total_tokens >= max_tokens:
                 break

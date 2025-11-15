@@ -222,7 +222,7 @@ class ProductionRAG:
                 'retrieval_method': 'production_rag',
                 'performance': {
                     'latency_ms': total_time,
-                    'reranking_used': cls.ENABLE_RERANKING,
+                    'reranking_used': FeatureFlags.is_enabled('use_reranker'),
                     'query_complexity': complexity
                 }
             }
@@ -401,13 +401,13 @@ class ProductionRAG:
             else:
                 # Direct object (TenantKnowledge)
                 chunk = chunk_data
-                if not chunk:
-                    continue
-                
-                chunk_id = getattr(chunk, 'id', id(chunk))
-                if chunk_id not in seen_ids:
-                    seen_ids.add(chunk_id)
-                    unique.append(chunk_data)
+            if not chunk:
+                continue
+            
+            chunk_id = getattr(chunk, 'id', id(chunk))
+            if chunk_id not in seen_ids:
+                seen_ids.add(chunk_id)
+                unique.append(chunk_data)
         
         return unique
     

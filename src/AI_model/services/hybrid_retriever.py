@@ -332,7 +332,7 @@ class HybridRetriever:
                     else:
                         # Fuzzy match for typos (only for Persian keywords)
                         if cls._fuzzy_match_persian(keyword, searchable_text):
-                            match_count += 1
+                        match_count += 1
                 
                 # Calculate rank with bonus for exact query matches
                 if match_count > 0:
@@ -421,8 +421,8 @@ class HybridRetriever:
                     distance=CosineDistance('full_embedding', query_embedding)
                 ).filter(
                     distance__lt=distance_threshold
-                ).order_by('distance').values_list('id', 'distance')[:limit]
-                
+            ).order_by('distance').values_list('id', 'distance')[:limit]
+            
                 # Combine results (avoid duplicates)
                 existing_ids = {chunk_id for chunk_id, _ in results}
                 for chunk_id, distance in full_results:
@@ -491,15 +491,15 @@ class HybridRetriever:
         # Fetch chunks to get metadata
         chunk_ids = list(scores.keys())
         if chunk_ids:
-            chunks = TenantKnowledge.objects.filter(id__in=chunk_ids).only('id', 'metadata')
-            
-            for chunk in chunks:
-                if chunk.metadata and 'priority' in chunk.metadata:
-                    priority = float(chunk.metadata['priority'])
-                    if priority > 1.0:
-                        # Boost score by priority multiplier
-                        scores[chunk.id] *= priority
-                        logger.debug(f"🌟 Boosted chunk {chunk.id} with priority {priority}")
+        chunks = TenantKnowledge.objects.filter(id__in=chunk_ids).only('id', 'metadata')
+        
+        for chunk in chunks:
+            if chunk.metadata and 'priority' in chunk.metadata:
+                priority = float(chunk.metadata['priority'])
+                if priority > 1.0:
+                    # Boost score by priority multiplier
+                    scores[chunk.id] *= priority
+                    logger.debug(f"🌟 Boosted chunk {chunk.id} with priority {priority}")
         
         # Sort by hybrid score (with priority boost)
         sorted_results = sorted(scores.items(), key=lambda x: x[1], reverse=True)
@@ -580,12 +580,12 @@ class HybridRetriever:
             
             results = []
             for chunk in chunks:
-                results.append({
-                    'title': chunk.section_title or 'N/A',
+                    results.append({
+                        'title': chunk.section_title or 'N/A',
                     'content': chunk.full_text,  # ✅ Full content, no truncation
-                    'score': float(chunk.rank) if hasattr(chunk, 'rank') else 0.5,
+                        'score': float(chunk.rank) if hasattr(chunk, 'rank') else 0.5,
                     'source': chunk.chunk_type
-                })
+                    })
             
             return results
             

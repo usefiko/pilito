@@ -467,7 +467,7 @@ def chunk_qapair_async(self, qapair_id: str) -> Dict[str, Any]:
         
         if qa.page and qa.page.website and qa.page.website.user:
             # Case 1: QAPair has page -> website -> user
-            user = qa.page.website.user
+        user = qa.page.website.user
         elif qa.user:
             # Case 2: QAPair has direct user reference
             user = qa.user
