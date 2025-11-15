@@ -154,6 +154,9 @@ class PersianChunker:
         
         For simplicity, we use word-level tokenization
         (Real token counting would require tiktoken/transformers)
+        
+        NOTE: chunk_size parameter is in words, but actual tokens will be ~4.26x for Persian
+        (e.g., chunk_size=100 words ≈ 426 tokens for Persian text)
         """
         # Normalize ZWNJ and spaces
         text = re.sub(r'\u200c+', '\u200c', text)  # Normalize ZWNJ
@@ -162,8 +165,6 @@ class PersianChunker:
         # Split by whitespace (basic tokenization)
         tokens = text.split()
         
-        # Persian words are typically 1.25x tokens
-        # To approximate 512 tokens, we target ~410 words
         return tokens
     
     @classmethod
