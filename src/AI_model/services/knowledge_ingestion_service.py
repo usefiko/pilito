@@ -253,8 +253,10 @@ class KnowledgeIngestionService:
             
             manual_text = ai_prompts.manual_prompt.strip()
             
-            # ✅ Chunk the manual prompt with overlap (700 words, 150 overlap)
-            chunks = cls._chunk_text(manual_text, chunk_size=700, overlap=150)
+            # ✅ Chunk the manual prompt with STANDARD size and overlap
+            # Industry standard: 300-400 words (~390-520 tokens)
+            # Previous: 700 words was TOO BIG (1900+ tokens per chunk)
+            chunks = cls._chunk_text(manual_text, chunk_size=300, overlap=90)
             
             chunks_created = 0
             document_id = uuid.uuid4()  # Group all chunks under same document
@@ -320,7 +322,9 @@ class KnowledgeIngestionService:
                     continue
                 
                 # ✅ Chunk long pages with overlap (600 words, 120 overlap)
-                chunks = cls._chunk_text(content, chunk_size=600, overlap=120)
+                # Chunk website content with STANDARD size
+                # Industry standard: 400 words (~520 tokens) for website content
+                chunks = cls._chunk_text(content, chunk_size=400, overlap=120)
                 
                 for i, chunk_text in enumerate(chunks):
                     # Build full text with context
@@ -366,15 +370,16 @@ class KnowledgeIngestionService:
             raise
     
     @classmethod
-    def _chunk_text(cls, text: str, chunk_size: int = 700, overlap: int = 150) -> List[str]:
+    def _chunk_text(cls, text: str, chunk_size: int = 300, overlap: int = 90) -> List[str]:
         """
         🔥 IMPROVED: Smart text chunking with overlap + Persian normalization
         
-        Changes:
-        - ✅ Chunk size: 500 → 700 words (+40%)
-        - ✅ Added overlap: 150 words (prevents context loss)
-        - ✅ Persian normalization (Hazm) before chunking
-        - ✅ Better handling of boundaries
+        ⭐ INDUSTRY STANDARD (LangChain, LlamaIndex):
+        - Chunk size: 300-400 words (~390-520 tokens)
+        - Overlap: 30% (90-120 words)
+        
+        Previous setting (700 words) was TOO BIG (1900+ tokens per chunk)
+        which caused token budget issues in prompt construction.
         
         Example:
         Text: "A B C D E F G H I J"
@@ -386,8 +391,8 @@ class KnowledgeIngestionService:
         
         Args:
             text: Text to chunk
-            chunk_size: Target words per chunk (default: 700)
-            overlap: Words to overlap between chunks (default: 150)
+            chunk_size: Target words per chunk (default: 300, STANDARD)
+            overlap: Words to overlap between chunks (default: 90, 30%)
         
         Returns:
             List of text chunks with overlap
