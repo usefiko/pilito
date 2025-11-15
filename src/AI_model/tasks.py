@@ -9,7 +9,7 @@ from datetime import date, timedelta
 
 logger = logging.getLogger(__name__)
 
-@shared_task(bind=True, max_retries=3)
+@shared_task(bind=True, max_retries=3, queue='high_priority')
 def process_ai_response_async(self, message_id):
     """
     Process AI response for a customer message asynchronously

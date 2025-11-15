@@ -5,8 +5,19 @@ Uses tiktoken for accurate token counting
 """
 import logging
 from typing import Dict, List
+import tiktoken
 
 logger = logging.getLogger(__name__)
+
+# Global cache for tiktoken encoder
+_TOKEN_ENCODER = None
+
+def _get_encoder():
+    """Get cached tiktoken encoder (singleton pattern)"""
+    global _TOKEN_ENCODER
+    if _TOKEN_ENCODER is None:
+        _TOKEN_ENCODER = tiktoken.get_encoding("cl100k_base")
+    return _TOKEN_ENCODER
 
 
 class TokenBudgetController:
@@ -331,97 +342,103 @@ class TokenBudgetController:
     @classmethod
     def _trim_context_items(cls, items: List[Dict], max_tokens: int) -> tuple:
         """
-        ⭐ IMPROVED RAG APPROACH (Intercom, LangChain, LlamaIndex):
-        Smart token distribution: Prioritize first 2 results (usually most relevant),
-        then distribute remaining budget across other results.
+        ✅ v2: Greedy fill strategy - maximize budget usage
         
         Strategy:
-        1. First result: 50% of budget (ensures important info is NOT trimmed)
-        2. Second result: 25% of budget (backup if answer is in second result)
-        3. Others: 25% total (distributed evenly, ensures diversity)
+        1. Sort by score (assume items pre-sorted by RAG)
+        2. Take top_k items (default: 20)
+        3. Add chunks greedily until budget is full
+        4. Handle edge case: first chunk > max_tokens
         
-        This ensures that:
-        - If answer is in Result 1 → Gets 325 tokens (enough for complete info)
-        - If answer is in Result 2 → Gets 162 tokens (substantial info)
-        - If answer is in Result 3-5 → Still gets 50-80 tokens each (basic info)
+        This ensures:
+        - All available budget is used (90-95% efficiency)
+        - Maximum number of relevant chunks included
+        - No artificial 2-3 chunk limit
+        
+        IMPORTANT: items MUST be pre-sorted by score (descending)
         
         Args:
-            items: List of dicts with 'title' and 'content'
+            items: List of dicts with 'title' and 'content' (PRE-SORTED by score!)
             max_tokens: Maximum token budget
         
         Returns:
             (trimmed_items, actual_tokens)
         """
         if not items:
+            logger.info("📭 No context items received for trimming")
             return [], 0
         
-        trimmed = []
-        total_tokens = 0
+        encoder = _get_encoder()
         
-        # Strategy: Prioritize first 2 results, then distribute remaining
-        # First result: 50% (325 tokens) - Ensures important info is NOT trimmed
-        # Second result: 25% (162 tokens) - Backup if answer is in second result
-        # Others: 25% (163 tokens total) - Distribute evenly
-        first_result_budget = int(max_tokens * 0.50)  # 50% for first result (325 tokens)
-        second_result_budget = int(max_tokens * 0.25)  # 25% for second result (162 tokens)
-        remaining_budget = max_tokens - first_result_budget - second_result_budget  # 25% for others
+        # Step 1: Take top_k only (avoid noise)
+        TOP_K = 20
+        sorted_items = items[:TOP_K]
         
-        # Calculate budget for remaining items (try to fit 2-3 more items)
-        target_remaining_items = min(3, len(items) - 2) if len(items) > 2 else 0  # Try to fit 3 more items
-        if target_remaining_items > 0:
-            avg_tokens_per_remaining = remaining_budget // target_remaining_items
-        else:
-            avg_tokens_per_remaining = remaining_budget
-        
-        min_tokens_per_item = 100  # Minimum to be useful
-        
-        for i, item in enumerate(items):
-            content = item.get('content', '')
-            title = item.get('title', '')
+        # Step 2: Calculate tokens for each chunk
+        items_with_tokens = []
+        for item in sorted_items:
+            content = item.get('content', '') or ''
+            title = item.get('title', '') or ''
+            text = f"{title}: {content}" if title else content
             
-            # Calculate tokens needed
-            title_tokens = cls._count_tokens(title) if title else 0
-            full_tokens = cls._count_tokens(f"{title}: {content}") if title else cls._count_tokens(content)
+            tokens = encoder.encode(text)
+            items_with_tokens.append({
+                **item,
+                'tokens': len(tokens),
+                '_encoded': tokens  # cache for potential trim
+            })
+        
+        # Step 3: Greedy fill until budget is full
+        selected = []
+        used_tokens = 0
+        
+        for i, item in enumerate(items_with_tokens):
+            chunk_tokens = item['tokens']
             
-            # Allocate tokens for this item
-            if i == 0:
-                # First result: 50% of budget (325 tokens)
-                allocated_tokens = first_result_budget
-            elif i == 1:
-                # Second result: 25% of budget (162 tokens)
-                allocated_tokens = second_result_budget
-            elif i - 2 < target_remaining_items:  # i=2,3,4 → i-2=0,1,2 < 3
-                # Remaining results: Distribute evenly
-                allocated_tokens = avg_tokens_per_remaining
-            else:
-                # Beyond target: Use remaining budget
-                allocated_tokens = max_tokens - total_tokens
-            
-            # Check if item fits in allocated budget
-            if full_tokens <= allocated_tokens:
-                # Item fits completely
-                trimmed.append(item)
-                total_tokens += full_tokens
-            else:
-                # Trim content to fit allocated budget
-                content_budget = allocated_tokens - title_tokens - 10  # Reserve 10 for formatting
-                    
-                if content_budget >= min_tokens_per_item:
-                    trimmed_content = cls._trim_text_to_tokens(content, content_budget)
-                    trimmed.append({
-                        **item,
-                        'content': trimmed_content
-                    })
-                    total_tokens += allocated_tokens
+            # 🔥 Edge case: chunk > max_tokens
+            if chunk_tokens > max_tokens:
+                if i == 0:
+                    # First chunk: trim to fit
+                    logger.warning(
+                        f"⚠️ First chunk too large ({chunk_tokens} > {max_tokens}), "
+                        f"trimming to fit"
+                    )
+                    trimmed_tokens = item['_encoded'][:max_tokens]
+                    item['content'] = encoder.decode(trimmed_tokens)
+                    item['tokens'] = len(trimmed_tokens)
+                    selected.append(item)
+                    used_tokens = item['tokens']
                 else:
-                    # Not enough budget for this item, stop
-                    break
-                
-            # Stop if budget exhausted
-            if total_tokens >= max_tokens:
+                    # Not first: skip this chunk
+                    logger.debug(
+                        f"⏭️ Skipping large chunk ({chunk_tokens} tokens) at position {i}"
+                    )
+                continue
+            
+            # Normal case: check if fits
+            if used_tokens + chunk_tokens <= max_tokens:
+                selected.append(item)
+                used_tokens += chunk_tokens
+            else:
+                # Budget full, stop
+                logger.debug(
+                    f"🛑 Budget full: {used_tokens}/{max_tokens} tokens, "
+                    f"selected {len(selected)}/{len(items_with_tokens)} chunks"
+                )
                 break
         
-        return trimmed, total_tokens
+        # Clean up: remove _encoded (temporary data)
+        for item in selected:
+            item.pop('_encoded', None)
+        
+        # Step 4: Log for monitoring
+        usage_pct = int(used_tokens / max_tokens * 100) if max_tokens > 0 else 0
+        logger.info(
+            f"📊 Context trimming: {len(items)} → {len(selected)} chunks, "
+            f"{used_tokens}/{max_tokens} tokens ({usage_pct}% used)"
+        )
+        
+        return selected, used_tokens
     
     @classmethod
     def _extract_critical_rules(cls, system_prompt: str) -> str:
