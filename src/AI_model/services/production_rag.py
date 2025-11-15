@@ -345,25 +345,48 @@ class ProductionRAG:
     
     @classmethod
     def _deduplicate_chunks(cls, chunks: List) -> List:
-        """Remove duplicate chunks"""
+        """
+        Remove duplicate chunks
+        
+        Handles two formats:
+        1. Dict with 'chunk' key: {'chunk': <TenantKnowledge object>, ...}
+        2. Dict from HybridRetriever: {'title': '...', 'content': '...', 'score': 0.95, 'source': 'manual'}
+        """
         seen_ids = set()
+        seen_content = set()  # For dict format without 'chunk' key
         unique = []
         
         for chunk_data in chunks:
             # Handle both dict and object
             if isinstance(chunk_data, dict):
                 chunk = chunk_data.get('chunk')
+                
+                if chunk:
+                    # Format 1: Has 'chunk' key (TenantKnowledge object)
+                    chunk_id = getattr(chunk, 'id', id(chunk))
+                    if chunk_id not in seen_ids:
+                        seen_ids.add(chunk_id)
+                        unique.append(chunk_data)
+                else:
+                    # Format 2: Dict from HybridRetriever (no 'chunk' key)
+                    # Use content + source as unique identifier
+                    content = chunk_data.get('content', '')
+                    source = chunk_data.get('source', '')
+                    content_hash = hash(f"{source}:{content[:200]}")  # First 200 chars for performance
+                    
+                    if content_hash not in seen_content:
+                        seen_content.add(content_hash)
+                        unique.append(chunk_data)
             else:
+                # Direct object (TenantKnowledge)
                 chunk = chunk_data
-            
-            if not chunk:
-                continue
-            
-            chunk_id = getattr(chunk, 'id', id(chunk))
-            
-            if chunk_id not in seen_ids:
-                seen_ids.add(chunk_id)
-                unique.append(chunk_data)
+                if not chunk:
+                    continue
+                
+                chunk_id = getattr(chunk, 'id', id(chunk))
+                if chunk_id not in seen_ids:
+                    seen_ids.add(chunk_id)
+                    unique.append(chunk_data)
         
         return unique
     
