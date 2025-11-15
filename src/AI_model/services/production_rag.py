@@ -13,6 +13,7 @@ import time
 from typing import List, Dict, Optional
 from django.conf import settings
 from AI_model.services.rag_metrics import RAGMetrics, RAGTimer
+from AI_model.services.feature_flags import FeatureFlags
 
 logger = logging.getLogger(__name__)
 
@@ -33,10 +34,6 @@ class ProductionRAG:
     SPARSE_TOP_K = 15  # BM25 candidates
     FUSION_TOP_K = 20  # After RRF fusion
     RERANK_TOP_K = 8   # Final chunks after reranking
-    
-    # Feature flags
-    ENABLE_RERANKING = True  # Can be disabled for rollback
-    RERANK_MODEL = 'base'    # 'base' (fast) or 'large' (better)
     
     @classmethod
     def retrieve_context(
@@ -124,13 +121,16 @@ class ProductionRAG:
             logger.info(f"🔗 After deduplication: {len(unique_chunks)} chunks")
             
             # === STAGE 4: Reranking ===
-            if cls.ENABLE_RERANKING and len(unique_chunks) > 5:
+            enable_reranking = FeatureFlags.is_enabled('use_reranker')
+            if enable_reranking and len(unique_chunks) > 5:
                 try:
+                    rerank_model = FeatureFlags.get_value('rerank_model', 'base')
                     reranked_chunks = cls._rerank_chunks(
                         query=query,
                         chunks=unique_chunks,
                         top_k=cls.RERANK_TOP_K,
-                        complexity=complexity
+                        complexity=complexity,
+                        model_name=rerank_model
                     )
                     
                     logger.info(
@@ -141,7 +141,10 @@ class ProductionRAG:
                     logger.error(f"❌ Reranking failed: {e}, using original order")
                     reranked_chunks = unique_chunks[:cls.RERANK_TOP_K]
             else:
-                logger.debug("Reranking skipped (disabled or too few chunks)")
+                if not enable_reranking:
+                    logger.debug("⏭️  Reranking skipped (disabled by feature flag)")
+                else:
+                    logger.debug("⏭️  Reranking skipped (too few chunks)")
                 reranked_chunks = unique_chunks[:cls.RERANK_TOP_K]
             
             # === STAGE 5: Context Optimization ===
@@ -158,22 +161,37 @@ class ProductionRAG:
             result_secondary = []
             
             for chunk_data in optimized_chunks:
+                # Handle two formats:
+                # 1. Dict with 'chunk' key: {'chunk': <TenantKnowledge object>, ...}
+                # 2. Dict from HybridRetriever: {'title': '...', 'content': '...', 'score': 0.95, 'source': 'manual'}
                 chunk = chunk_data.get('chunk')
-                if not chunk:
-                    continue
                 
-                # Format for compatibility with existing code
-                formatted = {
-                    'chunk': chunk,
-                    'score': chunk_data.get('score', 0.0),
-                    'source': getattr(chunk, 'chunk_type', 'unknown'),
-                    'title': getattr(chunk, 'section_title', ''),
-                    'content': getattr(chunk, 'full_text', ''),
-                    'tokens': chunk_data.get('tokens', 0)
-                }
+                if chunk:
+                    # Format 1: Has 'chunk' key (TenantKnowledge object)
+                    formatted = {
+                        'chunk': chunk,
+                        'score': chunk_data.get('score', 0.0),
+                        'source': getattr(chunk, 'chunk_type', 'unknown'),
+                        'title': getattr(chunk, 'section_title', ''),
+                        'content': getattr(chunk, 'full_text', ''),
+                        'tokens': chunk_data.get('tokens', 0)
+                    }
+                    chunk_source = getattr(chunk, 'chunk_type', '')
+                else:
+                    # Format 2: Dict from HybridRetriever (no 'chunk' key)
+                    # Use data directly from dict
+                    from AI_model.services.token_budget_controller import TokenBudgetController
+                    formatted = {
+                        'chunk': None,  # No chunk object available
+                        'score': chunk_data.get('score', 0.0),
+                        'source': chunk_data.get('source', 'unknown'),
+                        'title': chunk_data.get('title', 'N/A'),
+                        'content': chunk_data.get('content', ''),
+                        'tokens': chunk_data.get('tokens', 0) or TokenBudgetController._count_tokens(chunk_data.get('content', ''))
+                    }
+                    chunk_source = chunk_data.get('source', '')
                 
                 # Assign to primary or secondary based on original source
-                chunk_source = getattr(chunk, 'chunk_type', '')
                 if cls._map_source_to_type(primary_source) == chunk_source:
                     result_primary.append(formatted)
                 else:
@@ -283,7 +301,8 @@ class ProductionRAG:
         query: str,
         chunks: List,
         top_k: int,
-        complexity: float
+        complexity: float,
+        model_name: str = 'base'
     ) -> List[Dict]:
         """
         Rerank chunks using cross-encoder
@@ -291,8 +310,10 @@ class ProductionRAG:
         try:
             from AI_model.services.cross_encoder_reranker import get_reranker
             
-            # Choose model based on query complexity
-            if complexity > 0.8:
+            # Use provided model or choose based on complexity
+            if model_name:
+                model = model_name
+            elif complexity > 0.8:
                 model = 'large'  # Better for complex queries
             else:
                 model = 'base'   # Fast for simple queries

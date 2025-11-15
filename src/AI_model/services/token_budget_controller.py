@@ -180,31 +180,44 @@ class TokenBudgetController:
         
         # 4. Primary context (critical knowledge)
         primary_context = components.get('primary_context', [])
-        primary_budget = min(remaining * 0.75, cls.BUDGET['primary_context'])  # 75% of remaining
-        
-        result['primary_context'], primary_tokens = cls._trim_context_items(
-            primary_context,
-            int(primary_budget)
-        )
-        result['primary_context_tokens'] = primary_tokens
-        
-        # Recalculate remaining
-        used_tokens += primary_tokens
-        remaining = cls.MAX_TOTAL_TOKENS - used_tokens - cls.SAFETY_MARGIN
-        
-        # 5. Secondary context (optional, only if budget allows)
         secondary_context = components.get('secondary_context', [])
         
-        if remaining > 50 and secondary_context:
-            secondary_budget = min(remaining, cls.BUDGET['secondary_context'])
+        # Smart budget allocation: If primary is empty, give its budget to secondary
+        if not primary_context and secondary_context:
+            # Primary is empty: Use all remaining budget for secondary
+            secondary_budget = min(remaining, cls.BUDGET['primary_context'] + cls.BUDGET['secondary_context'])
             result['secondary_context'], secondary_tokens = cls._trim_context_items(
                 secondary_context,
                 int(secondary_budget)
             )
             result['secondary_context_tokens'] = secondary_tokens
+            result['primary_context'] = []
+            result['primary_context_tokens'] = 0
         else:
-            result['secondary_context'] = []
-            result['secondary_context_tokens'] = 0
+            # Normal case: Primary gets 75%, Secondary gets remaining
+            primary_budget = min(remaining * 0.75, cls.BUDGET['primary_context'])
+            
+            result['primary_context'], primary_tokens = cls._trim_context_items(
+                primary_context,
+                int(primary_budget)
+            )
+            result['primary_context_tokens'] = primary_tokens
+            
+            # Recalculate remaining
+            used_tokens += primary_tokens
+            remaining = cls.MAX_TOTAL_TOKENS - used_tokens - cls.SAFETY_MARGIN
+            
+            # 5. Secondary context (optional, only if budget allows)
+            if remaining > 50 and secondary_context:
+                secondary_budget = min(remaining, cls.BUDGET['secondary_context'])
+                result['secondary_context'], secondary_tokens = cls._trim_context_items(
+                    secondary_context,
+                    int(secondary_budget)
+                )
+                result['secondary_context_tokens'] = secondary_tokens
+            else:
+                result['secondary_context'] = []
+                result['secondary_context_tokens'] = 0
         
         # Calculate final total
         result['total_tokens'] = (
