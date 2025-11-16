@@ -63,12 +63,20 @@ class SendMessageAPIView(APIView):
                     'error_code': 'CONVERSATION_NOT_FOUND'
                 }, status=status.HTTP_404_NOT_FOUND)
             
+            # ✅ Extract CTA buttons BEFORE creating message
+            from message.utils.cta_utils import extract_cta_from_text
+            clean_content, buttons = extract_cta_from_text(content)
+            
+            if buttons:
+                logger.info(f"📌 [Support] Extracted {len(buttons)} CTA button(s) from manual message")
+            
             # Create and save message in database
             with transaction.atomic():
                 message = Message.objects.create(
                     conversation=conversation,
                     customer=conversation.customer,
-                    content=content,
+                    content=clean_content,  # ✅ متن بدون CTA tokens
+                    buttons=buttons,  # ✅ دکمه‌های استخراج شده
                     type=message_type,
                     metadata={}  # Initialize metadata
                 )
@@ -77,7 +85,8 @@ class SendMessageAPIView(APIView):
                 conversation.save()
             
             # Send to external platform (Telegram/Instagram)
-            external_result = self._send_to_external_platform(conversation, content)
+            # Note: Instagram adapter will use clean_content + buttons
+            external_result = self._send_to_external_platform(conversation, clean_content, buttons)
             
             # Store external message ID in metadata to prevent webhook duplicates
             if external_result.get('success') and external_result.get('message_id'):
@@ -111,7 +120,7 @@ class SendMessageAPIView(APIView):
                 'details': str(e) if request.user.is_superuser else None
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
-    def _send_to_external_platform(self, conversation, content):
+    def _send_to_external_platform(self, conversation, content, buttons=None):
         """Send message to external platform (Telegram/Instagram)"""
         try:
             customer = conversation.customer
@@ -120,7 +129,7 @@ class SendMessageAPIView(APIView):
             if source == 'telegram':
                 return self._send_telegram_message(conversation, customer, content)
             elif source == 'instagram':
-                return self._send_instagram_message(conversation, customer, content)
+                return self._send_instagram_message(conversation, customer, content, buttons)
             else:
                 logger.warning(f"Unknown conversation source: {source}")
                 return {'success': False, 'error': 'Unknown conversation source'}
@@ -144,7 +153,7 @@ class SendMessageAPIView(APIView):
             logger.error(f"Error sending Telegram message: {e}")
             return {'success': False, 'error': str(e)}
     
-    def _send_instagram_message(self, conversation, customer, content):
+    def _send_instagram_message(self, conversation, customer, content, buttons=None):
         """Send message via Instagram API"""
         try:
             logger.info(f"📤 [Support] Sending Instagram message...")
@@ -158,7 +167,11 @@ class SendMessageAPIView(APIView):
                 logger.warning(f"❌ [Support] Instagram service not available")
                 return {'success': False, 'error': 'Instagram service not available'}
             
-            result = instagram_service.send_message_to_customer(customer, content)
+            # Buttons are already extracted before this call
+            if buttons:
+                logger.info(f"📌 [Support] Sending {len(buttons)} CTA button(s) with manual message")
+            
+            result = instagram_service.send_message_to_customer(customer, content, buttons=buttons)
             logger.info(f"Instagram send result for conversation {conversation.id}: {result}")
             
             if result.get('success'):
