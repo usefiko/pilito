@@ -307,10 +307,27 @@ def process_event(self, event_log_id: str):
                         # If workflows did not send a reply, trigger AI now for the original message
                         if not workflow_replied and trigger_message_id:
                             try:
-                                cache.set(f"ai_force_{trigger_message_id}", True, timeout=30)
-                                from AI_model.tasks import process_ai_response_async
-                                process_ai_response_async.delay(trigger_message_id)
-                                logger.info(f"🎯 Forced AI processing for message {trigger_message_id} after workflows completed")
+                                # ✅ Check if message is Instagram share (skip forced AI)
+                                is_instagram_share = False
+                                try:
+                                    MessageModel = get_model_class('MESSAGE')
+                                    msg = MessageModel.objects.get(id=trigger_message_id)
+                                    is_instagram_share = (
+                                        hasattr(msg, 'message_type') and
+                                        hasattr(msg.conversation, 'source') and
+                                        msg.conversation.source == 'instagram' and
+                                        msg.message_type == 'share'
+                                    )
+                                except Exception as _me:
+                                    logger.debug(f"Unable to load trigger message {trigger_message_id} for forced AI decision: {_me}")
+                                
+                                if is_instagram_share:
+                                    logger.info(f"🎯 Skipping forced AI for Instagram share message {trigger_message_id} (waiting for follow-up question)")
+                                else:
+                                    cache.set(f"ai_force_{trigger_message_id}", True, timeout=30)
+                                    from AI_model.tasks import process_ai_response_async
+                                    process_ai_response_async.delay(trigger_message_id)
+                                    logger.info(f"🎯 Forced AI processing for message {trigger_message_id} after workflows completed")
                             except Exception as _fe:
                                 logger.warning(f"Failed to force AI processing post-workflow: {_fe}")
                 except Exception as _re:
