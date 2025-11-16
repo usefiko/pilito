@@ -3,6 +3,7 @@ Integration service for AI model with existing message system
 Uses existing Message model instead of separate chat models
 """
 import logging
+import re
 from typing import Dict, Any, Optional
 from django.utils import timezone
 
@@ -13,6 +14,39 @@ logger = logging.getLogger(__name__)
 # Average AI response: 300-800 tokens
 # Based on actual usage data: average 1500-2000 tokens (input + output)
 MINIMUM_TOKENS_FOR_AI = 1500
+
+
+def _is_only_url(text: str) -> bool:
+    """
+    Check if message is just a URL with no meaningful text.
+    Used to prevent AI hallucination on link-only messages.
+    
+    Args:
+        text: Original user message text
+        
+    Returns:
+        True if message contains only URL(s) with minimal/no additional text
+    """
+    if not text:
+        return False
+        
+    text = text.strip()
+    
+    # Find all URLs
+    url_pattern = r'https?://\S+'
+    urls = re.findall(url_pattern, text)
+    
+    if not urls:
+        return False
+    
+    # Remove URLs from text
+    text_without_urls = re.sub(url_pattern, '', text).strip()
+    
+    # Remove common punctuation and whitespace
+    text_without_urls = re.sub(r'[،,\.؟?\s]+', '', text_without_urls)
+    
+    # If remaining text is very short (< 10 chars), consider it "only URL"
+    return len(text_without_urls) < 10
 
 
 class MessageSystemIntegration:
@@ -41,6 +75,42 @@ class MessageSystemIntegration:
                 return {
                     'processed': False,
                     'reason': 'AI not enabled for this conversation or user'
+                }
+            
+            # ✅ GUARD: Check if message is ONLY a URL (no context)
+            # Prevents AI hallucination on link-only messages (e.g., case T2epjS)
+            # Only check for text messages (not shares or combined content)
+            original_message_text = message_instance.content
+            if (message_instance.message_type == 'text' and 
+                _is_only_url(original_message_text)):
+                
+                logger.info(
+                    f"🔗 Message {message_instance.id} is only URL - returning static response "
+                    f"(anti-hallucination guard)"
+                )
+                
+                # Return fixed response - do NOT call AI
+                from settings.models import GeneralSettings
+                settings = GeneralSettings.get_settings()
+                static_response = (
+                    "متأسفانه من نمی‌تونم محتوای لینک‌ها را ببینم. "
+                    "اگر سوالی راجع به این لینک داری، لطفاً با متن توضیح بده تا بتونم کمکت کنم. 😊"
+                )
+                
+                # Create AI response message
+                from message.models import Message
+                response_message = Message.objects.create(
+                    conversation=message_instance.conversation,
+                    content=static_response,
+                    type='operator',
+                    is_ai_response=True
+                )
+                
+                return {
+                    'processed': True,
+                    'response': static_response,
+                    'response_message': response_message,
+                    'reason': 'url_only_guard'
                 }
             
             # ✅ CHECK TOKENS BEFORE AI CALL

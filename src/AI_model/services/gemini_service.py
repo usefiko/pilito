@@ -1214,17 +1214,29 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
         """
         try:
             from message.models import Message
+            from message.utils.cta_utils import extract_cta_from_text  # ✅ از message/utils import
             
             # Extract token counts from AI response
             prompt_tokens = ai_response.get('metadata', {}).get('prompt_tokens', 0)
             completion_tokens = ai_response.get('metadata', {}).get('completion_tokens', 0)
             total_tokens = ai_response.get('metadata', {}).get('total_tokens', 0)
             
+            # ✅ Extract CTA buttons from response (با .get() برای جلوگیری از crash)
+            original_content = ai_response.get('response') or ''
+            clean_content, buttons = extract_cta_from_text(original_content)
+            
+            # ✅ اطمینان از این‌که content خالی نباشد
+            if not clean_content or not clean_content.strip():
+                logger.warning(f"AI response content is empty after CTA extraction, using original")
+                clean_content = original_content
+                buttons = None
+            
             # Create AI message with metadata and token tracking
             ai_message = Message.objects.create(
                 conversation=conversation,
                 customer=conversation.customer,
-                content=ai_response['response'],
+                content=clean_content,  # ✅ متن بدون توکن‌های CTA
+                buttons=buttons,  # ✅ دکمه‌های استخراج شده (یا None)
                 type='AI',
                 is_ai_response=True,
                 # Token tracking fields (new)
@@ -1242,11 +1254,14 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
                     'global_api_used': True,
                     'timestamp': datetime.now(timezone.utc).isoformat(),
                     'ai_service_version': '1.0',
-                    'sent_from_app': True  # Mark as sent from app
+                    'sent_from_app': True,  # Mark as sent from app
+                    'has_cta_buttons': buttons is not None,  # ✅ Flag for monitoring
                 }
             )
             
             logger.info(f"✅ AI message created: {ai_message.id} for conversation {conversation.id}")
+            if buttons:
+                logger.info(f"   📌 With {len(buttons)} CTA button(s)")
             logger.info(f"   Content: {ai_message.content[:50]}...")
             logger.info(f"   Type: {ai_message.type}")
             logger.info(f"   is_ai_response: {ai_message.is_ai_response}")
@@ -1335,12 +1350,21 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
             # Wait 1 second to show typing indicator before sending message
             time.sleep(1)
             
+            # ✅ دریافت دکمه‌ها از ai_message
+            buttons = getattr(ai_message, 'buttons', None)
+            
             # Send the actual message
             message_sent_time = time.time()
-            result = instagram_service.send_message_to_customer(customer, ai_message.content)
+            result = instagram_service.send_message_to_customer(
+                customer, 
+                ai_message.content,
+                buttons=buttons  # ✅ پاس دادن دکمه‌ها
+            )
             
             if result.get('success'):
                 logger.info(f"✅ AI response sent to Instagram successfully: message {ai_message.id}")
+                if buttons:
+                    logger.info(f"   📌 Sent with {len(buttons)} CTA button(s)")
                 logger.info(f"   Instagram message_id: {result.get('message_id')}")
                 
                 # ✅ Store external message_id in metadata to prevent webhook duplicates

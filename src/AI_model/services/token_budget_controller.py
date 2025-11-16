@@ -30,13 +30,14 @@ class TokenBudgetController:
     
     # Token budget allocation (Optimized for Persian language)
     BUDGET = {
-        'system_prompt': 400,      # ✅ Increased for Persian (auto + manual prompts)
-        'bio_context': 80,          # Instagram bio for personalization (multilingual)
+        'system_prompt': 700,      # ✅ INCREASED to 700 - Critical for anti-hallucination rules
+        'bio_context': 60,          # Reduced -20 - Instagram bio for personalization
         'customer_info': 30,        # Customer name, phone, source
-        'conversation': 300,        # ✅ Reduced to allocate more for context
-        'primary_context': 650,     # ✅ Increased - Main knowledge source
-        'secondary_context': 690,   # ✅ INCREASED from 200 to 690 - More room for secondary chunks
+        'conversation': 250,        # Reduced -50 - Recent conversation context
+        'primary_context': 600,     # Reduced -50 - Main knowledge source
+        'secondary_context': 510,   # Reduced -180 - Secondary knowledge source
         # Total: 2150 tokens (max 2200 with safety margin)
+        # ⚠️ system_prompt has highest priority - contains anti-hallucination rules
     }
     
     # Safety margin
@@ -242,6 +243,20 @@ class TokenBudgetController:
             result['conversation_tokens'] +
             result['primary_context_tokens'] +
             result['secondary_context_tokens']
+        )
+        
+        # ✅ LOG TOKEN USAGE FOR MONITORING
+        logger.info(
+            f"📊 Token Budget Breakdown:\n"
+            f"  • System Prompt: {result['system_prompt_tokens']}/{cls.BUDGET['system_prompt']} tokens\n"
+            f"  • Bio Context: {result['bio_context_tokens']}/{cls.BUDGET['bio_context']} tokens\n"
+            f"  • Customer Info: {result['customer_info_tokens']}/{cls.BUDGET['customer_info']} tokens\n"
+            f"  • Conversation: {result['conversation_tokens']}/{cls.BUDGET['conversation']} tokens\n"
+            f"  • Primary Context: {result['primary_context_tokens']}/{cls.BUDGET['primary_context']} tokens\n"
+            f"  • Secondary Context: {result['secondary_context_tokens']}/{cls.BUDGET['secondary_context']} tokens\n"
+            f"  • User Query: {result['user_query_tokens']} tokens\n"
+            f"  ━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"  • TOTAL: {result['total_tokens']}/{cls.MAX_TOTAL_TOKENS} tokens"
         )
         
         # Final safety check

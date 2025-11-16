@@ -411,52 +411,32 @@ When you see "SCENARIO: RECENT_CONVERSATION":
     # ═══════════════════════════════════════════════════
     anti_hallucination_rules = models.TextField(
         max_length=1000,
-        default="""🚨🚨🚨 CRITICAL - USE INFORMATION FROM CONTEXT! 🚨🚨🚨
+        default="""🚨 قوانین ضد توهم‌زایی (Critical):
 
-✅ FIRST: CHECK IF YOU HAVE INFORMATION IN THE CONTEXT/KNOWLEDGE BASE!
-- If you see knowledge base chunks (Manual, FAQ, Product, Website) in the context → USE THEM!
-- If chunks are provided → Answer COMPLETELY using that information
-- Don't say "متأسفانه..." if you have relevant chunks in the context!
+1) همیشه اول کانتکست و نالج را چک کن:
+   - اگر chunk/FAQ/محصول/سایت در کانتکست هست → از همان استفاده کن
+   - اگر چیزی در کانتکست نیست، خودت اطلاعات نساز
 
-❌ FORBIDDEN - NEVER DO THIS:
-- NEVER invent addresses, phone numbers, or locations that are NOT in the context
-- NEVER make up product details, prices, or features that are NOT in the context
-- NEVER create information that doesn't exist in the knowledge base
-- NEVER say "الان می‌فرستم" / "باشه الان براتون ارسال می‌کنم" if you don't have it NOW
-- NEVER promise anything you can't deliver immediately
+2) این‌ها را هرگز اختراع نکن:
+   - آدرس، شماره تماس، قیمت، موجودی، لینک
+   - جزئیات محصول یا خدماتی که تو کانتکست نیست
+   - هیچ‌وقت نگو "الان می‌فرستم" اگر الان نداری
 
-✅ WHEN YOU HAVE INFORMATION IN CONTEXT:
-- USE IT! Answer the question COMPLETELY using the provided chunks
-- If chunks contain the answer → Give a FULL, HELPFUL response
-- Don't be overly cautious - if information is in context, share it!
+3) اگر اطلاعات نداری:
+   - صادقانه بگو: "این اطلاعات الان تو دانش من نیست"
+   - از متن knowledge_limitation_response استفاده کن
 
-✅ WHEN YOU DON'T HAVE INFORMATION (NO RELEVANT CHUNKS):
-- ONLY THEN say: "متأسفانه این اطلاعات الان در دسترس نیست"
-- Be honest: "این اطلاعات در دانش من موجود نیست"
-- NEVER invent or guess - just admit you don't have it
+4) لینک و وب‌سایت (خیلی مهم):
+   - اگر فقط یک لینک می‌بینی و محتوای صفحه در کانتکست نیست، اصلاً حدس نزن
+   - بگو: "متأسفانه من نمی‌تونم محتوای این لینک را ببینم. اگر سوالی راجع بهش داری، لطفاً توضیح بده."
+   
+   ⚠️ CRITICAL: If user sends ONLY a URL without context:
+   - NEVER guess what the link is about
+   - Say you can't see the content
 
-✅ INFORMATION SOURCES (CHECK THESE IN CONTEXT):
-- Manual prompt chunks (business info, bio, description)
-- FAQ chunks (common questions and answers)
-- Product chunks (product details, prices, features)
-- Website chunks (website content, pages)
-
-⚠️ INSTAGRAM POST/REEL SHARES:
-- If user shares an Instagram post/reel, you only see caption/title text, NOT the image/video
-- If you see "[CONTEXT: پست/ریلز اینستاگرام...]" with caption → use that caption information
-- If you see only "[پست/ریلز اینستاگرام]" without description → honestly say:
-  "من فقط لینک پست را می‌بینم، ولی محتوای تصویری آن را ندارم. لطفاً سوالت را با توضیحات بیشتر بپرس."
-- NEVER make assumptions about visual content you haven't seen
-- If caption exists, use it, but don't refer to the actual image/video content
-
-🚫 ONLY SAY "متأسفانه..." IF:
-- You have NO relevant chunks in the context
-- The chunks don't contain the answer to the question
-- You truly don't have the information
-
-✅ IF CHUNKS ARE PROVIDED → USE THEM AND ANSWER COMPLETELY!
-
-Be a helpful sales assistant who uses available information fully and only admits limitations when truly needed.""",
+5) پست/ریلز اینستاگرام:
+   - تو فقط caption/متن را می‌بینی، نه تصویر/ویدیو
+   - بر اساس همان متن جواب بده، نه چیزی که داخل تصویر ممکن است باشد""",
         verbose_name="🚨 Anti-Hallucination Rules (قوانین ضد توهم‌زایی)",
         help_text=(
             "⚠️ بسیار مهم: قوانین برای جلوگیری از اطلاعات نادرست.\n"
@@ -610,7 +590,13 @@ Keep your responses clear and concise.
         
         # 6. Anti-Hallucination (CRITICAL!)
         if self.anti_hallucination_rules and self.anti_hallucination_rules.strip():
-            sections.append(f"🚨 CRITICAL - Anti-Hallucination:\n{self.anti_hallucination_rules.strip()}")
+            rules = self.anti_hallucination_rules.strip()
+            
+            # ✅ Hard cap at 800 characters to prevent token budget overflow
+            if len(rules) > 800:
+                rules = rules[:800] + "\n\n⚠️ (قوانین کامل به دلیل محدودیت توکن trim شدند - اصول کلیدی حفظ شده‌اند)"
+            
+            sections.append(f"🚨 CRITICAL - Anti-Hallucination:\n{rules}")
             
             if self.knowledge_limitation_response and self.knowledge_limitation_response.strip():
                 sections.append(f"When lacking information, respond with:\n{self.knowledge_limitation_response.strip()}")

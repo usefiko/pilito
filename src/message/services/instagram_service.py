@@ -17,28 +17,53 @@ class InstagramService:
         self.access_token = access_token
         self.instagram_user_id = instagram_user_id
     
-    def send_message(self, recipient_id: str, message_text: str) -> Dict[str, Any]:
+    def send_message(self, recipient_id: str, message_text: str, buttons=None) -> Dict[str, Any]:
         """
         Send a message to a specific Instagram user
         
         Args:
             recipient_id: Instagram user ID of the recipient
             message_text: Message text to send
+            buttons: Optional list of button dicts (max 3) for Button Template
+                     Format: [{"type": "web_url", "title": "عنوان", "url": "https://..."}]
             
         Returns:
             Dict containing API response
         """
         url = f"{self.BASE_URL}/{self.instagram_user_id}/messages"
         
-        # Updated payload format according to Instagram API documentation
-        payload = {
-            'recipient': {
-                'id': recipient_id
-            },
-            'message': {
-                'text': message_text
+        # ✅ اگر دکمه داریم → Button Template
+        # محدودیت: متن نباید خیلی طولانی باشد (UX)
+        if buttons and len(buttons) > 0 and len(message_text or '') <= 400:
+            payload = {
+                'recipient': {
+                    'id': recipient_id
+                },
+                'message': {
+                    'attachment': {
+                        'type': 'template',
+                        'payload': {
+                            'template_type': 'button',
+                            'text': message_text or " ",  # حداقل یک فاصله (الزامی برای Instagram)
+                            'buttons': buttons[:3]  # Instagram max 3 buttons
+                        }
+                    }
+                }
             }
-        }
+            logger.info(f"📤 Sending Button Template with {len(buttons[:3])} button(s) to {recipient_id}")
+        else:
+            # ✅ اگر دکمه نداریم یا متن خیلی طولانی → text معمولی
+            if buttons and len(message_text or '') > 400:
+                logger.debug(f"Text too long ({len(message_text)} chars) for Button Template, falling back to plain text")
+            
+            payload = {
+                'recipient': {
+                    'id': recipient_id
+                },
+                'message': {
+                    'text': message_text
+                }
+            }
         
         # Updated headers format according to Instagram API documentation
         headers = {
@@ -134,13 +159,14 @@ class InstagramService:
             logger.error(f"Unexpected error sending message to Instagram user {recipient_id}: {e}")
             return {'success': False, 'error': str(e)}
     
-    def send_message_to_customer(self, customer: Customer, message_text: str) -> Dict[str, Any]:
+    def send_message_to_customer(self, customer: Customer, message_text: str, buttons=None) -> Dict[str, Any]:
         """
         Send message to a customer via their Instagram ID
         
         Args:
             customer: Customer instance with Instagram source
             message_text: Text to send
+            buttons: Optional list of CTA buttons for Button Template
             
         Returns:
             Dict containing send result
@@ -151,7 +177,7 @@ class InstagramService:
         if not customer.source_id:
             return {'success': False, 'error': 'Customer has no Instagram ID'}
         
-        return self.send_message(customer.source_id, message_text)
+        return self.send_message(customer.source_id, message_text, buttons=buttons)
     
     def send_typing_indicator(self, recipient_id: str, action: str) -> Dict[str, Any]:
         """

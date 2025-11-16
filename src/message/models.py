@@ -127,6 +127,13 @@ class Message(models.Model):
     is_answered = models.BooleanField(default=False)
     metadata = models.JSONField(null=True, blank=True, help_text="Additional metadata for the message (e.g., AI response metadata)")
     
+    # ✅ CTA Buttons for multi-channel support (Instagram/WhatsApp/Telegram)
+    buttons = models.JSONField(
+        null=True,
+        blank=True,
+        help_text="CTA buttons for this message (Instagram/WhatsApp Button Template). Max 3 buttons. Format: [{'type': 'web_url', 'title': 'عنوان', 'url': 'https://...'}]"
+    )
+    
     # Token tracking for AI responses
     input_tokens = models.IntegerField(null=True, blank=True, help_text="Number of input tokens used (for AI responses)")
     output_tokens = models.IntegerField(null=True, blank=True, help_text="Number of output tokens generated (for AI responses)")
