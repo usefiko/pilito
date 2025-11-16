@@ -905,10 +905,13 @@ Provide a concise summary (max 100 words):"""
             
             prompt_parts.append(
                 "\nINSTRUCTION: Answer the customer's question using the knowledge base above. "
-                "IMPORTANT: "
-                "- If the answer is in the KNOWLEDGE BASE, provide it directly and completely. "
-                "- Only say 'متأسفانه این اطلاعات الان در دسترس نیست' if the information is NOT in the knowledge base. "
-                "- If you see partial information, provide what you have and be helpful. "
+                "CRITICAL RULES: "
+                "- ✅ FIRST: Check if you have relevant chunks in the KNOWLEDGE BASE above. "
+                "- ✅ If chunks are provided → USE THEM! Answer COMPLETELY and FULLY using that information. "
+                "- ✅ If you see ANY relevant information in chunks → Share it ALL, don't be cautious! "
+                "- ❌ ONLY say 'متأسفانه این اطلاعات الان در دسترس نیست' if you have ZERO relevant chunks. "
+                "- ✅ If you see partial information → Provide what you have and be helpful. "
+                "- ✅ Don't be overly cautious - if information exists in chunks, use it fully! "
                 "- Be natural, concise, and friendly."
                 + memory_guidance
             )

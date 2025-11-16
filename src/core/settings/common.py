@@ -445,10 +445,6 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'AI_model.tasks.generate_usage_analytics',
         'schedule': crontab(hour=1, minute=0),  # Every day at 1:00 AM
     },
-    'sync-conversation-ai-status': {
-        'task': 'AI_model.tasks.sync_conversation_ai_status',
-        'schedule': crontab(minute='*/30'),  # Every 30 minutes
-    },
     'test-ai-configuration': {
         'task': 'AI_model.tasks.test_ai_configuration',
         'schedule': crontab(hour='*/12'),  # Every 12 hours

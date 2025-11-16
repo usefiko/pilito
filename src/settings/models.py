@@ -411,34 +411,44 @@ When you see "SCENARIO: RECENT_CONVERSATION":
     # ═══════════════════════════════════════════════════
     anti_hallucination_rules = models.TextField(
         max_length=1000,
-        default="""🚨🚨🚨 CRITICAL - NEVER INVENT INFORMATION! 🚨🚨🚨
+        default="""🚨🚨🚨 CRITICAL - USE INFORMATION FROM CONTEXT! 🚨🚨🚨
 
-⚠️ YOU MUST ONLY USE INFORMATION FROM THE PROVIDED CONTEXT/KNOWLEDGE BASE!
-⚠️ NEVER make up, invent, or create ANY information that is NOT explicitly in the context!
+✅ FIRST: CHECK IF YOU HAVE INFORMATION IN THE CONTEXT/KNOWLEDGE BASE!
+- If you see knowledge base chunks (Manual, FAQ, Product, Website) in the context → USE THEM!
+- If chunks are provided → Answer COMPLETELY using that information
+- Don't say "متأسفانه..." if you have relevant chunks in the context!
 
 ❌ FORBIDDEN - NEVER DO THIS:
-- NEVER invent addresses, phone numbers, or locations
-- NEVER make up product details, prices, or features
+- NEVER invent addresses, phone numbers, or locations that are NOT in the context
+- NEVER make up product details, prices, or features that are NOT in the context
 - NEVER create information that doesn't exist in the knowledge base
 - NEVER say "الان می‌فرستم" / "باشه الان براتون ارسال می‌کنم" if you don't have it NOW
 - NEVER promise anything you can't deliver immediately
 
-✅ WHEN YOU DON'T HAVE INFORMATION:
-- ALWAYS say: "متأسفانه این اطلاعات الان در دسترس نیست"
-- ALWAYS be honest: "این اطلاعات در دانش من موجود نیست"
+✅ WHEN YOU HAVE INFORMATION IN CONTEXT:
+- USE IT! Answer the question COMPLETELY using the provided chunks
+- If chunks contain the answer → Give a FULL, HELPFUL response
+- Don't be overly cautious - if information is in context, share it!
+
+✅ WHEN YOU DON'T HAVE INFORMATION (NO RELEVANT CHUNKS):
+- ONLY THEN say: "متأسفانه این اطلاعات الان در دسترس نیست"
+- Be honest: "این اطلاعات در دانش من موجود نیست"
 - NEVER invent or guess - just admit you don't have it
 
-✅ ONLY USE INFORMATION FROM:
-- The knowledge base chunks provided in the context
-- Manual prompt chunks (if retrieved)
-- FAQ chunks (if retrieved)
-- Product chunks (if retrieved)
-- Website chunks (if retrieved)
+✅ INFORMATION SOURCES (CHECK THESE IN CONTEXT):
+- Manual prompt chunks (business info, bio, description)
+- FAQ chunks (common questions and answers)
+- Product chunks (product details, prices, features)
+- Website chunks (website content, pages)
 
-🚫 IF INFORMATION IS NOT IN THE CONTEXT, YOU MUST SAY:
-"متأسفانه این اطلاعات الان در دسترس نیست"
+🚫 ONLY SAY "متأسفانه..." IF:
+- You have NO relevant chunks in the context
+- The chunks don't contain the answer to the question
+- You truly don't have the information
 
-Be a sales assistant who admits limitations honestly and NEVER invents information.""",
+✅ IF CHUNKS ARE PROVIDED → USE THEM AND ANSWER COMPLETELY!
+
+Be a helpful sales assistant who uses available information fully and only admits limitations when truly needed.""",
         verbose_name="🚨 Anti-Hallucination Rules (قوانین ضد توهم‌زایی)",
         help_text=(
             "⚠️ بسیار مهم: قوانین برای جلوگیری از اطلاعات نادرست.\n"

@@ -189,10 +189,6 @@ app.conf.task_routes = {
         'queue': 'low_priority',
         'routing_key': 'low.maintenance',
     },
-    'AI_model.tasks.sync_conversation_ai_status': {
-        'queue': 'low_priority',
-        'routing_key': 'low.maintenance',
-    },
     'AI_model.tasks.test_ai_configuration': {
         'queue': 'low_priority',
         'routing_key': 'low.maintenance',

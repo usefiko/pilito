@@ -40,11 +40,11 @@ class HybridRetriever:
     
     # Language-specific weights (optimized for each language)
     WEIGHTS_BY_LANGUAGE = {
-        'fa': {'bm25': 0.05, 'vector': 0.95},  # Persian: Vector is king
+        'fa': {'bm25': 0.75, 'vector': 0.25},  # Persian: BM25 heavyweight for exact keywords
         'en': {'bm25': 0.30, 'vector': 0.70},  # English: BM25 stronger
-        'ar': {'bm25': 0.10, 'vector': 0.90},  # Arabic: Similar to Persian
-        'tr': {'bm25': 0.25, 'vector': 0.75},  # Turkish: Between FA and EN
-        'default': {'bm25': 0.20, 'vector': 0.80}  # Default: Vector-focused
+        'ar': {'bm25': 0.65, 'vector': 0.35},  # Arabic: Similar to Persian
+        'tr': {'bm25': 0.50, 'vector': 0.50},  # Turkish: Balanced
+        'default': {'bm25': 0.40, 'vector': 0.60}  # Default: Balanced
     }
     
     @classmethod
@@ -112,6 +112,23 @@ class HybridRetriever:
             f"bm25={len(bm25_results)}, vector={len(vector_results)}, "
             f"final={len(final_results)}, weights=({bm25_weight:.2f}/{vector_weight:.2f})"
         )
+        
+        # 🔍 Debug log for Persian: show top 3 results with sources
+        if language == 'fa' and final_results:
+            logger.info(f"📊 Top 3 results for Persian query:")
+            for i, result in enumerate(final_results[:3], 1):
+                chunk_id = result.get('chunk', {}).get('id') if 'chunk' in result else None
+                if chunk_id:
+                    # Check if from BM25 or Vector
+                    in_bm25 = any(cid == chunk_id for cid, _ in bm25_results)
+                    in_vector = any(cid == chunk_id for cid, _ in vector_results)
+                    source_str = []
+                    if in_bm25: source_str.append('BM25')
+                    if in_vector: source_str.append('Vector')
+                    logger.info(
+                        f"  {i}. {result.get('title', 'N/A')[:40]} "
+                        f"(from: {'+'.join(source_str) if source_str else 'unknown'})"
+                    )
         
         return final_results
     
@@ -385,19 +402,17 @@ class HybridRetriever:
         try:
             from pgvector.django import CosineDistance
             
-            # 🔥 WORLD-CLASS: Adaptive threshold based on language
-            # Persian: Lower threshold (0.98 = similarity > 0.02) for better recall
-            # English: Higher threshold (0.90 = similarity > 0.10) for precision
-            # This compensates for Persian embedding quality differences
+            # 🔥 Adaptive threshold: Very permissive, let hybrid ranking decide
+            # We use top_k and RRF to filter, not hard threshold
             if language == 'fa' or language == 'ar':
-                # Persian/Arabic: Very low threshold for maximum recall
-                distance_threshold = 0.98  # Similarity > 0.02 (very permissive)
+                # Persian/Arabic: Almost no filtering (let BM25-heavy ranking decide)
+                distance_threshold = 0.99  # Similarity > 0.01 (almost everything)
             elif language == 'en':
-                # English: Standard threshold
-                distance_threshold = 0.90  # Similarity > 0.10 (standard)
+                # English: Slightly stricter
+                distance_threshold = 0.95  # Similarity > 0.05
             else:
-                # Default: Balanced threshold
-                distance_threshold = 0.95  # Similarity > 0.05 (balanced)
+                # Default: Balanced
+                distance_threshold = 0.97  # Similarity > 0.03
             
             # Try tldr_embedding first (faster, more focused)
             results = TenantKnowledge.objects.filter(

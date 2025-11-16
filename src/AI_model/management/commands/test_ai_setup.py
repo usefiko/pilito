@@ -133,7 +133,6 @@ class Command(BaseCommand):
                 process_ai_response_async,
                 cleanup_old_usage_data,
                 generate_usage_analytics,
-                sync_conversation_ai_status,
                 test_ai_configuration
             )
             

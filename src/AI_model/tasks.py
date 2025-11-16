@@ -294,56 +294,6 @@ def generate_usage_analytics():
 
 
 @shared_task
-def sync_conversation_ai_status():
-    """
-    Sync conversation AI status based on user preferences
-    Can be run to update existing conversations when settings change
-    """
-    try:
-        from message.models import Conversation
-        from AI_model.utils import get_initial_conversation_status
-        from accounts.models import User
-        
-        updated_count = 0
-        
-        # Get all active conversations
-        conversations = Conversation.objects.filter(is_active=True)
-        
-        for conversation in conversations:
-            try:
-                # Determine what status should be based on current user settings
-                expected_status = get_initial_conversation_status(conversation.user)
-                
-                # Update if different
-                if conversation.status != expected_status:
-                    old_status = conversation.status
-                    conversation.status = expected_status
-                    conversation.save()
-                    updated_count += 1
-                    
-                    logger.info(f"Updated conversation {conversation.id} status from '{old_status}' to '{expected_status}'")
-                    
-            except Exception as e:
-                logger.error(f"Error updating conversation {conversation.id}: {str(e)}")
-                continue
-        
-        logger.info(f"Synced AI status for {updated_count} conversations")
-        
-        return {
-            'success': True,
-            'updated_count': updated_count,
-            'total_processed': conversations.count()
-        }
-        
-    except Exception as e:
-        logger.error(f"Error syncing conversation AI status: {str(e)}")
-        return {
-            'success': False,
-            'error': str(e)
-        }
-
-
-@shared_task
 def test_ai_configuration():
     """
     Test AI configuration for all users
@@ -467,7 +417,7 @@ def chunk_qapair_async(self, qapair_id: str) -> Dict[str, Any]:
         
         if qa.page and qa.page.website and qa.page.website.user:
             # Case 1: QAPair has page -> website -> user
-        user = qa.page.website.user
+            user = qa.page.website.user
         elif qa.user:
             # Case 2: QAPair has direct user reference
             user = qa.user
