@@ -376,19 +376,34 @@ def process_event(self, event_log_id: str):
                                 # Guard with cache key used by AI signal to prevent duplicate enqueue
                                 try:
                                     from django.core.cache import cache
+                                    from message.models import Message
+                                    
                                     cache_key = f"ai_processing_{message_id}"
                                     if cache.get(cache_key):
                                         logger.info(f"AI fallback skipped for message {message_id}: already scheduled/processing")
                                     else:
-                                        # Set a short-lived lock to avoid race, then enqueue via adapter
-                                        cache.set(cache_key, True, timeout=300)
-                                        success = call_ai_fallback_task(message_id, event_log.conversation_id)
-                                        if success:
-                                            result['ai_fallback_called'] = True
-                                            logger.info(f"Called AI fallback for message {message_id}")
-                                        else:
-                                            result['ai_fallback_failed'] = True
-                                            logger.warning(f"Failed to call AI fallback for message {message_id}")
+                                        # ✅ Check if message is a share (waiting for follow-up)
+                                        try:
+                                            msg = Message.objects.get(id=message_id)
+                                            if (hasattr(msg, 'message_type') and 
+                                                hasattr(msg.conversation, 'source') and
+                                                msg.conversation.source == 'instagram' and 
+                                                msg.message_type == 'share'):
+                                                logger.info(f"AI fallback skipped for message {message_id}: Instagram share (waiting for follow-up question)")
+                                                # Skip AI fallback for share - handled by signals.py delay logic
+                                                pass
+                                            else:
+                                                # Set a short-lived lock to avoid race, then enqueue via adapter
+                                                cache.set(cache_key, True, timeout=300)
+                                                success = call_ai_fallback_task(message_id, event_log.conversation_id)
+                                                if success:
+                                                    result['ai_fallback_called'] = True
+                                                    logger.info(f"Called AI fallback for message {message_id}")
+                                                else:
+                                                    result['ai_fallback_failed'] = True
+                                                    logger.warning(f"Failed to call AI fallback for message {message_id}")
+                                        except Message.DoesNotExist:
+                                            logger.warning(f"Message {message_id} not found, skipping AI fallback")
                                 except Exception as cache_err:
                                     logger.warning(f"AI fallback cache guard failed: {cache_err}")
                 except Exception as e:
