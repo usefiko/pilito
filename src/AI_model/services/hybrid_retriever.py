@@ -117,7 +117,7 @@ class HybridRetriever:
         if language == 'fa' and final_results:
             logger.info(f"📊 Top 3 results for Persian query:")
             for i, result in enumerate(final_results[:3], 1):
-                chunk_id = result.get('chunk', {}).get('id') if 'chunk' in result else None
+                chunk_id = result.get('id')
                 if chunk_id:
                     # Check if from BM25 or Vector
                     in_bm25 = any(cid == chunk_id for cid, _ in bm25_results)
@@ -127,7 +127,7 @@ class HybridRetriever:
                     if in_vector: source_str.append('Vector')
                     logger.info(
                         f"  {i}. {result.get('title', 'N/A')[:40]} "
-                        f"(from: {'+'.join(source_str) if source_str else 'unknown'})"
+                        f"(id: {chunk_id}, from: {'+'.join(source_str) if source_str else 'unknown'}, score: {result.get('score', 0):.4f})"
                     )
         
         return final_results
@@ -555,6 +555,7 @@ class HybridRetriever:
                 continue  # Skip if chunk not found
             
             results.append({
+                'id': chunk.id,  # ✅ Add ID for debugging
                 'title': chunk.section_title or 'N/A',
                 'content': chunk.full_text,  # ✅ Full content, no truncation
                 'score': score_map.get(chunk.id, 0),
@@ -595,12 +596,13 @@ class HybridRetriever:
             
             results = []
             for chunk in chunks:
-                    results.append({
-                        'title': chunk.section_title or 'N/A',
+                results.append({
+                    'id': chunk.id,  # ✅ Add ID for debugging
+                    'title': chunk.section_title or 'N/A',
                     'content': chunk.full_text,  # ✅ Full content, no truncation
-                        'score': float(chunk.rank) if hasattr(chunk, 'rank') else 0.5,
+                    'score': float(chunk.rank) if hasattr(chunk, 'rank') else 0.5,
                     'source': chunk.chunk_type
-                    })
+                })
             
             return results
             

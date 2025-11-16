@@ -38,10 +38,10 @@ class QueryRouter:
             'tr': ['nasıl', 'rehber', 'öğretici', 'adımlar', 'yardım']
         },
         'contact': {
-            'fa': ['تماس', 'ارتباط', 'پشتیبانی', 'شماره', 'ایمیل', 'آدرس', 'ساعت کاری', 'تلفن'],
-            'en': ['contact', 'support', 'phone', 'email', 'address', 'reach', 'hours', 'location', 'call'],
-            'ar': ['اتصال', 'دعم', 'هاتف', 'بريد', 'عنوان', 'موقع'],
-            'tr': ['iletişim', 'destek', 'telefon', 'e-posta', 'adres', 'konum']
+            'fa': ['تماس', 'ارتباط', 'پشتیبانی', 'شماره', 'ایمیل', 'آدرس', 'ساعت کاری', 'تلفن', 'بیوگرافی', 'بیو', 'درباره', 'درباره ما', 'کی هستیم', 'چه کسی', 'ما', 'مزون'],
+            'en': ['contact', 'support', 'phone', 'email', 'address', 'reach', 'hours', 'location', 'call', 'about', 'about us', 'who are', 'bio', 'biography'],
+            'ar': ['اتصال', 'دعم', 'هاتف', 'بريد', 'عنوان', 'موقع', 'من نحن', 'نبذة'],
+            'tr': ['iletişim', 'destek', 'telefon', 'e-posta', 'adres', 'konum', 'hakkında', 'biz kimiz']
         }
     }
     
@@ -162,7 +162,16 @@ class QueryRouter:
     @classmethod
     def _load_keywords(cls, user=None) -> Dict:
         """
-        Load keywords from IntentKeyword model or use defaults
+        Load keywords from IntentKeyword model (database only)
+        
+        ⚠️ IMPORTANT: All keywords should be in database!
+        Run: python manage.py seed_default_keywords to populate defaults
+        
+        Priority:
+        1. User-specific keywords (if user provided)
+        2. Global keywords from database
+        3. Fallback to defaults (only if DB is empty - should not happen in production)
+        
         Caches results for 1 hour
         """
         cache_key = f"intent_keywords:{user.id if user else 'global'}"
@@ -173,44 +182,86 @@ class QueryRouter:
         try:
             from AI_model.models import IntentKeyword
             
+            # Get all intents from DB (or use defaults as fallback)
+            # First, check what intents exist in DB
+            db_intents = set(
+                IntentKeyword.objects.filter(
+                    is_active=True,
+                    user__isnull=True  # Only global for intent discovery
+                ).values_list('intent', flat=True).distinct()
+            )
+            
+            # Use DB intents if available, otherwise use default intents
+            intents_to_check = db_intents if db_intents else set(cls.DEFAULT_KEYWORDS.keys())
+            
             # Get keywords from DB (global + user-specific)
-            db_keywords = {intent: {} for intent in cls.DEFAULT_KEYWORDS.keys()}
+            db_keywords = {intent: {} for intent in intents_to_check}
             
-            for intent in cls.DEFAULT_KEYWORDS.keys():
+            for intent in intents_to_check:
                 for lang in ['fa', 'en', 'ar', 'tr']:
-                    keywords = IntentKeyword.objects.filter(
-                        intent=intent,
-                        language=lang,
-                        is_active=True
-                    ).filter(
-                        models.Q(user=user) | models.Q(user__isnull=True)
-                    ).values_list('keyword', flat=True)
+                    # Get user-specific keywords first (if user provided)
+                    user_keywords = []
+                    if user:
+                        user_keywords = list(
+                            IntentKeyword.objects.filter(
+                                intent=intent,
+                                language=lang,
+                                is_active=True,
+                                user=user
+                            ).values_list('keyword', flat=True)
+                        )
                     
-                    if keywords:
-                        db_keywords[intent][lang] = list(keywords)
+                    # Get global keywords
+                    global_keywords = list(
+                        IntentKeyword.objects.filter(
+                            intent=intent,
+                            language=lang,
+                            is_active=True,
+                            user__isnull=True
+                        ).values_list('keyword', flat=True)
+                    )
+                    
+                    # Combine: user-specific first, then global
+                    # User-specific keywords override global ones (no duplicates)
+                    all_keywords = list(dict.fromkeys(user_keywords + global_keywords))  # Preserve order, remove duplicates
+                    
+                    if all_keywords:
+                        db_keywords[intent][lang] = all_keywords
             
-            # Fallback to defaults if DB is empty
+            # Check if DB has any keywords
             has_data = any(
                 any(db_keywords[intent].values()) 
                 for intent in db_keywords
             )
             
             if not has_data:
+                # ⚠️ No keywords in DB → use defaults as fallback (should not happen in production)
+                logger.warning(
+                    "⚠️ No keywords found in database! Using fallback defaults. "
+                    "Run: python manage.py seed_default_keywords to populate database."
+                )
                 db_keywords = cls.DEFAULT_KEYWORDS
-                logger.debug("Using default keywords (DB empty)")
             else:
-                # Merge defaults with DB keywords
-                for intent in cls.DEFAULT_KEYWORDS:
-                    for lang in cls.DEFAULT_KEYWORDS[intent]:
-                        if lang not in db_keywords[intent] or not db_keywords[intent][lang]:
-                            db_keywords[intent][lang] = cls.DEFAULT_KEYWORDS[intent][lang]
+                # ✅ DB has keywords → use ONLY database keywords (no fallback to defaults)
+                # Fill missing intent/lang combinations with empty list (not defaults)
+                for intent in intents_to_check:
+                    for lang in ['fa', 'en', 'ar', 'tr']:
+                        if lang not in db_keywords[intent]:
+                            db_keywords[intent][lang] = []  # Empty, not default
+                
+                logger.info(
+                    f"✅ Using DB keywords only: "
+                    f"{sum(len(langs) for langs in db_keywords.values())} intent/lang combinations, "
+                    f"{sum(sum(len(kw_list) for kw_list in langs.values()) for langs in db_keywords.values())} total keywords"
+                )
             
             # Cache for 1 hour
             cache.set(cache_key, db_keywords, 3600)
             return db_keywords
             
         except Exception as e:
-            logger.warning(f"Failed to load keywords from DB: {e}, using defaults")
+            logger.error(f"❌ Failed to load keywords from DB: {e}, using fallback defaults")
+            logger.warning("⚠️ This should not happen in production. Check database connection.")
             return cls.DEFAULT_KEYWORDS
     
     @classmethod

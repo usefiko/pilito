@@ -200,6 +200,7 @@ class ContextRetriever:
                         continue
                     
                     results.append({
+                        'id': chunk.id,  # ✅ Add ID for debugging
                         'title': chunk.section_title or f"{chunk.chunk_type.upper()} Chunk",
                         'content': chunk.full_text,
                         'type': chunk.chunk_type,
@@ -231,6 +232,7 @@ class ContextRetriever:
                 results = []
                 for chunk in chunks:
                     results.append({
+                        'id': chunk.id,  # ✅ Add ID for debugging
                         'title': chunk.section_title or f"{chunk.chunk_type.upper()} Chunk",
                         'content': chunk.full_text,
                         'type': chunk.chunk_type,
@@ -304,6 +306,7 @@ class ContextRetriever:
             
             for chunk in recent_primary:
                 primary_chunks.append({
+                    'id': chunk.id,  # ✅ Add ID for debugging
                     'title': chunk.section_title or f"{chunk.chunk_type.upper()} Info",
                     'content': chunk.full_text[:500],  # Limit to 500 chars
                     'type': chunk.chunk_type,
@@ -321,6 +324,7 @@ class ContextRetriever:
                 
                 for chunk in recent_secondary:
                     secondary_chunks.append({
+                        'id': chunk.id,  # ✅ Add ID for debugging
                         'title': chunk.section_title or f"{chunk.chunk_type.upper()} Info",
                         'content': chunk.full_text[:300],
                         'type': chunk.chunk_type,
