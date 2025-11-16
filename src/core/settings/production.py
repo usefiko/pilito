@@ -23,7 +23,7 @@ LOGGING = {
             'level': 'INFO',
             'class': 'logging.handlers.RotatingFileHandler',
             'formatter': 'production',
-            'filename': '/var/log/fiko/app.log',
+            'filename': '/app/logs/django.log',
             'maxBytes': 10485760,  # 10MB
             'backupCount': 5
         }
@@ -193,99 +193,6 @@ if SENTRY_AVAILABLE:
         send_default_pii=True
     )
     print("✅ Sentry error monitoring enabled")
-
-# Logging Configuration برای Debug کردن WebSocket
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'handlers': {
-        'file': {
-            'level': 'INFO',
-            'class': 'logging.FileHandler',
-            'filename': '/app/logs/django.log',
-        },
-        'console': {
-            'level': 'WARNING',
-            'class': 'logging.StreamHandler',
-        },
-    },
-    'loggers': {
-        # Suppress verbose AWS SDK logs
-        'boto3': {
-            'handlers': ['file', 'console'],
-            'level': 'WARNING',
-            'propagate': False,
-        },
-        'botocore': {
-            'handlers': ['file', 'console'],
-            'level': 'WARNING',
-            'propagate': False,
-        },
-        'urllib3': {
-            'handlers': ['file', 'console'],
-            'level': 'WARNING',
-            'propagate': False,
-        },
-        's3transfer': {
-            'handlers': ['file', 'console'],
-            'level': 'WARNING',
-            'propagate': False,
-        },
-        # Suppress Daphne/Channels access chatter
-        'daphne.access': {
-            'handlers': ['file', 'console'],
-            'level': 'ERROR',
-            'propagate': False,
-        },
-        'daphne.server': {
-            'handlers': ['file', 'console'],
-            'level': 'ERROR',
-            'propagate': False,
-        },
-        'daphne.ws_protocol': {
-            'handlers': ['file', 'console'],
-            'level': 'ERROR',
-            'propagate': False,
-        },
-        'daphne.http_protocol': {
-            'handlers': ['file', 'console'],
-            'level': 'ERROR',
-            'propagate': False,
-        },
-        'twisted': {
-            'handlers': ['file', 'console'],
-            'level': 'ERROR',
-            'propagate': False,
-        },
-        # Application specific loggers
-        'message.consumers': {
-            'handlers': ['file', 'console'],
-            'level': 'INFO',
-            'propagate': True,
-        },
-        'message.middleware': {
-            'handlers': ['file', 'console'],
-            'level': 'INFO',
-            'propagate': True,
-        },
-        # Suppress noisy JWT cache warnings in production
-        'accounts.functions.jwt': {
-            'handlers': ['file', 'console'],
-            'level': 'ERROR',
-            'propagate': False,
-        },
-        'channels': {
-            'handlers': ['file', 'console'],
-            'level': 'WARNING',
-            'propagate': True,
-        },
-        'django': {
-            'handlers': ['file', 'console'],
-            'level': 'WARNING',
-            'propagate': True,
-        },
-    },
-}
 # ✅ Security settings for HTTPS only
 CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_SECURE = True
