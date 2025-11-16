@@ -26,6 +26,11 @@ done
 
 echo "✅ Redis is up and running!"
 
+# Create logs directory if it doesn't exist
+echo "📁 Creating logs directory..."
+mkdir -p /app/logs
+chmod 755 /app/logs
+
 # Only run migrations and collectstatic for web service
 if [[ "$1" == "gunicorn"* ]]; then
     echo "🔄 Running Django migrations..."
