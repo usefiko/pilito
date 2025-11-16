@@ -12,6 +12,39 @@ logger = logging.getLogger(__name__)
 
 
 # ============================================================================
+# INSTAGRAM SHARE DELAY LOGIC
+# ============================================================================
+
+@shared_task(name='message.process_pending_share_timeout')
+def process_pending_share_timeout(conversation_id: str):
+    """
+    Timeout handler for Instagram share messages.
+    
+    If no follow-up question arrives within 2 minutes after a share,
+    this task clears the cache (no AI response is sent).
+    
+    Args:
+        conversation_id: Conversation ID to check for pending share
+    """
+    from django.core.cache import cache
+    
+    cache_key = f"pending_share_{conversation_id}"
+    pending_share_id = cache.get(cache_key)
+    
+    if not pending_share_id:
+        logger.debug(f"No pending share for conversation {conversation_id} (already processed or cleared)")
+        return
+    
+    # ✅ Clear cache without triggering AI (user decision: don't respond to share alone)
+    cache.delete(cache_key)
+    logger.info(f"⏰ Timeout for share {pending_share_id} - no question received, cleared cache (no AI response)")
+    
+    # ❌ Do NOT trigger AI for share alone:
+    # from AI_model.tasks import process_ai_response_async
+    # process_ai_response_async.delay(str(pending_share_id))
+
+
+# ============================================================================
 # INTERCOM INTEGRATION TASKS
 # ============================================================================
 

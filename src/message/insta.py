@@ -382,7 +382,45 @@ class InstaWebhook(APIView):
                 # Instagram sends attachments as array
                 for attachment in attachments:
                     attach_type = attachment.get('type')
-                    if attach_type == 'image':
+                    
+                    # ✅ Instagram post/reel share
+                    if attach_type == 'share':
+                        message_type = 'share'
+                        payload = attachment.get('payload', {}) or {}
+                        
+                        # Extract caption and metadata from payload
+                        title = payload.get('title', '')
+                        subtitle = payload.get('subtitle', '')
+                        caption = payload.get('caption', '')
+                        url = payload.get('url', '')
+                        media_id = payload.get('id', '')
+                        
+                        # Build readable text for AI
+                        share_text_parts = []
+                        if title:
+                            share_text_parts.append(f"عنوان: {title}")
+                        if subtitle:
+                            share_text_parts.append(f"زیرعنوان: {subtitle}")
+                        if caption:
+                            share_text_parts.append(f"کپشن: {caption}")
+                        if url:
+                            share_text_parts.append(f"لینک: {url}")
+                        
+                        # If no text info, use placeholder
+                        share_content = "\n".join(share_text_parts) if share_text_parts else "[پست/ریلز اینستاگرام]"
+                        
+                        # Use share_content as placeholder_text
+                        placeholder_text = share_content
+                        media_url = url  # For UI display
+                        
+                        logger.info(f"📱 Instagram share received from {sender_id}")
+                        logger.info(f"   Caption: {caption[:80] if caption else 'N/A'}...")
+                        logger.info(f"   Title: {title}")
+                        logger.info(f"   URL: {url}")
+                        
+                        break  # ✅ Important: stop checking other types
+                        
+                    elif attach_type == 'image':
                         message_type = 'image'
                         media_url = attachment.get('payload', {}).get('url')
                         placeholder_text = "[Image]"
@@ -818,24 +856,57 @@ class InstaWebhook(APIView):
                     logger.info(f"✅ Owner message from Instagram broadcasted to websocket: {message_obj.id}")
                 
             else:
-                # Image or Voice message
-                message_obj = Message.objects.create(
-                    content=placeholder_text,
-                    conversation=conversation,
-                    customer=customer,
-                    type=msg_type,
-                    message_type=message_type,
-                    media_url=media_url,  # Instagram provides direct URL
-                    processing_status='pending'
-                )
-                logger.info(f"✅ {message_type.capitalize()} message created (pending): {message_obj.id} (type={msg_type})")
+                # Image, Voice, or Share message
+                if message_type == 'share':
+                    # ✅ Share: save with caption (completed, no immediate AI trigger)
+                    message_obj = Message.objects.create(
+                        content=placeholder_text,  # Contains caption from share
+                        conversation=conversation,
+                        customer=customer,
+                        type=msg_type,
+                        message_type='share',
+                        media_url=media_url,
+                        processing_status='completed'  # Caption is ready
+                    )
+                    logger.info(f"✅ Share message created: {message_obj.id}")
+                    logger.info(f"   Content preview: {message_obj.content[:100] if message_obj.content else 'N/A'}...")
+                    
+                    # ✅ Only WebSocket notify (NO cache/timeout/AI here - signals.py handles it)
+                    if is_customer_message:
+                        notify_new_customer_message(message_obj)
                 
-                # Queue async processing
-                if message_type == 'image':
+                elif message_type == 'image':
+                    # Image message
+                    message_obj = Message.objects.create(
+                        content=placeholder_text,
+                        conversation=conversation,
+                        customer=customer,
+                        type=msg_type,
+                        message_type=message_type,
+                        media_url=media_url,  # Instagram provides direct URL
+                        processing_status='pending'
+                    )
+                    logger.info(f"✅ {message_type.capitalize()} message created (pending): {message_obj.id} (type={msg_type})")
+                    
+                    # Queue async processing
                     from message.tasks_instagram_media import process_instagram_image
                     logger.info(f"📤 Queueing Instagram image processing for {message_obj.id}")
                     process_instagram_image.delay(str(message_obj.id), media_url, channel.access_token)
+                    
                 elif message_type == 'voice':
+                    # Voice message
+                    message_obj = Message.objects.create(
+                        content=placeholder_text,
+                        conversation=conversation,
+                        customer=customer,
+                        type=msg_type,
+                        message_type=message_type,
+                        media_url=media_url,  # Instagram provides direct URL
+                        processing_status='pending'
+                    )
+                    logger.info(f"✅ {message_type.capitalize()} message created (pending): {message_obj.id} (type={msg_type})")
+                    
+                    # Queue async processing
                     from message.tasks_instagram_media import process_instagram_voice
                     logger.info(f"📤 Queueing Instagram voice processing for {message_obj.id}")
                     process_instagram_voice.delay(str(message_obj.id), media_url, channel.access_token)

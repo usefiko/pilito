@@ -109,6 +109,7 @@ class Message(models.Model):
         ('voice', 'Voice Message'),
         ('image', 'Image Message'),
         ('video', 'Video Message'),  # Future
+        ('share', 'Post/Reel Share'),  # Instagram post/reel share
     ]
     PROCESSING_STATUS_CHOICES = [
         ('completed', 'Completed'),

@@ -43,6 +43,79 @@ def handle_new_customer_message(sender, instance, created, **kwargs):
             logger.info(f"Skipping message {instance.id} - {instance.message_type} message still processing (status: {instance.processing_status})")
             return
     
+    # ✅ ✅ ✅ INSTAGRAM SHARE DELAY LOGIC ✅ ✅ ✅
+    # Must be BEFORE conversation status check and other AI logic
+    if (hasattr(instance, 'message_type') and 
+        hasattr(instance.conversation, 'source')):
+        
+        # 1️⃣ Instagram Share: Set pending and wait for question
+        if (instance.conversation.source == 'instagram' and 
+            instance.message_type == 'share'):
+            
+            from django.core.cache import cache
+            
+            conversation_id = str(instance.conversation.id)
+            cache_key = f"pending_share_{conversation_id}"
+            
+            # Save share ID in cache
+            cache.set(cache_key, str(instance.id), timeout=120)
+            
+            # Schedule timeout task
+            from message.tasks import process_pending_share_timeout
+            process_pending_share_timeout.apply_async(
+                args=[conversation_id],
+                countdown=120
+            )
+            
+            logger.info(f"⏳ Instagram share detected - waiting for follow-up question")
+            logger.info(f"   Message ID: {instance.id}")
+            logger.info(f"   Caption preview: {instance.content[:80] if instance.content else 'N/A'}...")
+            logger.info(f"   Timeout: 120s")
+            
+            # ✅ Critical: return - do NOT trigger AI for share alone
+            return
+        
+        # 2️⃣ Instagram Text: Check if pending share exists, combine
+        if (instance.conversation.source == 'instagram' and 
+            instance.message_type == 'text'):
+            
+            from django.core.cache import cache
+            from message.models import Message
+            
+            conversation_id = str(instance.conversation.id)
+            cache_key = f"pending_share_{conversation_id}"
+            pending_share_id = cache.get(cache_key)
+            
+            if pending_share_id:
+                try:
+                    share_msg = Message.objects.get(id=pending_share_id)
+                    
+                    # Combine share context + user question
+                    combined_content = (
+                        "[CONTEXT: پست/ریلز اینستاگرام که کاربر فرستاده]\n"
+                        f"{share_msg.content}\n"
+                        "[/CONTEXT]\n\n"
+                        "[سوال کاربر]:\n"
+                        f"{instance.content}"
+                    )
+                    
+                    # ✅ Update content (this save will have created=False, so signal returns early)
+                    instance.content = combined_content
+                    instance.save(update_fields=['content'])
+                    
+                    logger.info(f"✅ Combined share + question for AI processing")
+                    logger.info(f"   Share ID: {share_msg.id}")
+                    logger.info(f"   Question ID: {instance.id}")
+                    logger.info(f"   Combined content length: {len(combined_content)} chars")
+                    
+                    # Clear cache
+                    cache.delete(cache_key)
+                    
+                except Message.DoesNotExist:
+                    logger.warning(f"Pending share {pending_share_id} not found in DB")
+                    cache.delete(cache_key)
+    # ✅ ✅ ✅ END INSTAGRAM SHARE LOGIC ✅ ✅ ✅
+    
     # Check if conversation should be handled by AI
     if instance.conversation.status != 'active':
         logger.info(f"Skipping AI processing for conversation {instance.conversation.id} - status is '{instance.conversation.status}', not 'active'")

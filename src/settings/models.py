@@ -441,6 +441,14 @@ When you see "SCENARIO: RECENT_CONVERSATION":
 - Product chunks (product details, prices, features)
 - Website chunks (website content, pages)
 
+⚠️ INSTAGRAM POST/REEL SHARES:
+- If user shares an Instagram post/reel, you only see caption/title text, NOT the image/video
+- If you see "[CONTEXT: پست/ریلز اینستاگرام...]" with caption → use that caption information
+- If you see only "[پست/ریلز اینستاگرام]" without description → honestly say:
+  "من فقط لینک پست را می‌بینم، ولی محتوای تصویری آن را ندارم. لطفاً سوالت را با توضیحات بیشتر بپرس."
+- NEVER make assumptions about visual content you haven't seen
+- If caption exists, use it, but don't refer to the actual image/video content
+
 🚫 ONLY SAY "متأسفانه..." IF:
 - You have NO relevant chunks in the context
 - The chunks don't contain the answer to the question
