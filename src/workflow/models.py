@@ -64,6 +64,7 @@ class Trigger(models.Model):
         ('WEBHOOK', 'Webhook'),
         ('MANUAL', 'Manual'),
         ('CUSTOM', 'Custom'),
+        ('INSTAGRAM_COMMENT', 'Instagram Comment'),
     ]
     
     SCHEDULE_TYPE_CHOICES = [
@@ -188,6 +189,7 @@ class Action(models.Model):
         ('set_conversation_status', 'Set Conversation Status'),
         ('control_ai_response', 'Control AI Response'),
         ('update_ai_context', 'Update AI Context'),
+        ('instagram_comment_dm_reply', 'Instagram Comment → DM + Reply'),
     ]
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

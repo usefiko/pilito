@@ -203,19 +203,35 @@ class TriggerService:
                     return None
             
             # For events without conversation_id (like USER_CREATED), resolve owner from Customer.user
-            if event_log.event_type == 'USER_CREATED':
+            if event_log.event_type in ['USER_CREATED', 'INSTAGRAM_COMMENT']:
                 try:
-                    from workflow.settings_adapters import get_model_class
-                    CustomerModel = get_model_class('USER')  # In this project this maps to message.Customer
-                    if event_log.user_id:
+                    # ✅ First: try event_log.user (direct relationship)
+                    if event_log.user:
+                        return event_log.user.id
+                    
+                    # ✅ For INSTAGRAM_COMMENT: fallback to channel_id in event_data
+                    if event_log.event_type == 'INSTAGRAM_COMMENT':
+                        channel_id = event_log.event_data.get('channel_id')
+                        if channel_id:
+                            from settings.models import InstagramChannel
+                            try:
+                                channel = InstagramChannel.objects.select_related('user').get(id=channel_id)
+                                return channel.user.id
+                            except InstagramChannel.DoesNotExist:
+                                logger.warning(f"Instagram channel {channel_id} not found")
+                    
+                    # For USER_CREATED: try from Customer
+                    if event_log.event_type == 'USER_CREATED' and event_log.user_id:
+                        from workflow.settings_adapters import get_model_class
+                        CustomerModel = get_model_class('USER')  # In this project this maps to message.Customer
                         customer = CustomerModel.objects.select_related('user').get(id=event_log.user_id)
                         owner = getattr(customer, 'user', None)
                         if owner and getattr(owner, 'id', None):
                             return owner.id
                 except Exception as ue:
-                    logger.warning(f"Could not resolve owner for USER_CREATED {event_log.user_id}: {ue}")
+                    logger.warning(f"Could not resolve owner for {event_log.event_type} {event_log.user_id}: {ue}")
                 # If cannot resolve, skip to preserve isolation
-                logger.info("USER_CREATED event: owner not resolved; skipping for isolation")
+                logger.info(f"{event_log.event_type} event: owner not resolved; skipping for isolation")
                 return None
             
             # For other events, if no conversation_id, we can't determine ownership

@@ -274,6 +274,171 @@ class InstagramService:
             logger.error(f"Error getting Instagram service for conversation {conversation.id}: {e}")
             return None
     
+    @classmethod
+    def get_service_for_channel_id(cls, channel_id: str) -> Optional['InstagramService']:
+        """
+        Get InstagramService instance for given InstagramChannel.id
+        ⚠️ Only for Business/Creator accounts (enforced)
+        
+        Args:
+            channel_id: UUID string of InstagramChannel
+            
+        Returns:
+            InstagramService instance or None
+        """
+        try:
+            channel = InstagramChannel.objects.get(id=channel_id, is_connect=True)
+            
+            # ✅ Enforce account type for comment actions
+            account_type = getattr(channel, 'account_type', None)
+            if account_type not in ['business', 'creator']:
+                logger.error(
+                    f"Instagram channel {channel_id} is not Business/Creator "
+                    f"(type={account_type}). Comment actions require Business account."
+                )
+                return None
+            
+            if not channel.access_token or not channel.instagram_user_id:
+                logger.error(f"Instagram channel {channel_id} missing credentials")
+                return None
+                
+            return cls(channel.access_token, channel.instagram_user_id)
+            
+        except InstagramChannel.DoesNotExist:
+            logger.error(f"Instagram channel {channel_id} not found")
+            return None
+        except Exception as e:
+            logger.error(f"Error getting Instagram service: {e}")
+            return None
+    
+    def get_media_permalink(self, media_id: str) -> Optional[str]:
+        """
+        Get Instagram media permalink (actual URL)
+        
+        ⚠️ Don't assume media_id is short code
+        Must use Graph API to get real permalink
+        
+        Args:
+            media_id: Instagram media ID (numeric or encoded)
+            
+        Returns:
+            Permalink URL (https://www.instagram.com/p/XXX/) or None
+        """
+        url = f"{self.BASE_URL}/{media_id}"
+        
+        headers = {
+            'Authorization': f'Bearer {self.access_token}',
+            'Content-Type': 'application/json'
+        }
+        
+        params = {
+            'fields': 'permalink'
+        }
+        
+        try:
+            response = make_request_with_proxy(
+                'get',
+                url,
+                params=params,
+                headers=headers,
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                permalink = data.get('permalink')
+                if permalink:
+                    logger.info(f"✅ Got permalink for media {media_id}: {permalink}")
+                    return permalink
+                else:
+                    logger.warning(f"No permalink in response for media {media_id}")
+                    return None
+            else:
+                logger.warning(f"Failed to get permalink: {response.status_code}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error getting media permalink: {e}")
+            return None
+    
+    def send_dm_by_instagram_id(self, ig_user_id: str, text: str, buttons=None) -> Dict[str, Any]:
+        """
+        Send DM to Instagram user by their IG user ID
+        
+        Args:
+            ig_user_id: Instagram user ID (IGID)
+            text: Message text
+            buttons: Optional CTA buttons (use existing Button Template support)
+            
+        Returns:
+            Dict with 'success', 'message_id', 'error'
+        """
+        # Use existing send_message method
+        return self.send_message(
+            recipient_id=ig_user_id,
+            message_text=text,
+            buttons=buttons
+        )
+    
+    def reply_to_comment(self, comment_id: str, text: str) -> Dict[str, Any]:
+        """
+        Reply to an Instagram comment
+        
+        Requires: instagram_business_manage_comments permission
+        
+        Args:
+            comment_id: Instagram comment ID
+            text: Reply text (max 300 chars for safety)
+            
+        Returns:
+            Dict with 'success', 'comment_id', 'error'
+        """
+        url = f"{self.BASE_URL}/{comment_id}/replies"
+        
+        payload = {
+            "message": text[:300]  # Instagram comment character limit
+        }
+        
+        headers = {
+            'Authorization': f'Bearer {self.access_token}',
+            'Content-Type': 'application/json'
+        }
+        
+        try:
+            response = make_request_with_proxy(
+                'post',
+                url,
+                json=payload,
+                headers=headers,
+                timeout=15
+            )
+            
+            logger.info(f"Instagram comment reply API response: {response.status_code}")
+            
+            if response.status_code == 200:
+                result = response.json()
+                return {
+                    'success': True,
+                    'comment_id': result.get('id'),
+                    'data': result
+                }
+            else:
+                error_data = response.json() if response.text else {}
+                error_msg = error_data.get('error', {}).get('message', response.text)
+                logger.error(f"Instagram comment reply failed: {error_msg}")
+                return {
+                    'success': False,
+                    'error': error_msg,
+                    'status_code': response.status_code
+                }
+                
+        except Exception as e:
+            logger.error(f"Error replying to Instagram comment: {e}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
     def get_user_info(self, user_id: str = None) -> Dict[str, Any]:
         """
         Get information about Instagram user INCLUDING biography

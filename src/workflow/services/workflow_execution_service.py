@@ -240,6 +240,11 @@ class WorkflowExecutionService:
         )
         
         try:
+            # ✅ Pass workflow_action through context for actions that need access to .config
+            # This avoids changing _execute_action signature and breaking existing code
+            context_with_action = dict(context)
+            context_with_action['_workflow_action'] = workflow_action
+            
             # Check if action has a condition
             if workflow_action.condition:
                 condition_config = {
@@ -249,7 +254,7 @@ class WorkflowExecutionService:
                     'custom_code': workflow_action.condition.custom_code
                 }
                 
-                if not evaluate_conditions(condition_config, context):
+                if not evaluate_conditions(condition_config, context_with_action):
                     action_execution.status = 'SKIPPED'
                     action_execution.completed_at = timezone.now()
                     action_execution.result_data = {'reason': 'Condition not met'}
@@ -278,7 +283,7 @@ class WorkflowExecutionService:
             
             # Execute the action
             start_time = time.time()
-            result = self._execute_action(workflow_action.action, context)
+            result = self._execute_action(workflow_action.action, context_with_action)
             duration = time.time() - start_time
             
             # Update execution record
@@ -291,7 +296,7 @@ class WorkflowExecutionService:
             ActionLog.objects.create(
                 action=workflow_action.action,
                 duration=duration,
-                context=context,
+                context=context_with_action,
                 result=result,
                 success=True
             )
@@ -310,7 +315,7 @@ class WorkflowExecutionService:
             ActionLog.objects.create(
                 action=workflow_action.action,
                 duration=time.time() - start_time if 'start_time' in locals() else 0,
-                context=context,
+                context=context_with_action if 'context_with_action' in locals() else context,
                 result={},
                 success=False,
                 error_message=str(e)
@@ -359,6 +364,8 @@ class WorkflowExecutionService:
             return self._execute_control_ai_response(config, context)
         elif action.action_type == 'update_ai_context':
             return self._execute_update_ai_context(config, context)
+        elif action.action_type == 'instagram_comment_dm_reply':
+            return self._execute_instagram_comment_action(config, context)
         else:
             raise ValueError(f"Unknown action type: {action.action_type}")
     
@@ -990,4 +997,51 @@ class WorkflowExecutionService:
         except Exception as e:
             logger.error(f"Error updating AI context: {e}")
             raise
+    
+    def _execute_instagram_comment_action(self, config: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Execute instagram_comment_dm_reply action
+        
+        This action sends a DM and optionally replies to an Instagram comment
+        
+        Args:
+            config: Not used (config comes from workflow_action.config, accessed via context)
+            context: Execution context containing event data and workflow_action
+            
+        Returns:
+            Action execution result
+        """
+        from workflow.services.instagram_comment_action import handle_instagram_comment_dm_reply
+        
+        event = context.get('event', {})
+        event_data = event.get('data', {}) if isinstance(event, dict) else {}
+        
+        # ✅ Get user from context (set by TriggerService)
+        user = None
+        if 'workflow_owner_id' in context:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            try:
+                user = User.objects.get(id=context['workflow_owner_id'])
+            except User.DoesNotExist:
+                raise ValueError(f"User {context['workflow_owner_id']} not found")
+        else:
+            raise ValueError("workflow_owner_id not found in context for instagram_comment action")
+        
+        # ✅ Get workflow_action from context (we need it for .config)
+        # The workflow_action is passed through context in _execute_workflow_action
+        workflow_action = context.get('_workflow_action')
+        if not workflow_action:
+            # Fallback: try to get from action_execution if available
+            # This should not happen in normal flow, but safety check
+            raise ValueError("workflow_action not found in context")
+        
+        # Call handler
+        action_result = handle_instagram_comment_dm_reply(
+            workflow_action=workflow_action,
+            event_data=event_data,
+            user=user
+        )
+        
+        return action_result
 

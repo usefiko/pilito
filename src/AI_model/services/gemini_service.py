@@ -1482,3 +1482,110 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
                 formatted_lines.append(f"- {key}: {value}")
         
         return "\n".join(formatted_lines)
+    
+    def generate_product_dm_for_instagram_comment(
+        self,
+        comment_text: str,
+        product,  # Product model instance
+        extra_context: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
+        """
+        Generate AI response for Instagram comment about a product
+        
+        Args:
+            comment_text: The comment text from user
+            product: Product model instance (from web_knowledge.models)
+            extra_context: Extra info like username, post_url
+            
+        Returns:
+            Dict with 'success', 'response', 'metadata'
+        """
+        try:
+            extra_context = extra_context or {}
+            username = extra_context.get('username', '')
+            
+            # Build product context
+            price_text = "ندارد"
+            if product.price:
+                from web_knowledge.models import Product
+                currency_display = dict(Product.CURRENCY_CHOICES).get(product.currency, product.currency)
+                price_text = f"{product.price:,} {currency_display}"
+                if product.billing_period and product.billing_period != 'one_time':
+                    period_display = dict(Product.BILLING_PERIOD_CHOICES).get(product.billing_period, '')
+                    price_text += f" ({period_display})"
+            
+            product_url = product.product_url or product.buy_url or ''
+            
+            # Build prompt
+            prompt = f"""شما دستیار فروش هستید. یک کاربر زیر پست اینستاگرام این کامنت را گذاشته:
+"{comment_text}"
+
+اطلاعات محصول:
+- نام: {product.title}
+- توضیحات: {product.description or 'ندارد'}
+- قیمت: {price_text}
+- لینک: {product_url or 'ندارد'}
+
+دستورالعمل:
+1. اگر کاربر درباره قیمت پرسیده، قیمت را صادقانه بگو (اگر نداریم بگو "برای قیمت با ما تماس بگیرید")
+2. توضیح خیلی کوتاه درباره محصول (حداکثر 2 خط)
+3. اگر لینک محصول داریم، حتماً با فرمت CTA بفرست: [[CTA:مشاهده محصول|{product_url}]]
+4. لحن دوستانه و فروشنده باش
+5. از اسم کاربر ({username}) در ابتدا استفاده کن
+
+⚠️ مهم: پاسخ تو باید فقط متن دایرکت باشد، حداکثر 350 کاراکتر."""
+
+            # Call AI
+            if not self.model:
+                # Fallback if AI not configured
+                fallback = f"سلام {username}! برای اطلاعات بیشتر درباره {product.title}"
+                if product_url:
+                    fallback += f" [[CTA:مشاهده محصول|{product_url}]]"
+                else:
+                    fallback += "، لطفاً با ما در تماس باشید."
+                
+                return {
+                    'success': True,
+                    'response': fallback,
+                    'metadata': {
+                        'product_id': str(product.id),
+                        'product_title': product.title,
+                        'comment_text': comment_text,
+                        'has_price': product.price is not None,
+                        'fallback_used': True
+                    }
+                }
+            
+            response = self.model.generate_content(prompt)
+            ai_text = response.text.strip()
+            
+            return {
+                'success': True,
+                'response': ai_text,
+                'metadata': {
+                    'product_id': str(product.id),
+                    'product_title': product.title,
+                    'comment_text': comment_text,
+                    'has_price': product.price is not None
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Error generating product DM: {e}")
+            # Fallback response
+            fallback = f"سلام! برای اطلاعات بیشتر درباره {product.title}"
+            if product_url:
+                fallback += f" [[CTA:مشاهده محصول|{product_url}]]"
+            else:
+                fallback += "، لطفاً با ما در تماس باشید."
+            
+            return {
+                'success': False,
+                'error': str(e),
+                'response': fallback,
+                'metadata': {
+                    'product_id': str(product.id),
+                    'product_title': product.title,
+                    'fallback_used': True
+                }
+            }

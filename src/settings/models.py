@@ -461,13 +461,15 @@ When you see "SCENARIO: RECENT_CONVERSATION":
     # ═══════════════════════════════════════════════════
     link_handling_rules = models.TextField(
         max_length=500,
-        default="""Always include FULL URLs (e.g., https://example.com/pricing)
-NEVER use placeholders like [link] or [URL]
-If you don't have a link, say so honestly instead of making one up.""",
+        default="""🔗 LINK RULES:
+1. For IMPORTANT links (website/product): [[CTA:عنوان|https://url]]
+   Example: [[CTA:سایت ما|https://pilito.com]]
+2. For casual links: plain URL (https://...)
+3. NEVER use placeholders like [link] or invent URLs""",
         verbose_name="🔗 Link & URL Handling (مدیریت لینک‌ها)",
         help_text=(
             "⚠️ بسیار مهم: قوانین برای ارسال لینک و URL.\n"
-            "مثال: 'همیشه URL کامل بفرست'، 'هرگز از placeholder مثل [link] استفاده نکن'\n"
+            "شامل: فرمت CTA برای دکمه‌های اینستاگرام [[CTA:عنوان|URL]]\n"
             "جلوگیری از لینک‌های ناقص یا جعلی."
         )
     )

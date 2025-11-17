@@ -85,6 +85,22 @@ class InstaWebhook(APIView):
         
         try:
             page_id = entry.get('id')  # Instagram page/account ID
+            
+            # ✅ Check for comment webhooks (new addition)
+            # Instagram sends comments via 'changes' field, not 'messaging'
+            if 'changes' in entry:
+                logger.info(f"📝 Detected 'changes' field - checking for Instagram comments")
+                for change in entry.get('changes', []):
+                    if change.get('field') == 'comments':
+                        value = change.get('value', {})
+                        comment_result = self._process_comment(value, page_id)
+                        if comment_result:
+                            processed_messages.append(comment_result)
+                # Return early if we processed comments (don't mix with messaging)
+                if processed_messages:
+                    return processed_messages
+            
+            # Original logic: process DM messaging events
             messaging_events = entry.get('messaging', [])
             
             logger.info(f"Processing entry for page ID: {page_id}, events: {len(messaging_events)}")
@@ -98,6 +114,94 @@ class InstaWebhook(APIView):
             logger.error(f"Error processing entry: {e}")
         
         return processed_messages
+    
+    def _process_comment(self, comment_data: dict, page_id: str) -> dict:
+        """
+        Process Instagram comment webhook
+        
+        ⚠️ TODO: Verify actual webhook payload structure from Instagram
+        This is an estimated structure based on Meta documentation
+        
+        Expected structure:
+        {
+            "id": "comment_id",
+            "text": "comment text",
+            "from": {"id": "user_id", "username": "username"},
+            "media": {"id": "media_id", "type": "IMAGE" | "VIDEO"},
+            ...
+        }
+        """
+        try:
+            comment_id = comment_data.get('id')
+            comment_text = comment_data.get('text', '')
+            from_user = comment_data.get('from', {})
+            ig_user_id = from_user.get('id')
+            ig_username = from_user.get('username', '')
+            media = comment_data.get('media', {})
+            media_id = media.get('id')
+            
+            logger.info(f"📝 Processing Instagram comment: {comment_id} from @{ig_username} on media {media_id}")
+            
+            if not (comment_id and ig_user_id and media_id):
+                logger.warning(f"Incomplete comment data: {comment_data}")
+                return None
+            
+            # Get InstagramChannel by page_id (instagram_user_id)
+            try:
+                channel = InstagramChannel.objects.get(
+                    instagram_user_id=page_id,
+                    is_connect=True
+                )
+            except InstagramChannel.DoesNotExist:
+                logger.error(f"No Instagram channel found for page_id {page_id}")
+                return None
+            
+            # ✅ Get actual post URL via Instagram service
+            from message.services.instagram_service import InstagramService
+            instagram_service = InstagramService.get_service_for_channel_id(str(channel.id))
+            post_url = None
+            if instagram_service:
+                post_url = instagram_service.get_media_permalink(media_id)
+            
+            # Create TriggerEventLog for workflow processing
+            from workflow.models import TriggerEventLog
+            
+            event_data = {
+                'comment_id': comment_id,
+                'comment_text': comment_text,
+                'post_id': media_id,
+                'post_url': post_url,  # May be None
+                'ig_username': ig_username,
+                'ig_user_id': ig_user_id,
+                'channel_id': str(channel.id),
+                'page_id': page_id,
+            }
+            
+            event_log = TriggerEventLog.objects.create(
+                event_type='INSTAGRAM_COMMENT',
+                user=channel.user,
+                conversation_id=None,  # ✅ Comments don't have conversations
+                user_id=None,  # Not a Customer in our system
+                event_data=event_data,
+                source='instagram_webhook'
+            )
+            
+            logger.info(f"✅ Created TriggerEventLog #{event_log.id} for Instagram comment")
+            
+            # Trigger workflow processing
+            from workflow.tasks import process_event
+            process_event.delay(str(event_log.id))
+            
+            return {
+                'type': 'instagram_comment',
+                'comment_id': comment_id,
+                'event_log_id': str(event_log.id),
+                'status': 'queued_for_workflow'
+            }
+            
+        except Exception as e:
+            logger.error(f"Error processing Instagram comment: {e}", exc_info=True)
+            return None
 
     def _get_instagram_user_details(self, user_id: str, access_token: str) -> dict:
         """
