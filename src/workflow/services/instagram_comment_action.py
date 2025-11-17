@@ -10,7 +10,7 @@ from django.template import Template, Context
 
 from message.services.instagram_service import InstagramService
 from web_knowledge.models import Product
-from AI_model.services.gemini_service import GeminiService
+from AI_model.services.gemini_service import GeminiChatService
 from message.utils.cta_utils import extract_cta_from_text
 
 logger = logging.getLogger(__name__)
@@ -160,7 +160,7 @@ def handle_instagram_comment_dm_reply(
             return result
         
         # Generate AI response
-        ai_service = GeminiService.get_for_user(user)
+        ai_service = GeminiChatService.get_for_user(user)
         ai_response = ai_service.generate_product_dm_for_instagram_comment(
             comment_text=comment_text,
             product=product,
