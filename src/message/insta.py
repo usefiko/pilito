@@ -438,40 +438,6 @@ class InstaWebhook(APIView):
             logger.error(f"❌ Error updating Instagram token in database: {e}")
             return None
 
-    def _download_profile_picture(self, picture_url: str, user_id: str) -> ContentFile:
-        """
-        Download profile picture from URL and return as ContentFile
-        """
-        try:
-            if not picture_url:
-                logger.info(f"📷 No profile picture URL provided for Instagram user {user_id}")
-                return None
-                
-            logger.info(f"📸 Downloading Instagram profile picture for user {user_id} from: {picture_url}")
-            response = requests.get(picture_url, timeout=15)
-            response.raise_for_status()
-            
-            if response.status_code == 200:
-                # Create a ContentFile from the image data
-                image_content = ContentFile(response.content)
-                # Generate a filename based on user_id
-                image_content.name = f"instagram_profile_{user_id}.jpg"
-                logger.info(f"✅ Successfully downloaded Instagram profile picture for user {user_id}")
-                return image_content
-            else:
-                logger.warning(f"❌ Failed to download Instagram profile picture: HTTP {response.status_code}")
-                return None
-                
-        except requests.exceptions.Timeout:
-            logger.error(f"⏰ Timeout downloading Instagram profile picture for {user_id}")
-            return None
-        except requests.exceptions.RequestException as e:
-            logger.error(f"🌐 Network error downloading Instagram profile picture for {user_id}: {e}")
-            return None
-        except Exception as e:
-            logger.error(f"❌ Unexpected error downloading Instagram profile picture for {user_id}: {e}")
-            return None
-
     def _process_messaging_event(self, messaging, page_id):
         """Process a single messaging event"""
         try:

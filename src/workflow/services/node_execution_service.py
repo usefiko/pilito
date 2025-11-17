@@ -254,6 +254,7 @@ class NodeBasedWorkflowExecutionService:
                 'USER_CREATED': 'new_customer',
                 'TAG_ADDED': 'add_tag',
                 'SCHEDULED': 'scheduled',
+                'INSTAGRAM_COMMENT': 'instagram_comment',
             }
             
             expected_when_type = event_to_when_mapping.get(event_type)
@@ -513,6 +514,12 @@ class NodeBasedWorkflowExecutionService:
                         if source not in when_node_obj.channels:
                             logger.debug(f"🏷️  User source '{source}' not in allowed channels: {when_node_obj.channels}")
                             return False
+            
+            elif when_node_obj.when_type == 'instagram_comment':
+                # Instagram comment when nodes are already validated by TriggerService
+                # No additional filtering needed here - if we reached this point, filters passed
+                logger.info(f"✅ Instagram comment when node - filters already validated by TriggerService")
+                return True
             
             # For new_customer, the event type check above is sufficient
             
