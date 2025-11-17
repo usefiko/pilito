@@ -205,11 +205,12 @@ class TriggerService:
             # For events without conversation_id (like USER_CREATED), resolve owner from Customer.user
             if event_log.event_type in ['USER_CREATED', 'INSTAGRAM_COMMENT']:
                 try:
-                    # ✅ First: try event_log.user (direct relationship)
-                    if event_log.user:
-                        return event_log.user.id
+                    # ✅ For INSTAGRAM_COMMENT: user_id contains the workflow owner's ID directly
+                    if event_log.event_type == 'INSTAGRAM_COMMENT' and event_log.user_id:
+                        # user_id is stored as string, convert to int
+                        return int(event_log.user_id)
                     
-                    # ✅ For INSTAGRAM_COMMENT: fallback to channel_id in event_data
+                    # ✅ Fallback: get channel from event_data
                     if event_log.event_type == 'INSTAGRAM_COMMENT':
                         channel_id = event_log.event_data.get('channel_id')
                         if channel_id:
