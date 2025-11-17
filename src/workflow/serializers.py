@@ -519,6 +519,10 @@ class UnifiedNodeSerializer(serializers.ModelSerializer):
     # Model field is schedule_start_date; accept both for backward compatibility
     schedule_start_date = serializers.DateField(required=False, allow_null=True)
     schedule_date = serializers.DateField(required=False, allow_null=True, write_only=True)
+    # Instagram Comment specific filters
+    instagram_post_url = serializers.URLField(required=False, allow_blank=True, allow_null=True)
+    instagram_media_type = serializers.CharField(required=False, allow_blank=True, default='all')
+    comment_keywords = serializers.ListField(child=serializers.CharField(), required=False, default=list)
     
     # Condition Node specific fields
     combination_operator = serializers.CharField(required=False, allow_blank=True)
@@ -944,7 +948,8 @@ class UnifiedNodeSerializer(serializers.ModelSerializer):
         """Smart update for When Node fields"""
         # Direct field updates
         # Accept both schedule_date (alias) and schedule_start_date (model field)
-        direct_fields = ['when_type', 'schedule_frequency', 'schedule_start_date', 'schedule_time']
+        direct_fields = ['when_type', 'schedule_frequency', 'schedule_start_date', 'schedule_time', 
+                        'instagram_post_url', 'instagram_media_type']
         for field in direct_fields:
             if field in validated_data:
                 setattr(instance, field, validated_data[field])
@@ -966,6 +971,18 @@ class UnifiedNodeSerializer(serializers.ModelSerializer):
                     existing_keywords = instance.keywords or []
                     merged_keywords = list(set(existing_keywords + new_keywords))
                     instance.keywords = merged_keywords
+        
+        # Handle comment_keywords (Instagram filter)
+        if 'comment_keywords' in validated_data:
+            new_keywords = validated_data['comment_keywords']
+            if isinstance(new_keywords, list):
+                if getattr(self, 'partial', False):
+                    # Replace entirely during PATCH
+                    instance.comment_keywords = new_keywords
+                else:
+                    # Merge with existing
+                    existing = instance.comment_keywords or []
+                    instance.comment_keywords = list(set(existing + new_keywords))
         
         # Handle tags list (When node tag triggers)
         if 'tags' in validated_data:
