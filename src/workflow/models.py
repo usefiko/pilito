@@ -959,6 +959,7 @@ class WhenNode(WorkflowNode):
         ('add_tag', 'Add Tag'),
         ('new_customer', 'New Customer'),
         ('scheduled', 'Scheduled'),
+        ('instagram_comment', 'Instagram Comment'),
     ]
     
     SCHEDULE_FREQUENCY_CHOICES = [

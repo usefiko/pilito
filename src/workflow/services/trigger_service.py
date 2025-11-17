@@ -311,6 +311,7 @@ class TriggerService:
                 'USER_CREATED': 'new_customer',
                 'TAG_ADDED': 'add_tag',
                 'SCHEDULED': 'scheduled',
+                'INSTAGRAM_COMMENT': 'instagram_comment',
             }
             
             when_type = event_to_when_mapping.get(event_log.event_type)
