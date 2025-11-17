@@ -771,6 +771,9 @@ class NodeBasedWorkflowExecutionService:
             elif action_node.action_type == 'update_ai_context':
                 return self._execute_update_ai_context_action(action_node, context)
             
+            elif action_node.action_type == 'instagram_comment_dm_reply':
+                return self._execute_instagram_comment_action(action_node, context)
+            
             else:
                 return NodeExecutionResult(success=False, error=f"Unknown action type: {action_node.action_type}")
         
@@ -1350,6 +1353,26 @@ class NodeBasedWorkflowExecutionService:
         
         response = requests.post(webhook_url, json=data, timeout=10)
         response.raise_for_status()
+    
+    def _execute_instagram_comment_action(self, action_node: ActionNode, context: Dict[str, Any]) -> NodeExecutionResult:
+        """Execute Instagram comment → DM + Reply action."""
+        try:
+            from workflow.services.instagram_comment_action import handle_instagram_comment_dm_reply
+            
+            # Extract config from node configuration
+            config = action_node.configuration or {}
+            
+            # Call the handler
+            result = handle_instagram_comment_dm_reply(config, context)
+            
+            return NodeExecutionResult(
+                success=result.get('success', True),
+                data=result
+            )
+        
+        except Exception as e:
+            logger.error(f"Error executing instagram comment action: {e}")
+            return NodeExecutionResult(success=False, error=str(e))
     
     def _get_next_nodes(self, current_node: WorkflowNode, result: NodeExecutionResult, 
                        context: Dict[str, Any]) -> List[WorkflowNode]:

@@ -1062,6 +1062,7 @@ class ActionNode(WorkflowNode):
         ('custom_code', 'Custom Code'),
         ('control_ai_response', 'Control AI Response'),
         ('update_ai_context', 'Update AI Context'),
+        ('instagram_comment_dm_reply', 'Instagram Comment → DM + Reply'),
     ]
     
     REDIRECT_DESTINATIONS = [
