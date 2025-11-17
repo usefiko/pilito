@@ -166,11 +166,22 @@ class InstaWebhook(APIView):
             # Create TriggerEventLog for workflow processing
             from workflow.models import TriggerEventLog
             
+            # Extract media type from webhook data
+            media_product_type = media.get('media_product_type', '').upper()
+            # Map Instagram's media_product_type to our filter types
+            if 'REEL' in media_product_type or 'CLIPS' in media_product_type:
+                media_type = 'reel'
+            elif 'IGTV' in media_product_type or 'VIDEO' in media_product_type:
+                media_type = 'video'
+            else:
+                media_type = 'post'  # Default for FEED and others
+            
             event_data = {
                 'comment_id': comment_id,
                 'comment_text': comment_text,
                 'post_id': media_id,
                 'post_url': post_url,  # May be None
+                'media_type': media_type,  # For filtering
                 'ig_username': ig_username,
                 'ig_user_id': ig_user_id,
                 'channel_id': str(channel.id),
@@ -179,11 +190,9 @@ class InstaWebhook(APIView):
             
             event_log = TriggerEventLog.objects.create(
                 event_type='INSTAGRAM_COMMENT',
-                user=channel.user,
+                user_id=str(channel.user.id),  # Store workflow owner ID
                 conversation_id=None,  # ✅ Comments don't have conversations
-                user_id=None,  # Not a Customer in our system
-                event_data=event_data,
-                source='instagram_webhook'
+                event_data=event_data
             )
             
             logger.info(f"✅ Created TriggerEventLog #{event_log.id} for Instagram comment")
