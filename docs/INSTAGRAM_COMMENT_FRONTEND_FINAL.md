@@ -93,6 +93,78 @@ const whenTypes = [
 
 ---
 
+### الف.۱) Config Form برای When Node (Instagram Comment)
+
+وقتی `when_type === 'instagram_comment'`:
+
+```tsx
+{whenType === 'instagram_comment' && (
+  <div className="filters-section">
+    
+    {/* 1. فیلتر نوع محتوا */}
+    <FormGroup>
+      <Label>نوع محتوا</Label>
+      <Select
+        value={config.instagram_media_type || 'all'}
+        onChange={(e) => setConfig({...config, instagram_media_type: e.target.value})}
+      >
+        <option value="all">همه (پست، ریلز، ویدئو)</option>
+        <option value="post">فقط پست‌ها</option>
+        <option value="reel">فقط ریلزها</option>
+        <option value="video">فقط ویدئوها</option>
+      </Select>
+      <FormText>
+        تعیین می‌کند روی چه نوع محتوایی تریگر شود
+      </FormText>
+    </FormGroup>
+    
+    {/* 2. فیلتر پست خاص (اختیاری) */}
+    <FormGroup>
+      <Label>پست خاص (اختیاری) 🎯</Label>
+      <Input
+        type="url"
+        value={config.instagram_post_url || ''}
+        onChange={(e) => setConfig({...config, instagram_post_url: e.target.value})}
+        placeholder="https://www.instagram.com/p/ABC123/"
+      />
+      <FormText>
+        ⚠️ اگر خالی بگذارید، روی <strong>همه پست‌ها</strong> اجرا می‌شود
+        <br/>
+        اگر پر کنید، فقط روی <strong>این پست خاص</strong> اجرا می‌شود
+      </FormText>
+    </FormGroup>
+    
+    {/* 3. فیلتر کلمات کلیدی (اختیاری) */}
+    <FormGroup>
+      <Label>کلمات کلیدی (اختیاری) 🔍</Label>
+      <TagsInput
+        value={config.comment_keywords || []}
+        onChange={(tags) => setConfig({...config, comment_keywords: tags})}
+        placeholder="مثال: قیمت، خرید، موجود"
+      />
+      <FormText>
+        فقط کامنت‌هایی که <strong>حداقل یکی</strong> از این کلمات را دارند، تریگر می‌شوند
+        <br/>
+        اگر خالی بگذارید، <strong>همه کامنت‌ها</strong> تریگر می‌شوند
+      </FormText>
+    </FormGroup>
+    
+    {/* نمایش خلاصه فیلترها */}
+    <Alert variant="info">
+      <strong>خلاصه تنظیمات:</strong>
+      <ul>
+        <li>نوع محتوا: {config.instagram_media_type === 'all' ? 'همه' : config.instagram_media_type}</li>
+        <li>پست خاص: {config.instagram_post_url ? '✅ بله' : '❌ خیر (همه پست‌ها)'}</li>
+        <li>کلمات کلیدی: {config.comment_keywords?.length > 0 ? `✅ ${config.comment_keywords.join(', ')}` : '❌ خیر (همه کامنت‌ها)'}</li>
+      </ul>
+    </Alert>
+    
+  </div>
+)}
+```
+
+---
+
 ### ب) Action Node Selector
 
 در فایل مربوط به Action Node selection:
@@ -224,7 +296,12 @@ const workflowPayload = {
       title: "کامنت اینستاگرام",
       position_x: 100,
       position_y: 100,
-      configuration: {}
+      configuration: {
+        // ✅ فیلترهای جدید (همه اختیاری)
+        instagram_media_type: "all",  // یا: "post", "reel", "video"
+        instagram_post_url: "",  // خالی = همه پست‌ها، پر = پست خاص
+        comment_keywords: []  // خالی = همه کامنت‌ها، پر = فقط کامنت‌های حاوی این کلمات
+      }
     },
     {
       node_type: "action",
@@ -250,6 +327,50 @@ const workflowPayload = {
 
 // ارسال به API
 await axios.post('/api/v1/workflow/api/node-workflows/', workflowPayload);
+```
+
+### مثال‌های واقعی:
+
+#### مثال 1: پست خاص + کلمه کلیدی
+```typescript
+{
+  node_type: "when",
+  when_type: "instagram_comment",
+  title: "کامنت روی پست معرفی محصول",
+  configuration: {
+    instagram_post_url: "https://www.instagram.com/p/ABC123/",
+    comment_keywords: ["قیمت", "خرید", "موجود"],
+    instagram_media_type: "post"
+  }
+}
+```
+
+#### مثال 2: همه ریلزها
+```typescript
+{
+  node_type: "when",
+  when_type: "instagram_comment",
+  title: "همه کامنت‌های ریلزها",
+  configuration: {
+    instagram_media_type: "reel",
+    instagram_post_url: "",  // خالی = همه ریلزها
+    comment_keywords: []  // خالی = همه کامنت‌ها
+  }
+}
+```
+
+#### مثال 3: بدون فیلتر (همه کامنت‌ها)
+```typescript
+{
+  node_type: "when",
+  when_type: "instagram_comment",
+  title: "همه کامنت‌ها",
+  configuration: {
+    instagram_media_type: "all",
+    instagram_post_url: "",
+    comment_keywords: []
+  }
+}
 ```
 
 ---
@@ -348,12 +469,25 @@ const loadProducts = async (inputValue: string) => {
   "workflow.config.public_reply": "پاسخ عمومی",
   "workflow.config.public_reply_text": "متن پاسخ",
   
+  "workflow.filter.media_type": "نوع محتوا",
+  "workflow.filter.media_type.all": "همه",
+  "workflow.filter.media_type.post": "فقط پست‌ها",
+  "workflow.filter.media_type.reel": "فقط ریلزها",
+  "workflow.filter.media_type.video": "فقط ویدئوها",
+  "workflow.filter.specific_post": "پست خاص",
+  "workflow.filter.specific_post.placeholder": "https://www.instagram.com/p/ABC123/",
+  "workflow.filter.specific_post.help": "اگر خالی بگذارید، روی همه پست‌ها اجرا می‌شود",
+  "workflow.filter.keywords": "کلمات کلیدی",
+  "workflow.filter.keywords.placeholder": "مثال: قیمت، خرید، موجود",
+  "workflow.filter.keywords.help": "فقط کامنت‌هایی که این کلمات را دارند، تریگر می‌شوند",
+  
   "workflow.validation.dm_mode_required": "نوع DM اجباری است",
   "workflow.validation.dm_text_required": "متن دایرکت اجباری است",
   "workflow.validation.product_required": "محصول را انتخاب کنید",
   "workflow.validation.max_1000_chars": "حداکثر 1000 کاراکتر",
   "workflow.validation.max_300_chars": "حداکثر 300 کاراکتر",
   "workflow.validation.max_3_cta": "حداکثر 3 دکمه CTA",
+  "workflow.validation.invalid_url": "آدرس URL معتبر نیست",
   
   "workflow.help.cta_format": "فرمت: [[CTA:عنوان|URL]]",
   "workflow.help.variables": "{{username}}, {{comment_text}}, {{post_url}}"

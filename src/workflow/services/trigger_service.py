@@ -608,6 +608,78 @@ class TriggerService:
                         else:
                             logger.info(f"✅ Channel match found")
             
+            elif when_node.when_type == 'instagram_comment':
+                # Instagram Comment specific filters
+                logger.info(f"📸 Evaluating Instagram comment filters")
+                
+                # 1. Check specific post URL filter
+                if when_node.instagram_post_url:
+                    media_id = event_data.get('media_id', '')
+                    post_permalink = event_data.get('post_url', '')
+                    
+                    logger.info(f"   Filter: Specific post URL = {when_node.instagram_post_url}")
+                    logger.info(f"   Event: media_id = {media_id}, post_url = {post_permalink}")
+                    
+                    # Extract media ID from configured URL (e.g., https://instagram.com/p/ABC123/)
+                    import re
+                    url_match = re.search(r'/p/([^/]+)', when_node.instagram_post_url)
+                    if url_match:
+                        expected_shortcode = url_match.group(1)
+                        # Check if event's post URL contains this shortcode
+                        if expected_shortcode not in post_permalink and expected_shortcode not in media_id:
+                            logger.info(f"❌ Post URL mismatch: expected shortcode '{expected_shortcode}' not in event")
+                            return False
+                        else:
+                            logger.info(f"✅ Post URL match: shortcode '{expected_shortcode}' found")
+                    else:
+                        logger.warning(f"⚠️  Could not extract shortcode from URL: {when_node.instagram_post_url}")
+                
+                # 2. Check media type filter
+                if when_node.instagram_media_type and when_node.instagram_media_type != 'all':
+                    media_type = event_data.get('media_type', 'post').lower()
+                    expected_type = when_node.instagram_media_type.lower()
+                    
+                    logger.info(f"   Filter: Media type = {expected_type}")
+                    logger.info(f"   Event: media_type = {media_type}")
+                    
+                    # Normalize media types (Instagram API might return different values)
+                    type_mapping = {
+                        'image': 'post',
+                        'photo': 'post',
+                        'carousel_album': 'post',
+                        'video': 'video',
+                        'reel': 'reel',
+                    }
+                    normalized_media_type = type_mapping.get(media_type, media_type)
+                    
+                    if normalized_media_type != expected_type:
+                        logger.info(f"❌ Media type mismatch: expected '{expected_type}', got '{normalized_media_type}'")
+                        return False
+                    else:
+                        logger.info(f"✅ Media type match: {normalized_media_type}")
+                
+                # 3. Check comment keywords filter
+                if when_node.comment_keywords:
+                    comment_text = event_data.get('comment_text', '').lower()
+                    
+                    logger.info(f"   Filter: Keywords = {when_node.comment_keywords}")
+                    logger.info(f"   Event: comment = '{comment_text}'")
+                    
+                    keyword_match = any(
+                        keyword.lower() in comment_text 
+                        for keyword in when_node.comment_keywords
+                    )
+                    
+                    if not keyword_match:
+                        logger.info(f"❌ Comment doesn't contain any required keywords: {when_node.comment_keywords}")
+                        return False
+                    else:
+                        matched_keywords = [
+                            kw for kw in when_node.comment_keywords 
+                            if kw.lower() in comment_text
+                        ]
+                        logger.info(f"✅ Keyword match found: {matched_keywords}")
+            
             # For new_customer and scheduled, no additional conditions to check
             logger.info(f"✅ All when node conditions passed for '{when_node.title}'")
             return True

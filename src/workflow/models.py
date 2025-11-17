@@ -975,6 +975,30 @@ class WhenNode(WorkflowNode):
     tags = models.JSONField(default=list, blank=True, help_text="Tags for tag triggers - workflow executes only if customer has ALL of these tags")
     channels = models.JSONField(default=list, blank=True, help_text="Channels to monitor (instagram, telegram, all)")
     
+    # Instagram Comment specific filters
+    instagram_post_url = models.URLField(
+        blank=True, 
+        null=True,
+        help_text="Filter: Only trigger for comments on this specific post (optional). Leave empty for all posts."
+    )
+    instagram_media_type = models.CharField(
+        max_length=20,
+        choices=[
+            ('all', 'All'),
+            ('post', 'Post Only'),
+            ('reel', 'Reel Only'),
+            ('video', 'Video Only'),
+        ],
+        default='all',
+        blank=True,
+        help_text="Filter: Type of Instagram media to monitor"
+    )
+    comment_keywords = models.JSONField(
+        default=list, 
+        blank=True,
+        help_text="Filter: Only trigger if comment contains these keywords (case-insensitive)"
+    )
+    
     # Scheduling fields
     schedule_frequency = models.CharField(
         max_length=20, 
@@ -998,6 +1022,8 @@ class WhenNode(WorkflowNode):
             self.tags = []
         if self.channels is None:
             self.channels = []
+        if self.comment_keywords is None:
+            self.comment_keywords = []
         super().save(*args, **kwargs)
 
 
