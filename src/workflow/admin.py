@@ -402,6 +402,11 @@ class WhenNodeAdmin(admin.ModelAdmin):
         ('Trigger Settings', {
             'fields': ('keywords', 'tags', 'channels'),
         }),
+        ('Instagram Comment Filters', {
+            'fields': ('instagram_post_url', 'instagram_media_type', 'comment_keywords'),
+            'classes': ('collapse',),
+            'description': 'فیلترهای اختصاصی برای تریگر Instagram Comment'
+        }),
         ('Scheduling (for Scheduled triggers)', {
             'fields': ('schedule_frequency', 'schedule_start_date', 'schedule_time'),
             'classes': ('collapse',)
