@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('workflow', '0012_alter_whennode_tags'),
+        ('workflow', '0013_alter_action_action_type_and_more'),
     ]
 
     operations = [
