@@ -1365,12 +1365,45 @@ class NodeBasedWorkflowExecutionService:
         """Execute Instagram comment → DM + Reply action."""
         try:
             from workflow.services.instagram_comment_action import handle_instagram_comment_dm_reply
+            from django.contrib.auth import get_user_model
             
-            # Extract config from node configuration
-            config = action_node.configuration or {}
+            # Get user from context (workflow owner)
+            user = None
+            if 'workflow_owner_id' in context:
+                User = get_user_model()
+                try:
+                    user = User.objects.get(id=context['workflow_owner_id'])
+                except User.DoesNotExist:
+                    logger.error(f"User {context['workflow_owner_id']} not found")
+                    return NodeExecutionResult(success=False, error=f"User {context['workflow_owner_id']} not found")
+            else:
+                logger.error("workflow_owner_id not found in context for instagram_comment action")
+                return NodeExecutionResult(success=False, error="workflow_owner_id not found in context")
+            
+            # Get event data from context
+            event = context.get('event', {})
+            event_data = event.get('data', {}) if isinstance(event, dict) else {}
+            
+            # For node-based workflows, config is stored directly in ActionNode fields
+            # Create a mock workflow_action object with the node's instagram fields
+            class MockWorkflowAction:
+                def __init__(self, node):
+                    self.config = {
+                        'dm_mode': node.instagram_dm_mode,
+                        'dm_text_template': node.instagram_dm_text_template,
+                        'product_id': str(node.instagram_product_id) if node.instagram_product_id else None,
+                        'public_reply_enabled': node.instagram_public_reply_enabled,
+                        'public_reply_template': node.instagram_public_reply_text,
+                    }
+            
+            workflow_action = MockWorkflowAction(action_node)
             
             # Call the handler
-            result = handle_instagram_comment_dm_reply(config, context)
+            result = handle_instagram_comment_dm_reply(
+                workflow_action=workflow_action,
+                event_data=event_data,
+                user=user
+            )
             
             return NodeExecutionResult(
                 success=result.get('success', True),
