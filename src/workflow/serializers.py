@@ -547,6 +547,13 @@ class UnifiedNodeSerializer(serializers.ModelSerializer):
     email_body = serializers.CharField(required=False, allow_blank=True)
     custom_code = serializers.CharField(required=False, allow_blank=True)
     
+    # Instagram Comment → DM + Reply fields
+    instagram_dm_mode = serializers.CharField(required=False, allow_blank=True, default='STATIC')
+    instagram_dm_text_template = serializers.CharField(required=False, allow_blank=True)
+    instagram_product_id = serializers.UUIDField(required=False, allow_null=True)
+    instagram_public_reply_enabled = serializers.BooleanField(required=False, default=False)
+    instagram_public_reply_text = serializers.CharField(required=False, allow_blank=True)
+    
     # Waiting Node specific fields
     storage_type = serializers.CharField(required=False, allow_blank=True)
     storage_type_display = serializers.CharField(source='get_storage_type_display', read_only=True)
@@ -1068,7 +1075,10 @@ class UnifiedNodeSerializer(serializers.ModelSerializer):
             'action_type', 'message_content', 'delay_amount', 'delay_unit',
             'redirect_destination', 'tag_name', 'webhook_url', 'webhook_method',
             'webhook_headers', 'webhook_payload', 'email_to', 'email_subject',
-            'email_body', 'custom_code'
+            'email_body', 'custom_code',
+            # Instagram Comment → DM + Reply fields
+            'instagram_dm_mode', 'instagram_dm_text_template', 'instagram_product_id',
+            'instagram_public_reply_enabled', 'instagram_public_reply_text'
         ]
         
         for field in action_fields:

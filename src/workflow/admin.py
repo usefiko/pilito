@@ -489,6 +489,17 @@ class ActionNodeAdmin(admin.ModelAdmin):
             'fields': ('webhook_url', 'webhook_method', 'webhook_headers', 'webhook_payload'),
             'classes': ('collapse',)
         }),
+        ('Instagram Comment → DM + Reply', {
+            'fields': (
+                'instagram_dm_mode',
+                'instagram_dm_text_template',
+                'instagram_product_id',
+                'instagram_public_reply_enabled',
+                'instagram_public_reply_text'
+            ),
+            'classes': ('collapse',),
+            'description': 'تنظیمات action پاسخ به کامنت اینستاگرام'
+        }),
         ('Custom Code', {
             'fields': ('custom_code',),
             'classes': ('collapse',)

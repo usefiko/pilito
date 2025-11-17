@@ -1140,6 +1140,35 @@ class ActionNode(WorkflowNode):
     ai_custom_prompt = models.TextField(blank=True, help_text="Custom AI prompt for this conversation")
     ai_context_data = models.JSONField(default=dict, help_text="Additional context data for AI")
     
+    # Instagram Comment → DM + Reply fields
+    instagram_dm_mode = models.CharField(
+        max_length=20,
+        choices=[
+            ('STATIC', 'Static Message'),
+            ('PRODUCT', 'Product-based AI Message'),
+        ],
+        blank=True,
+        default='STATIC',
+        help_text="DM mode: static template or AI-generated product message"
+    )
+    instagram_dm_text_template = models.TextField(
+        blank=True,
+        help_text="Template for static DM (supports {{username}}, {{comment_text}}, etc.)"
+    )
+    instagram_product_id = models.UUIDField(
+        blank=True,
+        null=True,
+        help_text="Product ID for PRODUCT mode (AI will generate DM based on this product)"
+    )
+    instagram_public_reply_enabled = models.BooleanField(
+        default=False,
+        help_text="Whether to send a public reply to the comment"
+    )
+    instagram_public_reply_text = models.TextField(
+        blank=True,
+        help_text="Template for public reply (supports {{username}}, etc.)"
+    )
+    
     class Meta:
         verbose_name = "Action Node"
         verbose_name_plural = "Action Nodes"
