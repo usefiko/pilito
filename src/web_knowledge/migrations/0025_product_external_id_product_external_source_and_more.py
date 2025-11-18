@@ -53,25 +53,24 @@ class Migration(migrations.Migration):
                 DROP COLUMN IF EXISTS external_source;
             """
         ),
-        # Add constraint if it doesn't exist
+        # Add partial unique constraint if it doesn't exist
+        # PostgreSQL requires using a unique index for partial constraints
         migrations.RunSQL(
             sql="""
                 DO $$
                 BEGIN
                     IF NOT EXISTS (
-                        SELECT 1 FROM pg_constraint 
-                        WHERE conname = 'unique_external_product_per_user'
+                        SELECT 1 FROM pg_indexes 
+                        WHERE indexname = 'unique_external_product_per_user'
                     ) THEN
-                        ALTER TABLE web_knowledge_product
-                        ADD CONSTRAINT unique_external_product_per_user
-                        UNIQUE (user_id, external_id)
+                        CREATE UNIQUE INDEX unique_external_product_per_user
+                        ON web_knowledge_product(user_id, external_id)
                         WHERE external_id IS NOT NULL;
                     END IF;
                 END $$;
             """,
             reverse_sql="""
-                ALTER TABLE web_knowledge_product
-                DROP CONSTRAINT IF EXISTS unique_external_product_per_user;
+                DROP INDEX IF EXISTS unique_external_product_per_user;
             """
         ),
         # Add index if it doesn't exist
