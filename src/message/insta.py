@@ -956,18 +956,18 @@ class InstaWebhook(APIView):
                 
                 elif message_type == 'image':
                     # Image message
-                message_obj = Message.objects.create(
-                    content=placeholder_text,
-                    conversation=conversation,
-                    customer=customer,
-                    type=msg_type,
-                    message_type=message_type,
-                    media_url=media_url,  # Instagram provides direct URL
-                    processing_status='pending'
-                )
-                logger.info(f"✅ {message_type.capitalize()} message created (pending): {message_obj.id} (type={msg_type})")
-                
-                # Queue async processing
+                    message_obj = Message.objects.create(
+                        content=placeholder_text,
+                        conversation=conversation,
+                        customer=customer,
+                        type=msg_type,
+                        message_type=message_type,
+                        media_url=media_url,  # Instagram provides direct URL
+                        processing_status='pending'
+                    )
+                    logger.info(f"✅ {message_type.capitalize()} message created (pending): {message_obj.id} (type={msg_type})")
+                    
+                    # Queue async processing
                     from message.tasks_instagram_media import process_instagram_image
                     logger.info(f"📤 Queueing Instagram image processing for {message_obj.id}")
                     process_instagram_image.delay(str(message_obj.id), media_url, channel.access_token)
