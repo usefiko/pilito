@@ -74,35 +74,30 @@ class QAGenerator:
         
         # ✅ NEW: Check tokens BEFORE generation (prevent free AI usage)
         if self.user:
+            from billing.utils import check_ai_access_for_user
+            
             # Estimate tokens needed (rough: 4 chars = 1 token + overhead)
             estimated_tokens = (len(content) // 4) + (max_pairs * 200)  # ~200 tokens per Q&A
             
-            try:
-                subscription = self.user.subscription
-                
-                if not subscription.is_subscription_active():
-                    logger.warning(
-                        f"User {self.user.username} subscription is not active. "
-                        f"Skipping Q&A generation to prevent free usage."
-                    )
-                    return []
-                
-                if subscription.tokens_remaining < estimated_tokens:
-                    logger.warning(
-                        f"User {self.user.username} has insufficient tokens for Q&A generation. "
-                        f"Estimated need: {estimated_tokens}, Available: {subscription.tokens_remaining}. "
-                        f"Skipping to prevent partial free usage."
-                    )
-                    return []
-                
-                logger.info(
-                    f"Token pre-check passed for user {self.user.username}. "
-                    f"Estimated: {estimated_tokens}, Available: {subscription.tokens_remaining}"
+            # Use centralized token check with accurate calculation
+            access_check = check_ai_access_for_user(
+                user=self.user,
+                estimated_tokens=estimated_tokens,
+                feature_name="Q&A Generation"
+            )
+            
+            if not access_check['has_access']:
+                logger.warning(
+                    f"User {self.user.username} denied access to Q&A Generation. "
+                    f"Reason: {access_check['reason']}, "
+                    f"Tokens remaining: {access_check['tokens_remaining']}"
                 )
-                    
-            except Exception as e:
-                logger.error(f"Token pre-check failed for Q&A generation: {e}")
                 return []
+            
+            logger.info(
+                f"Token pre-check passed for user {self.user.username}. "
+                f"Estimated: {estimated_tokens}, Available: {access_check['tokens_remaining']}"
+            )
         
         try:
             # Split content into chunks if too long

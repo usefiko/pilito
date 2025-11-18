@@ -150,6 +150,25 @@ def handle_instagram_comment_dm_reply(
         logger.info(f"[InstagramCommentAction] STATIC DM to {ig_username}: {result['dm_sent']}")
     
     elif dm_mode == 'PRODUCT':
+        # ✅ CHECK TOKENS BEFORE AI USAGE
+        from billing.utils import check_ai_access_for_user
+        
+        access_check = check_ai_access_for_user(
+            user=user,
+            estimated_tokens=1000,  # Estimated tokens for product DM generation
+            feature_name="Instagram Product DM"
+        )
+        
+        if not access_check['has_access']:
+            error = f"Insufficient tokens for AI product DM. Reason: {access_check['reason']}"
+            logger.warning(
+                f"[InstagramCommentAction] User {user.username} denied access to AI. "
+                f"Reason: {access_check['reason']}, Tokens remaining: {access_check['tokens_remaining']}"
+            )
+            result['success'] = False
+            result['error'] = error
+            return result
+        
         # Load product
         try:
             product = Product.objects.get(id=product_id, user=user)

@@ -134,18 +134,17 @@ class UserSerializer(serializers.ModelSerializer):
             return 0
 
     def get_token_usage_remaining(self, obj):
-        """Get token usage remaining as percentage (0-100)"""
+        """Get token usage remaining as percentage (0-100) based on ACTUAL AI usage"""
         try:
+            from billing.utils import get_accurate_tokens_remaining
+            
             subscription = obj.subscription
             if subscription.is_subscription_active():
-                original_tokens = 0
-                if subscription.token_plan:
-                    original_tokens = subscription.token_plan.tokens_included
-                elif subscription.full_plan:
-                    original_tokens = subscription.full_plan.tokens_included
-                current_tokens = subscription.tokens_remaining
+                # Use ACCURATE token calculation from actual AI usage
+                original_tokens, consumed_tokens, tokens_remaining = get_accurate_tokens_remaining(obj)
+                
                 if original_tokens > 0:
-                    percentage = (current_tokens / original_tokens) * 100
+                    percentage = (tokens_remaining / original_tokens) * 100
                     return max(0, min(100, round(percentage, 1)))
                 else:
                     return 0
@@ -444,42 +443,25 @@ class UserOverviewSerializer(serializers.ModelSerializer):
         """
         try:
             from billing.serializers import SubscriptionSerializer
-            from AI_model.models import AIUsageLog
-            from django.db.models import Sum
+            from billing.utils import get_accurate_tokens_remaining
             
             subscription = obj.subscription
             serializer = SubscriptionSerializer(subscription)
             data = serializer.data
             
-            # Calculate total AI tokens used by this user since subscription started
-            ai_tokens_used = AIUsageLog.objects.filter(
-                user=obj,
-                created_at__gte=subscription.start_date,
-                success=True  # Only count successful requests
-            ).aggregate(
-                total=Sum('total_tokens')
-            )['total'] or 0
-            
-            # Calculate original tokens from the plan
-            original_tokens = 0
-            if subscription.token_plan:
-                original_tokens = subscription.token_plan.tokens_included
-            elif subscription.full_plan:
-                original_tokens = subscription.full_plan.tokens_included
-            
-            # Calculate actual remaining tokens
-            actual_tokens_remaining = max(0, original_tokens - ai_tokens_used)
+            # Use centralized accurate token calculation
+            original_tokens, consumed_tokens, tokens_remaining = get_accurate_tokens_remaining(obj)
             
             # Add AI usage information to the response
             data['ai_usage'] = {
-                'total_tokens_consumed': ai_tokens_used,
+                'total_tokens_consumed': consumed_tokens,
                 'original_tokens_included': original_tokens,
-                'actual_tokens_remaining': actual_tokens_remaining,
+                'actual_tokens_remaining': tokens_remaining,
                 'tokens_remaining_in_db': subscription.tokens_remaining,  # Original field for comparison
             }
             
             # Update the main tokens_remaining field with actual remaining
-            data['tokens_remaining'] = actual_tokens_remaining
+            data['tokens_remaining'] = tokens_remaining
             
             return data
         except Exception:
