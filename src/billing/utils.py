@@ -9,6 +9,21 @@ from django.db.models import Sum
 logger = logging.getLogger(__name__)
 
 
+def days_left_from_now(end_date) -> int:
+    """
+    Calculate days left from now to end_date
+    
+    Args:
+        end_date: datetime object
+    
+    Returns:
+        int: Days remaining (can be negative if expired)
+    """
+    now = timezone.now()
+    delta = end_date - now
+    return delta.days
+
+
 def get_accurate_tokens_remaining(user) -> Tuple[int, int, int]:
     """
     Calculate ACCURATE tokens remaining based on actual AI usage from AIUsageLog.
