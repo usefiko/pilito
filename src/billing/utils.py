@@ -2,20 +2,63 @@
 Billing utility functions for subscription and token validation
 """
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, Tuple
 from django.utils import timezone
+from django.db.models import Sum
 
 logger = logging.getLogger(__name__)
 
 
+def get_accurate_tokens_remaining(user) -> Tuple[int, int, int]:
+    """
+    Calculate ACCURATE tokens remaining based on actual AI usage from AIUsageLog.
+    
+    This is the SINGLE SOURCE OF TRUTH for token calculations.
+    
+    Returns:
+        Tuple of (original_tokens, consumed_tokens, remaining_tokens)
+    """
+    from billing.models import Subscription
+    from AI_model.models import AIUsageLog
+    
+    try:
+        subscription = user.subscription
+    except Subscription.DoesNotExist:
+        return (0, 0, 0)
+    
+    # Calculate original tokens from the plan
+    original_tokens = 0
+    if subscription.token_plan:
+        original_tokens = subscription.token_plan.tokens_included
+    elif subscription.full_plan:
+        original_tokens = subscription.full_plan.tokens_included
+    
+    # Calculate total AI tokens used by this user since subscription started
+    ai_tokens_used = AIUsageLog.objects.filter(
+        user=user,
+        created_at__gte=subscription.start_date,
+        success=True  # Only count successful requests
+    ).aggregate(
+        total=Sum('total_tokens')
+    )['total'] or 0
+    
+    # Calculate actual remaining tokens
+    actual_tokens_remaining = max(0, original_tokens - ai_tokens_used)
+    
+    return (original_tokens, ai_tokens_used, actual_tokens_remaining)
+
+
 def check_ai_access_for_user(user, estimated_tokens: int = 0, feature_name: str = "AI") -> Dict[str, Any]:
     """
-    Check if user has access to AI features based on subscription and tokens
+    Check if user has access to AI features based on subscription and tokens.
+    
+    CRITICAL: This function uses ACTUAL token consumption from AIUsageLog,
+    not the subscription.tokens_remaining database field.
     
     This function validates:
     1. User has an active subscription
     2. Subscription is not expired (end_date check)
-    3. User has remaining tokens (> 0)
+    3. User has remaining tokens based on ACTUAL AI usage (> 0)
     4. User has enough tokens for the estimated usage
     
     Args:
@@ -28,7 +71,9 @@ def check_ai_access_for_user(user, estimated_tokens: int = 0, feature_name: str 
             - has_access: bool - Whether user can access AI
             - reason: str - Reason code if access denied
             - message: str - Human-readable message
-            - tokens_remaining: int - Current tokens remaining
+            - tokens_remaining: int - ACCURATE tokens remaining based on actual usage
+            - original_tokens: int - Total tokens included in plan
+            - consumed_tokens: int - Total tokens consumed so far
             - days_remaining: int|None - Days until subscription expires
     """
     from billing.models import Subscription
@@ -42,53 +87,59 @@ def check_ai_access_for_user(user, estimated_tokens: int = 0, feature_name: str 
             'reason': 'no_subscription',
             'message': 'No active subscription found',
             'tokens_remaining': 0,
+            'original_tokens': 0,
+            'consumed_tokens': 0,
             'days_remaining': None
         }
     
-    # Check if subscription is active (checks is_active flag, tokens, and end_date)
-    if not subscription.is_subscription_active():
-        # Determine specific reason for inactive subscription
-        reason = 'subscription_inactive'
-        message = 'Subscription is not active'
-        
-        # Check specific conditions
-        if not subscription.is_active:
-            reason = 'subscription_deactivated'
-            message = 'Subscription has been deactivated'
-        elif subscription.tokens_remaining is None or subscription.tokens_remaining <= 0:
-            reason = 'no_tokens_remaining'
-            message = 'No tokens remaining in subscription'
-        elif subscription.end_date and timezone.now() > subscription.end_date:
-            reason = 'subscription_expired'
-            message = 'Subscription has expired'
-        
+    # Get ACCURATE token counts from actual AI usage
+    original_tokens, consumed_tokens, tokens_remaining = get_accurate_tokens_remaining(user)
+    
+    # Check if subscription is_active flag is False
+    if not subscription.is_active:
         logger.warning(
-            f"User {user.username} subscription is not active for {feature_name}. "
-            f"Reason: {reason}, Status: {subscription.status}, "
-            f"Tokens: {subscription.tokens_remaining}, "
-            f"End date: {subscription.end_date}"
+            f"User {user.username} subscription is deactivated for {feature_name}. "
+            f"is_active: False"
         )
-        
         return {
             'has_access': False,
-            'reason': reason,
-            'message': message,
-            'tokens_remaining': subscription.tokens_remaining or 0,
+            'reason': 'subscription_deactivated',
+            'message': 'Subscription has been deactivated',
+            'tokens_remaining': tokens_remaining,
+            'original_tokens': original_tokens,
+            'consumed_tokens': consumed_tokens,
             'days_remaining': subscription.days_remaining()
         }
     
-    # Check if user has any tokens remaining
-    tokens_remaining = subscription.tokens_remaining or 0
+    # Check if subscription is expired
+    if subscription.end_date and timezone.now() > subscription.end_date:
+        logger.warning(
+            f"User {user.username} subscription is expired for {feature_name}. "
+            f"End date: {subscription.end_date}"
+        )
+        return {
+            'has_access': False,
+            'reason': 'subscription_expired',
+            'message': 'Subscription has expired',
+            'tokens_remaining': tokens_remaining,
+            'original_tokens': original_tokens,
+            'consumed_tokens': consumed_tokens,
+            'days_remaining': 0
+        }
+    
+    # Check if user has any tokens remaining (based on ACTUAL usage)
     if tokens_remaining <= 0:
         logger.warning(
             f"User {user.username} has no tokens remaining for {feature_name}. "
-            f"Tokens: {tokens_remaining}"
+            f"Consumed: {consumed_tokens}/{original_tokens} tokens"
         )
         return {
             'has_access': False,
             'reason': 'no_tokens_remaining',
             'message': 'No tokens remaining in subscription',
             'tokens_remaining': 0,
+            'original_tokens': original_tokens,
+            'consumed_tokens': consumed_tokens,
             'days_remaining': subscription.days_remaining()
         }
     
@@ -103,13 +154,16 @@ def check_ai_access_for_user(user, estimated_tokens: int = 0, feature_name: str 
             'reason': 'insufficient_tokens',
             'message': f'Insufficient tokens. Required: {estimated_tokens}, Available: {tokens_remaining}',
             'tokens_remaining': tokens_remaining,
+            'original_tokens': original_tokens,
+            'consumed_tokens': consumed_tokens,
             'days_remaining': subscription.days_remaining()
         }
     
     # All checks passed
     logger.debug(
         f"User {user.username} has access to {feature_name}. "
-        f"Tokens remaining: {tokens_remaining}, Days remaining: {subscription.days_remaining()}"
+        f"Tokens remaining: {tokens_remaining}/{original_tokens}, "
+        f"Days remaining: {subscription.days_remaining()}"
     )
     
     return {
@@ -117,99 +171,50 @@ def check_ai_access_for_user(user, estimated_tokens: int = 0, feature_name: str 
         'reason': None,
         'message': 'Access granted',
         'tokens_remaining': tokens_remaining,
+        'original_tokens': original_tokens,
+        'consumed_tokens': consumed_tokens,
         'days_remaining': subscription.days_remaining()
     }
 
 
 def free_trial_days_left_for_user(user) -> int:
     """
-    Calculate days left in free trial for a user
-    
-    Args:
-        user: User instance
-    
-    Returns:
-        int: Days remaining in free trial (0 if not on trial or expired)
+    Calculate free trial days left for user
     """
     from billing.models import Subscription
     
     try:
         subscription = user.subscription
-        
-        # Check if user is on free trial
-        if subscription.full_plan and subscription.full_plan.name == 'Free Trial':
-            if subscription.end_date:
-                days_left = subscription.days_remaining()
-                return max(0, days_left) if days_left is not None else 0
-        
-        return 0
+        if subscription.trial_end:
+            days_left = (subscription.trial_end - timezone.now()).days
+            return max(0, days_left)
     except Subscription.DoesNotExist:
-        return 0
-
-
-def days_left_from_now(end_date) -> int:
-    """
-    Calculate days left from now to end_date
+        pass
     
-    Args:
-        end_date: datetime object
-    
-    Returns:
-        int: Days remaining (can be negative if expired)
-    """
-    if not end_date:
-        return None
-    
-    now = timezone.now()
-    delta = end_date - now
-    return delta.days
+    return 0
 
 
 def enforce_account_deactivation_for_user(user):
     """
-    Enforce account deactivation side-effects when a subscription becomes inactive.
-    
-    This function:
-    1. Pauses all active workflows for the user
-    2. Logs the enforcement action
-    
-    Note: This was separated from is_subscription_active() to prevent unexpected
-    automatic deactivations. Should only be called explicitly through 
-    deactivate_subscription() method.
-    
-    Args:
-        user: User instance whose account should be deactivated
-    
-    Returns:
-        dict: Summary of actions taken
+    Enforce account-level changes when subscription becomes inactive
     """
-    actions_taken = {
-        'workflows_paused': 0,
-        'errors': []
-    }
+    from workflow.models import Workflow
+    from message.models import Conversation
     
-    # Pause all active workflows
-    try:
-        from workflow.models import Workflow
-        
-        workflows_updated = Workflow.objects.filter(
-            created_by=user, 
-            status='ACTIVE'
-        ).update(status='PAUSED')
-        
-        actions_taken['workflows_paused'] = workflows_updated
-        
-        if workflows_updated > 0:
-            logger.warning(
-                f"Paused {workflows_updated} active workflow(s) for user {user.username} "
-                f"due to subscription deactivation"
-            )
-    except Exception as e:
-        error_msg = f"Error pausing workflows for user {user.username}: {e}"
-        logger.error(error_msg)
-        actions_taken['errors'].append(error_msg)
+    logger.info(f"Enforcing account deactivation for user {user.username}")
     
-    # Note: We intentionally do NOT convert conversations to manual mode here
-    # as that was causing unexpected user experience issues (see SUBSCRIPTION_DEACTIVATION_FIX.md)
+    # Disable AI-powered workflows
+    workflows = Workflow.objects.filter(user=user, is_active=True)
+    for workflow in workflows:
+        # Check if workflow uses AI actions
+        if workflow.has_ai_actions():
+            workflow.is_active = False
+            workflow.save()
+            logger.info(f"Disabled AI workflow {workflow.id} for user {user.username}")
     
-    return actions_taken
+    # Convert AI-powered conversations to manual mode
+    conversations = Conversation.objects.filter(user=user, ai_enabled=True)
+    for conversation in conversations:
+        conversation.ai_enabled = False
+        conversation.save()
+        logger.info(f"Disabled AI for conversation {conversation.id} for user {user.username}")

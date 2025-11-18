@@ -232,41 +232,25 @@ class UserSubscriptionOverviewSerializer(serializers.ModelSerializer):
         (same calculation as CurrentSubscriptionView)
         """
         try:
-            from AI_model.models import AIUsageLog
+            from billing.utils import get_accurate_tokens_remaining
             
             subscription = obj.subscription
             serializer = SubscriptionSerializer(subscription)
             data = serializer.data
             
-            # Calculate total AI tokens used by this user since subscription started
-            ai_tokens_used = AIUsageLog.objects.filter(
-                user=obj,
-                created_at__gte=subscription.start_date,
-                success=True  # Only count successful requests
-            ).aggregate(
-                total=Sum('total_tokens')
-            )['total'] or 0
-            
-            # Calculate original tokens from the plan
-            original_tokens = 0
-            if subscription.token_plan:
-                original_tokens = subscription.token_plan.tokens_included
-            elif subscription.full_plan:
-                original_tokens = subscription.full_plan.tokens_included
-            
-            # Calculate actual remaining tokens
-            actual_tokens_remaining = max(0, original_tokens - ai_tokens_used)
+            # Use centralized accurate token calculation
+            original_tokens, consumed_tokens, tokens_remaining = get_accurate_tokens_remaining(obj)
             
             # Add AI usage information to the response
             data['ai_usage'] = {
-                'total_tokens_consumed': ai_tokens_used,
+                'total_tokens_consumed': consumed_tokens,
                 'original_tokens_included': original_tokens,
-                'actual_tokens_remaining': actual_tokens_remaining,
+                'actual_tokens_remaining': tokens_remaining,
                 'tokens_remaining_in_db': subscription.tokens_remaining,  # Original field for comparison
             }
             
             # Update the main tokens_remaining field with actual remaining
-            data['tokens_remaining'] = actual_tokens_remaining
+            data['tokens_remaining'] = tokens_remaining
             
             return data
             
@@ -339,37 +323,33 @@ class UserSubscriptionOverviewSerializer(serializers.ModelSerializer):
     
     def get_ai_tokens_total(self, obj):
         """Get total AI tokens used since subscription started"""
-        from AI_model.models import AIUsageLog
+        from billing.utils import get_accurate_tokens_remaining
         
         try:
-            subscription = obj.subscription
-            return AIUsageLog.objects.filter(
-                user=obj,
-                created_at__gte=subscription.start_date,
-                success=True
-            ).aggregate(
-                total=Sum('total_tokens')
-            )['total'] or 0
-        except Subscription.DoesNotExist:
+            _, consumed_tokens, _ = get_accurate_tokens_remaining(obj)
+            return consumed_tokens
+        except Exception:
             return 0
     
     def get_original_tokens_included(self, obj):
         """Get original tokens included in the plan"""
+        from billing.utils import get_accurate_tokens_remaining
+        
         try:
-            subscription = obj.subscription
-            if subscription.token_plan:
-                return subscription.token_plan.tokens_included
-            elif subscription.full_plan:
-                return subscription.full_plan.tokens_included
-            return 0
-        except Subscription.DoesNotExist:
+            original_tokens, _, _ = get_accurate_tokens_remaining(obj)
+            return original_tokens
+        except Exception:
             return 0
     
     def get_actual_tokens_remaining(self, obj):
         """Calculate actual remaining tokens based on AI usage"""
-        original_tokens = self.get_original_tokens_included(obj)
-        ai_tokens_used = self.get_ai_tokens_total(obj)
-        return max(0, original_tokens - ai_tokens_used)
+        from billing.utils import get_accurate_tokens_remaining
+        
+        try:
+            _, _, tokens_remaining = get_accurate_tokens_remaining(obj)
+            return tokens_remaining
+        except Exception:
+            return 0
 
 
 # Legacy serializers for backward compatibility
