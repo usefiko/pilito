@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('workflow', '0013_merge_instagram_migrations'),
+        ('workflow', '0014_add_instagram_comment_filters'),
     ]
 
     operations = [
