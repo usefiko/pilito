@@ -126,10 +126,11 @@ def handle_instagram_comment_dm_reply(
     }
     
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    # 1️⃣ Send DM
+    # 1️⃣ Send DM (Marketing Message)
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     product = None
     dm_text = None
+    buttons = None
     
     if dm_mode == 'STATIC':
         # Static template
@@ -160,7 +161,7 @@ def handle_instagram_comment_dm_reply(
             return result
         
         # Generate AI response
-        ai_service = GeminiChatService.get_for_user(user)
+        ai_service = GeminiChatService(user)
         ai_response = ai_service.generate_product_dm_for_instagram_comment(
             comment_text=comment_text,
             product=product,
@@ -187,6 +188,58 @@ def handle_instagram_comment_dm_reply(
             result['error'] = dm_result.get('error')
         
         logger.info(f"[InstagramCommentAction] PRODUCT DM to {ig_username}: {result['dm_sent']}")
+    
+    # ✅ Save DM as Marketing Message in database
+    if result['dm_sent'] and dm_text:
+        try:
+            from message.models import Message, Conversation, Customer
+            from settings.models import InstagramChannel
+            
+            # Get or create customer (Customer model doesn't have 'user' field!)
+            channel = InstagramChannel.objects.get(id=channel_id)
+            customer, _ = Customer.objects.get_or_create(
+                source_id=ig_user_id,  # ✅ Unique identifier for Instagram user
+                source='instagram',
+                defaults={
+                    'first_name': ig_username,
+                }
+            )
+            
+            # Get or create conversation (Conversation HAS 'user' field!)
+            conversation, created = Conversation.objects.get_or_create(
+                customer=customer,
+                user=user,  # ✅ Workflow owner (the business user)
+                source='instagram',
+                defaults={'status': 'active'}
+            )
+            
+            logger.info(f"✅ {'Created' if created else 'Found existing'} conversation: {conversation.id} for customer {customer.id}")
+            
+            # ✅ Create message with type='marketing' (not 'support' or 'AI')
+            Message.objects.create(
+                conversation=conversation,
+                customer=customer,
+                content=dm_text,  # Full text with CTA tokens
+                buttons=buttons,  # Extracted buttons
+                type='marketing',  # ✅ Marketing campaign message
+                is_ai_response=(dm_mode == 'PRODUCT'),  # True if AI generated
+                metadata={
+                    'source': 'workflow',
+                    'workflow_action': 'instagram_comment_dm_reply',
+                    'dm_mode': dm_mode,
+                    'comment_id': comment_id,
+                    'comment_text': comment_text,
+                    'product_id': str(product.id) if product else None,
+                    'sent_from_app': True,
+                    'has_cta_buttons': buttons is not None
+                }
+            )
+            
+            logger.info(f"✅ Marketing message saved to database (conversation: {conversation.id})")
+            
+        except Exception as db_error:
+            logger.error(f"Failed to save marketing message to database: {db_error}")
+            # Don't fail the whole action if DB save fails
     
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     # 2️⃣ Public reply (optional)

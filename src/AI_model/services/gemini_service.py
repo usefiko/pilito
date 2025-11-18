@@ -1500,49 +1500,82 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
         Returns:
             Dict with 'success', 'response', 'metadata'
         """
+        # ✅ 1. Extract product_url safely OUTSIDE try block (to avoid UnboundLocalError in except)
+        product_url = (
+            getattr(product, 'product_url', None)
+            or getattr(product, 'buy_url', None)
+            or getattr(product, 'link', None)
+            or ''
+        )
+        
         try:
             extra_context = extra_context or {}
             username = extra_context.get('username', '')
             
-            # Build product context
+            # ✅ 2. Build price_text with better error handling (use final_price property)
             price_text = "ندارد"
-            if product.price:
-                from web_knowledge.models import Product
-                currency_display = dict(Product.CURRENCY_CHOICES).get(product.currency, product.currency)
-                price_text = f"{product.price:,} {currency_display}"
-                if product.billing_period and product.billing_period != 'one_time':
-                    period_display = dict(Product.BILLING_PERIOD_CHOICES).get(product.billing_period, '')
-                    price_text += f" ({period_display})"
+            final_price = getattr(product, 'final_price', None)
             
-            product_url = product.product_url or product.buy_url or ''
+            if final_price is not None:
+                try:
+                    from web_knowledge.models import Product
+                    currency_display = dict(Product.CURRENCY_CHOICES).get(product.currency, product.currency)
+                    price_text = f"{final_price:,} {currency_display}"
+                    
+                    # Add billing period if applicable
+                    if product.billing_period and product.billing_period != 'one_time':
+                        period_display = dict(Product.BILLING_PERIOD_CHOICES).get(product.billing_period, '')
+                        price_text += f" ({period_display})"
+                    
+                    # Show discount info if sale_price exists and is different from original
+                    if product.sale_price and product.original_price and product.sale_price < product.original_price:
+                        price_text += f" (قیمت اصلی: {product.original_price:,} {currency_display})"
+                        
+                except Exception as price_err:
+                    # حداقل خود قیمت خام رو بگو
+                    logger.warning(f"Could not format price properly: {price_err}")
+                    price_text = f"{final_price:,} تومان"
             
-            # Build prompt
+            # ✅ 3. Build comprehensive product features text
+            features_text = ""
+            if hasattr(product, 'features') and product.features:
+                if isinstance(product.features, list) and product.features:
+                    features_text = "\n- ویژگی‌ها: " + "، ".join(product.features[:3])  # فقط 3 ویژگی اول
+            
+            # ✅ 4. Build prompt with better instructions (include price in description)
             prompt = f"""شما دستیار فروش هستید. یک کاربر زیر پست اینستاگرام این کامنت را گذاشته:
 "{comment_text}"
 
 اطلاعات محصول:
 - نام: {product.title}
 - توضیحات: {product.description or 'ندارد'}
-- قیمت: {price_text}
+- قیمت: {price_text}{features_text}
 - لینک: {product_url or 'ندارد'}
 
 دستورالعمل:
-1. اگر کاربر درباره قیمت پرسیده، قیمت را صادقانه بگو (اگر نداریم بگو "برای قیمت با ما تماس بگیرید")
-2. توضیح خیلی کوتاه درباره محصول (حداکثر 2 خط)
-3. اگر لینک محصول داریم، حتماً با فرمت CTA بفرست: [[CTA:مشاهده محصول|{product_url}]]
-4. لحن دوستانه و فروشنده باش
-5. از اسم کاربر ({username}) در ابتدا استفاده کن
+1. **حتماً قیمت رو در پاسخت بگو!** (مثل: "قیمت این محصول {price_text} است")
+2. توضیح کوتاه و جذاب درباره محصول (حداکثر 2-3 خط)
+3. اگر کاربر درباره قیمت پرسیده، قیمت را صراحتاً بگو
+4. اگر لینک محصول داریم، حتماً با فرمت CTA بفرست: [[CTA:مشاهده و خرید|{product_url}]]
+5. لحن دوستانه و فروشنده باش
+6. از اسم کاربر ({username}) در ابتدا استفاده کن
 
-⚠️ مهم: پاسخ تو باید فقط متن دایرکت باشد، حداکثر 350 کاراکتر."""
+⚠️ مهم: 
+- پاسخ باید شامل قیمت + توضیح + لینک CTA باشه
+- حداکثر 500 کاراکتر
+- مستقیم و واضح بنویس، بدون تعارف زیاد"""
 
             # Call AI
             if not self.model:
                 # Fallback if AI not configured
-                fallback = f"سلام {username}! برای اطلاعات بیشتر درباره {product.title}"
+                fallback = f"سلام {username}! "
+                if final_price is not None:
+                    fallback += f"قیمت {product.title}: {price_text}\n\n"
+                fallback += f"{product.description[:100] if product.description else 'محصول با کیفیت'}..."
                 if product_url:
-                    fallback += f" [[CTA:مشاهده محصول|{product_url}]]"
+                    fallback += f"\n\n[[CTA:مشاهده و خرید|{product_url}]]"
                 else:
-                    fallback += "، لطفاً با ما در تماس باشید."
+                    fallback += "\n\nبرای اطلاعات بیشتر با ما در تماس باشید."
                 
                 return {
                     'success': True,
@@ -1551,13 +1584,78 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
                         'product_id': str(product.id),
                         'product_title': product.title,
                         'comment_text': comment_text,
-                        'has_price': product.price is not None,
+                        'has_price': final_price is not None,
                         'fallback_used': True
                     }
                 }
             
             response = self.model.generate_content(prompt)
-            ai_text = response.text.strip()
+            
+            # ✅ Check for safety blocks or empty responses (same fallback as main generate_response)
+            if not response.candidates or not response.candidates[0].content.parts:
+                # Safety block detected - try fallback to Gemini 2.0 Flash Experimental
+                finish_reason = response.candidates[0].finish_reason if response.candidates else None
+                logger.warning(f"⚠️ Product DM blocked by {self.ai_config.model_name} (finish_reason: {finish_reason})")
+                logger.warning(f"🔄 Attempting fallback to gemini-2.0-flash-exp for product DM...")
+                
+                try:
+                    import google.generativeai as genai
+                    fallback_model = genai.GenerativeModel(
+                        model_name="gemini-2.0-flash-exp",
+                        generation_config={
+                            "temperature": self.ai_config.temperature,
+                            "max_output_tokens": 400,
+                            "top_p": 0.8,
+                            "top_k": 40
+                        },
+                        system_instruction="""You are a professional sales assistant for e-commerce.
+Generate natural, friendly product messages in the customer's language (Persian/English/etc).
+Include price, features, and product link when available.""",
+                        safety_settings=[
+                            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+                            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+                        ]
+                    )
+                    
+                    response = fallback_model.generate_content(prompt)
+                    
+                    if not response.candidates or not response.candidates[0].content.parts:
+                        logger.error(f"❌ Fallback model also blocked for product DM")
+                        raise Exception(f"Both models blocked product DM - finish_reason: {finish_reason}")
+                    
+                    logger.info(f"✅ Fallback to gemini-2.0-flash-exp succeeded for product DM!")
+                    
+                except Exception as fallback_error:
+                    logger.error(f"❌ Fallback failed for product DM: {fallback_error}")
+                    # Use text-based fallback instead
+                    ai_text = f"سلام {username}! "
+                    if final_price is not None:
+                        ai_text += f"قیمت {product.title}: {price_text}\n\n"
+                    ai_text += f"{product.description[:100] if product.description else 'محصول با کیفیت'}..."
+                    if product_url:
+                        ai_text += f"\n\n[[CTA:مشاهده و خرید|{product_url}]]"
+                    
+                    return {
+                        'success': True,
+                        'response': ai_text,
+                        'metadata': {
+                            'product_id': str(product.id),
+                            'product_title': product.title,
+                            'comment_text': comment_text,
+                            'has_price': final_price is not None,
+                            'fallback_used': True,
+                            'safety_block': True
+                        }
+                    }
+            
+            ai_text = (response.text or "").strip()
+            
+            # ✅ 5. Enforce 500 character limit
+            if len(ai_text) > 500:
+                logger.warning(f"AI response too long ({len(ai_text)} chars), truncating to 500")
+                ai_text = ai_text[:497] + "..."
             
             return {
                 'success': True,
@@ -1566,18 +1664,28 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
                     'product_id': str(product.id),
                     'product_title': product.title,
                     'comment_text': comment_text,
-                    'has_price': product.price is not None
+                    'has_price': final_price is not None,
+                    'response_length': len(ai_text)
                 }
             }
             
         except Exception as e:
             logger.error(f"Error generating product DM: {e}")
-            # Fallback response
-            fallback = f"سلام! برای اطلاعات بیشتر درباره {product.title}"
+            # ✅ Fallback response (product_url and final_price are now always defined)
+            fallback = f"سلام! "
+            try:
+                final_price = getattr(product, 'final_price', None)
+                if final_price is not None:
+                    fallback += f"قیمت {product.title}: {final_price:,} تومان\n\n"
+                else:
+                    fallback += f"درباره {product.title}: "
+            except:
+                fallback += f"درباره {product.title}: "
+            
             if product_url:
-                fallback += f" [[CTA:مشاهده محصول|{product_url}]]"
+                fallback += f"[[CTA:مشاهده جزئیات|{product_url}]]"
             else:
-                fallback += "، لطفاً با ما در تماس باشید."
+                fallback += "لطفاً برای اطلاعات بیشتر با ما در تماس باشید."
             
             return {
                 'success': False,

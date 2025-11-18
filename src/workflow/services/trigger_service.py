@@ -408,6 +408,7 @@ class TriggerService:
                     try:
                         # Shallow copy is enough; ensure key is string
                         ctx_with_start['start_node_id'] = str(when_node.id)
+                        ctx_with_start['workflow_owner_id'] = conversation_owner_id  # Add workflow owner for Instagram actions
                     except Exception:
                         ctx_with_start = context
                     workflows.append({

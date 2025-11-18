@@ -596,13 +596,13 @@ class HybridRetriever:
             
             results = []
             for chunk in chunks:
-                results.append({
+                    results.append({
                     'id': chunk.id,  # ✅ Add ID for debugging
-                    'title': chunk.section_title or 'N/A',
+                        'title': chunk.section_title or 'N/A',
                     'content': chunk.full_text,  # ✅ Full content, no truncation
-                    'score': float(chunk.rank) if hasattr(chunk, 'rank') else 0.5,
+                        'score': float(chunk.rank) if hasattr(chunk, 'rank') else 0.5,
                     'source': chunk.chunk_type
-                })
+                    })
             
             return results
             
