@@ -955,7 +955,7 @@ class InstaWebhook(APIView):
                         notify_new_customer_message(message_obj)
                 
                 elif message_type == 'image':
-                    # Image message
+                    # Image message - create pending message object
                     message_obj = Message.objects.create(
                         content=placeholder_text,
                         conversation=conversation,

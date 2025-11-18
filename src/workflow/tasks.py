@@ -324,10 +324,10 @@ def process_event(self, event_log_id: str):
                                 if is_instagram_share:
                                     logger.info(f"🎯 Skipping forced AI for Instagram share message {trigger_message_id} (waiting for follow-up question)")
                                 else:
-                                cache.set(f"ai_force_{trigger_message_id}", True, timeout=30)
-                                from AI_model.tasks import process_ai_response_async
-                                process_ai_response_async.delay(trigger_message_id)
-                                logger.info(f"🎯 Forced AI processing for message {trigger_message_id} after workflows completed")
+                                    cache.set(f"ai_force_{trigger_message_id}", True, timeout=30)
+                                    from AI_model.tasks import process_ai_response_async
+                                    process_ai_response_async.delay(trigger_message_id)
+                                    logger.info(f"🎯 Forced AI processing for message {trigger_message_id} after workflows completed")
                             except Exception as _fe:
                                 logger.warning(f"Failed to force AI processing post-workflow: {_fe}")
                 except Exception as _re:
@@ -409,16 +409,16 @@ def process_event(self, event_log_id: str):
                                                 logger.info(f"AI fallback skipped for message {message_id}: Instagram share (waiting for follow-up question)")
                                                 # Skip AI fallback for share - handled by signals.py delay logic
                                                 pass
-                                    else:
-                                        # Set a short-lived lock to avoid race, then enqueue via adapter
-                                        cache.set(cache_key, True, timeout=300)
-                                        success = call_ai_fallback_task(message_id, event_log.conversation_id)
-                                        if success:
-                                            result['ai_fallback_called'] = True
-                                            logger.info(f"Called AI fallback for message {message_id}")
-                                        else:
-                                            result['ai_fallback_failed'] = True
-                                            logger.warning(f"Failed to call AI fallback for message {message_id}")
+                                            else:
+                                                # Set a short-lived lock to avoid race, then enqueue via adapter
+                                                cache.set(cache_key, True, timeout=300)
+                                                success = call_ai_fallback_task(message_id, event_log.conversation_id)
+                                                if success:
+                                                    result['ai_fallback_called'] = True
+                                                    logger.info(f"Called AI fallback for message {message_id}")
+                                                else:
+                                                    result['ai_fallback_failed'] = True
+                                                    logger.warning(f"Failed to call AI fallback for message {message_id}")
                                         except Message.DoesNotExist:
                                             logger.warning(f"Message {message_id} not found, skipping AI fallback")
                                 except Exception as cache_err:
