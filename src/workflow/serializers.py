@@ -299,7 +299,7 @@ class ActionNodeSerializer(serializers.ModelSerializer):
         model = ActionNode
         fields = '__all__'
         read_only_fields = ('id', 'node_type', 'created_at', 'updated_at')
-    
+
     def to_representation(self, instance):
         """Add config object for Instagram actions for frontend compatibility"""
         data = super().to_representation(instance)

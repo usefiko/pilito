@@ -214,11 +214,11 @@ class QueryRouter:
                     # Get global keywords
                     global_keywords = list(
                         IntentKeyword.objects.filter(
-                            intent=intent,
-                            language=lang,
+                        intent=intent,
+                        language=lang,
                             is_active=True,
                             user__isnull=True
-                        ).values_list('keyword', flat=True)
+                    ).values_list('keyword', flat=True)
                     )
                     
                     # Combine: user-specific first, then global
