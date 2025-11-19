@@ -26,8 +26,8 @@ class QueryRouter:
             'tr': ['fiyat', 'maliyet', 'plan', 'paket', 'abonelik', 'satın', 'ödeme']
         },
         'product': {
-            'fa': ['محصول', 'سرویس', 'خدمات', 'ویژگی', 'امکانات', 'قابلیت', 'چیه', 'چیست'],
-            'en': ['product', 'service', 'feature', 'functionality', 'capability', 'what does', 'what is'],
+            'fa': ['محصول', 'سرویس', 'ویژگی', 'امکانات', 'قابلیت', 'چیه', 'چیست', 'چه محصول', 'چه سرویس'],
+            'en': ['product', 'service', 'feature', 'functionality', 'capability', 'what does', 'what is', 'what product', 'what service'],
             'ar': ['منتج', 'خدمة', 'ميزة', 'وظيفة', 'ما هو'],
             'tr': ['ürün', 'hizmet', 'özellik', 'fonksiyon', 'nedir']
         },

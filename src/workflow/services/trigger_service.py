@@ -223,8 +223,8 @@ class TriggerService:
                     
                     # For USER_CREATED: try from Customer
                     if event_log.event_type == 'USER_CREATED' and event_log.user_id:
-                    from workflow.settings_adapters import get_model_class
-                    CustomerModel = get_model_class('USER')  # In this project this maps to message.Customer
+                        from workflow.settings_adapters import get_model_class
+                        CustomerModel = get_model_class('USER')  # In this project this maps to message.Customer
                         customer = CustomerModel.objects.select_related('user').get(id=event_log.user_id)
                         owner = getattr(customer, 'user', None)
                         if owner and getattr(owner, 'id', None):
