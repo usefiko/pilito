@@ -43,11 +43,9 @@ FROM python-deps AS final
 # Now copy application code (this layer changes frequently)
 COPY ./src /app
 COPY ./entrypoint.sh /entrypoint.sh
-COPY ./fix_migration_0025.py /app/fix_migration_0025.py
 
 # Setup and cleanup
 RUN chmod +x /entrypoint.sh && \
-    chmod +x /app/fix_migration_0025.py && \
     find /app -type f -name "*.pyc" -delete && \
     find /app -type d -name "__pycache__" -delete
 
