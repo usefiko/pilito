@@ -11,7 +11,6 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 
-
 # ============================================================================
 # USER SIGNALS - AIPrompts Auto-Creation
 # ============================================================================
