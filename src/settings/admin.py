@@ -1,5 +1,5 @@
 from django.contrib import admin
-from settings.models import Settings, GeneralSettings, TelegramChannel, InstagramChannel, AIPrompts, IntercomTicketType, SupportTicket, SupportMessage, SupportMessageAttachment, BusinessPrompt, UpToPro
+from settings.models import Settings, GeneralSettings, TelegramChannel, InstagramChannel, AIPrompts, IntercomTicketType, SupportTicket, SupportMessage, SupportMessageAttachment, BusinessPrompt, UpToPro, AIBehaviorSettings
 
 # =============================================
 # SYSTEM CONFIGURATION
@@ -406,6 +406,133 @@ class SupportMessageAttachmentAdmin(admin.ModelAdmin):
 # =============================================
 # ADMIN SITE CUSTOMIZATION  
 # =============================================
+
+# =============================================
+# AI BEHAVIOR SETTINGS
+# =============================================
+
+@admin.register(AIBehaviorSettings)
+class AIBehaviorSettingsAdmin(admin.ModelAdmin):
+    """
+    Admin interface for AI Behavior Settings
+    
+    Allows admins to view and manage per-user AI behavior configurations.
+    Each business owner can customize how their AI assistant behaves.
+    """
+    list_display = [
+        'user',
+        'tone',
+        'emoji_usage',
+        'response_length',
+        'use_customer_name',
+        'use_bio_context',
+        'persuasive_selling_enabled',
+        'updated_at',
+    ]
+    
+    list_filter = [
+        'tone',
+        'emoji_usage',
+        'response_length',
+        'persuasive_selling_enabled',
+        'use_customer_name',
+        'use_bio_context',
+        'created_at',
+        'updated_at',
+    ]
+    
+    search_fields = [
+        'user__username',
+        'user__email',
+        'user__first_name',
+        'user__last_name',
+        'custom_instructions',
+    ]
+    
+    readonly_fields = ['created_at', 'updated_at', 'preview_prompt_flags']
+    
+    fieldsets = (
+        ('👤 کاربر', {
+            'fields': ('user',),
+            'description': 'کاربر / صاحب کسب‌وکار که این تنظیمات به او تعلق دارد'
+        }),
+        
+        ('🎭 شخصیت AI (Persona)', {
+            'fields': (
+                'tone',
+                'emoji_usage',
+                'response_length',
+            ),
+            'description': (
+                '🎨 لحن صحبت: رسمی، دوستانه، پرانرژی یا همدلانه<br>'
+                '😊 استفاده از ایموجی: هیچ، متعادل یا زیاد<br>'
+                '📏 طول پاسخ: کوتاه (1-2 جمله)، متعادل (3-4 جمله)، یا تفصیلی (5-7 جمله)'
+            )
+        }),
+        
+        ('⚙️ کنترل‌های رفتاری (Behavioral Controls)', {
+            'fields': (
+                'use_customer_name',
+                'use_bio_context',
+            ),
+            'description': (
+                '✅ استفاده از نام مشتری: AI نام مشتری را در سلام صدا می‌زند<br>'
+                '✅ استفاده از بیو: AI از اطلاعات بیو مشتری برای شخصی‌سازی استفاده می‌کند'
+            )
+        }),
+        
+        ('💰 فروش فعال (Persuasive Selling)', {
+            'fields': (
+                'persuasive_selling_enabled',
+                'persuasive_cta_text',
+            ),
+            'description': (
+                '✅ فعال‌سازی: AI به صورت فعال محصولات را پیشنهاد می‌دهد<br>'
+                '📣 متن CTA: متنی که AI به صورت طبیعی در پیام‌های فروش می‌گنجاند (حداکثر 300 کاراکتر)'
+            )
+        }),
+        
+        ('📝 قوانین پاسخ (Response Rules)', {
+            'fields': (
+                'unknown_fallback_text',
+                'custom_instructions',
+            ),
+            'description': (
+                '❓ پاسخ عدم اطلاع: متنی که وقتی AI جواب ندارد برمی‌گرداند (حداکثر 500 کاراکتر)<br>'
+                '⚡ دستورات اضافی: قوانین اضافی به زبان انگلیسی (اختیاری، حداکثر 1000 کاراکتر)'
+            ),
+            'classes': ('wide',)
+        }),
+        
+        ('🔍 پیش‌نمایش (Preview)', {
+            'fields': ('preview_prompt_flags',),
+            'description': 'پیش‌نمایش flag های که به AI ارسال می‌شوند',
+            'classes': ('collapse',)
+        }),
+        
+        ('📅 اطلاعات تکمیلی', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def preview_prompt_flags(self, obj):
+        """
+        Show preview of how the flags will be sent to AI
+        """
+        if obj.pk:
+            flags = obj.get_prompt_additions()
+            return f'<pre style="background:#f5f5f5;padding:10px;border-radius:4px;">{flags}</pre>'
+        return "ذخیره کنید تا پیش‌نمایش نمایش داده شود"
+    
+    preview_prompt_flags.short_description = "پیش‌نمایش Flag های AI"
+    preview_prompt_flags.allow_tags = True
+    
+    def get_queryset(self, request):
+        """Optimize queryset with select_related"""
+        qs = super().get_queryset(request)
+        return qs.select_related('user')
+
 
 # Customize admin site header and title
 admin.site.site_header = "Fiko Admin Portal"

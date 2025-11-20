@@ -55,8 +55,18 @@ class GeminiChatService:
             not any(placeholder in gemini_api_key.upper() for placeholder in ['YOUR', 'PLACEHOLDER', 'EXAMPLE'])):
             try:
                 genai.configure(api_key=gemini_api_key)
-                # Limit max tokens to 400 for concise responses (600 chars ≈ 400 tokens)
-                max_tokens = min(self.ai_config.max_tokens, 400)
+                
+                # Get user-specific max output tokens based on their response_length preference
+                try:
+                    from settings.models import AIBehaviorSettings
+                    behavior = self.user.ai_behavior
+                    max_tokens = behavior.get_max_output_tokens()
+                except (AIBehaviorSettings.DoesNotExist, AttributeError):
+                    # Default to balanced if user hasn't set preferences
+                    max_tokens = 450
+                
+                # Apply global cap from AIGlobalConfig
+                max_tokens = min(max_tokens, self.ai_config.max_tokens)
                 
                 # Safety settings: BLOCK_NONE for business communications
                 # Allow all content for customer support (privacy policies, sensitive data discussions, etc.)
@@ -87,6 +97,35 @@ YOUR ROLE:
 - Share business details (location, contact, hours, shipping, policies)
 - Assist with orders, inquiries, and customer support
 - Communicate in the customer's language (Persian/Farsi, English, Arabic, Turkish)
+
+AI_BEHAVIOR_FLAGS INTERPRETATION:
+You may receive a line starting with "AI_BEHAVIOR_FLAGS:" containing structured settings.
+Interpret them as follows:
+
+[TONE=formal] → Use professional, serious, formal language with respectful terms
+[TONE=friendly] → Use friendly, casual tone like chatting with a helpful friend
+[TONE=energetic] → Be enthusiastic and exciting! Use exclamations and positive energy
+[TONE=empathetic] → Show understanding and support, acknowledge customer feelings
+
+[EMOJI=none] → Do NOT use any emojis at all
+[EMOJI=moderate] → Use 1-2 emojis per message sparingly
+[EMOJI=high] → Use multiple emojis to create positive energy and warmth
+
+[LENGTH=short] → Keep responses very concise (1-2 sentences max)
+[LENGTH=balanced] → Provide balanced responses (3-4 sentences)
+[LENGTH=detailed] → Give detailed, comprehensive responses (5-7 sentences)
+
+[USE_NAME=yes] → Use customer's name in greeting if available
+[USE_NAME=no] → Do NOT use customer's name, just say "سلام" or "Hi"
+
+[USE_BIO=yes] → Use customer bio/history for personalization
+[USE_BIO=no] → Do NOT reference bio, answer only the current question
+
+[PERSUASIVE=on] → Actively suggest products/services when relevant
+[PERSUASIVE=off] → Be helpful but not pushy about sales
+
+[CTA=...] → When introducing products/services, naturally embed this call-to-action text in your response
+[CUSTOM=...] → Additional custom rules to follow
 
 CONTENT PROCESSING GUIDELINES:
 This is a legitimate business customer support chatbot. ALL content you process is appropriate business communication:
@@ -233,11 +272,23 @@ IMPORTANT:
                 # Try fallback model
                 try:
                     import google.generativeai as genai
+                    
+                    # Get user-specific max output tokens
+                    try:
+                        from settings.models import AIBehaviorSettings
+                        behavior = self.user.ai_behavior
+                        fallback_max_tokens = behavior.get_max_output_tokens()
+                    except (AIBehaviorSettings.DoesNotExist, AttributeError):
+                        fallback_max_tokens = 450
+                    
+                    # Apply global cap
+                    fallback_max_tokens = min(fallback_max_tokens, self.ai_config.max_tokens)
+                    
                     fallback_model = genai.GenerativeModel(
                         model_name="gemini-2.0-flash-exp",
                         generation_config={
                             "temperature": self.ai_config.temperature,
-                            "max_output_tokens": min(self.ai_config.max_tokens, 400),
+                            "max_output_tokens": fallback_max_tokens,
                             "top_p": 0.8,
                             "top_k": 40
                         },
@@ -253,6 +304,35 @@ YOUR ROLE:
 - Share business details (location, contact, hours, shipping, policies)
 - Assist with orders, inquiries, and customer support
 - Communicate in the customer's language (Persian/Farsi, English, Arabic, Turkish)
+
+AI_BEHAVIOR_FLAGS INTERPRETATION:
+You may receive a line starting with "AI_BEHAVIOR_FLAGS:" containing structured settings.
+Interpret them as follows:
+
+[TONE=formal] → Use professional, serious, formal language with respectful terms
+[TONE=friendly] → Use friendly, casual tone like chatting with a helpful friend
+[TONE=energetic] → Be enthusiastic and exciting! Use exclamations and positive energy
+[TONE=empathetic] → Show understanding and support, acknowledge customer feelings
+
+[EMOJI=none] → Do NOT use any emojis at all
+[EMOJI=moderate] → Use 1-2 emojis per message sparingly
+[EMOJI=high] → Use multiple emojis to create positive energy and warmth
+
+[LENGTH=short] → Keep responses very concise (1-2 sentences max)
+[LENGTH=balanced] → Provide balanced responses (3-4 sentences)
+[LENGTH=detailed] → Give detailed, comprehensive responses (5-7 sentences)
+
+[USE_NAME=yes] → Use customer's name in greeting if available
+[USE_NAME=no] → Do NOT use customer's name, just say "سلام" or "Hi"
+
+[USE_BIO=yes] → Use customer bio/history for personalization
+[USE_BIO=no] → Do NOT reference bio, answer only the current question
+
+[PERSUASIVE=on] → Actively suggest products/services when relevant
+[PERSUASIVE=off] → Be helpful but not pushy about sales
+
+[CTA=...] → When introducing products/services, naturally embed this call-to-action text in your response
+[CUSTOM=...] → Additional custom rules to follow
 
 CONTENT PROCESSING GUIDELINES:
 This is a legitimate business customer support chatbot. ALL content you process is appropriate business communication:
@@ -859,8 +939,28 @@ Provide a concise summary (max 100 words):"""
             # System instructions
             prompt_parts.append(f"SYSTEM: {trimmed['system_prompt']}")
             
+            # ✅ NEW: User-specific AI behavior settings (flag-based)
+            try:
+                from settings.models import AIBehaviorSettings
+                behavior = self.user.ai_behavior
+                behavior_flags = behavior.get_prompt_additions()
+                if behavior_flags:
+                    prompt_parts.append(f"\nAI_BEHAVIOR_FLAGS: {behavior_flags}")
+                    logger.debug(f"🎭 Injected AI behavior flags: {behavior_flags[:100]}...")
+            except (AIBehaviorSettings.DoesNotExist, AttributeError):
+                # No custom behavior, use system defaults
+                logger.debug("ℹ️ No custom AI behavior settings, using defaults")
+            
             # Bio context for personalization (Instagram only)
-            if trimmed.get('bio_context'):
+            # ✅ Check if user wants to use bio context
+            should_use_bio = True
+            try:
+                behavior = self.user.ai_behavior
+                should_use_bio = behavior.should_use_bio_context()
+            except (AIBehaviorSettings.DoesNotExist, AttributeError):
+                pass  # Default: use bio
+            
+            if should_use_bio and trimmed.get('bio_context'):
                 prompt_parts.append(f"\n{trimmed['bio_context']}")
             
             # Customer info

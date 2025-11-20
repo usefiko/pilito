@@ -3,14 +3,15 @@ from django.shortcuts import get_object_or_404
 from settings.serializers import (
     SettingsSerializer, AIPromptsSerializer, 
     AIPromptsManualPromptSerializer, AIPromptsCreateUpdateSerializer,
-    UpToProSerializer
+    UpToProSerializer, AIBehaviorSettingsSerializer
 )
 from accounts.serializers import DefaultReplyHandlerSerializer
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from settings.models import Settings, AIPrompts, UpToPro
+from rest_framework.generics import RetrieveUpdateAPIView
+from settings.models import Settings, AIPrompts, UpToPro, AIBehaviorSettings
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 import logging
@@ -256,3 +257,125 @@ class LatestUpToProAPIView(APIView):
                 'success': False,
                 'error': 'Failed to get latest UpToPro'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class AIBehaviorSettingsView(RetrieveUpdateAPIView):
+    """
+    API endpoint for managing AI Behavior Settings
+    
+    GET /api/settings/ai-behavior/me/ - Get current user's AI behavior settings
+    PUT/PATCH /api/settings/ai-behavior/me/ - Update current user's AI behavior settings
+    
+    Automatically creates settings with defaults if they don't exist.
+    Each user (business owner) has their own AI behavior configuration.
+    """
+    serializer_class = AIBehaviorSettingsSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_object(self):
+        """
+        Get or create AI behavior settings for the authenticated user
+        
+        If settings don't exist, create them with default values.
+        This ensures every user always has a configuration.
+        """
+        settings, created = AIBehaviorSettings.objects.get_or_create(
+            user=self.request.user,
+            defaults={
+                'tone': 'friendly',
+                'emoji_usage': 'moderate',
+                'response_length': 'balanced',
+                'use_customer_name': True,
+                'use_bio_context': True,
+                'persuasive_selling_enabled': False,
+                'persuasive_cta_text': 'آیا می‌خواهید این محصول را سفارش دهید؟ 🛒',
+                'unknown_fallback_text': 'من در حال حاضر پاسخ دقیق این سوال را ندارم، اما همکارانم به زودی پاسخ شما را خواهند داد.',
+            }
+        )
+        
+        if created:
+            logger.info(f"✅ Auto-created AI Behavior Settings for user: {self.request.user.username}")
+        
+        return settings
+    
+    @swagger_auto_schema(
+        operation_description="Get AI behavior settings for the authenticated user",
+        responses={
+            200: AIBehaviorSettingsSerializer,
+            401: "Unauthorized"
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        """Get user's AI behavior settings"""
+        return super().get(request, *args, **kwargs)
+    
+    @swagger_auto_schema(
+        operation_description="Update AI behavior settings for the authenticated user",
+        request_body=AIBehaviorSettingsSerializer,
+        responses={
+            200: AIBehaviorSettingsSerializer,
+            400: "Validation Error",
+            401: "Unauthorized"
+        }
+    )
+    def put(self, request, *args, **kwargs):
+        """Update user's AI behavior settings (full update)"""
+        return super().put(request, *args, **kwargs)
+    
+    @swagger_auto_schema(
+        operation_description="Partially update AI behavior settings for the authenticated user",
+        request_body=AIBehaviorSettingsSerializer,
+        responses={
+            200: AIBehaviorSettingsSerializer,
+            400: "Validation Error",
+            401: "Unauthorized"
+        }
+    )
+    def patch(self, request, *args, **kwargs):
+        """Partially update user's AI behavior settings"""
+        return super().patch(request, *args, **kwargs)
+
+
+class AIBehaviorSettingsResetView(APIView):
+    """
+    API endpoint to reset AI behavior settings to defaults
+    
+    POST /api/settings/ai-behavior/reset/ - Reset to default settings
+    """
+    permission_classes = [IsAuthenticated]
+    
+    @swagger_auto_schema(
+        operation_description="Reset AI behavior settings to default values",
+        responses={
+            200: AIBehaviorSettingsSerializer,
+            401: "Unauthorized"
+        }
+    )
+    def post(self, request):
+        """
+        Reset user's AI behavior settings to defaults
+        
+        This is useful if user wants to start fresh or undo customizations.
+        """
+        settings, _ = AIBehaviorSettings.objects.get_or_create(user=request.user)
+        
+        # Reset to defaults
+        settings.tone = 'friendly'
+        settings.emoji_usage = 'moderate'
+        settings.response_length = 'balanced'
+        settings.use_customer_name = True
+        settings.use_bio_context = True
+        settings.persuasive_selling_enabled = False
+        settings.persuasive_cta_text = 'آیا می‌خواهید این محصول را سفارش دهید؟ 🛒'
+        settings.unknown_fallback_text = 'من در حال حاضر پاسخ دقیق این سوال را ندارم، اما همکارانم به زودی پاسخ شما را خواهند داد.'
+        settings.custom_instructions = ''
+        settings.save()
+        
+        logger.info(f"🔄 Reset AI Behavior Settings for user: {request.user.username}")
+        
+        serializer = AIBehaviorSettingsSerializer(settings, context={'request': request})
+        return Response({
+            'success': True,
+            'message': 'تنظیمات به حالت پیش‌فرض بازگشت',
+            'data': serializer.data
+        }, status=status.HTTP_200_OK)

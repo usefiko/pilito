@@ -38,6 +38,44 @@ def create_ai_prompts_for_user(sender, instance, created, **kwargs):
             logger.error(f"❌ Error creating AIPrompts for user {instance.username}: {str(e)}")
 
 
+@receiver(post_save, sender='accounts.User')
+def create_ai_behavior_for_user(sender, instance, created, **kwargs):
+    """
+    Automatically create AIBehaviorSettings when a new User is created
+    
+    This ensures every business owner has default AI behavior settings configured.
+    Settings can be customized later via API or Django Admin.
+    
+    Args:
+        sender: User model
+        instance: User instance
+        created: Boolean indicating if this is a new user
+    """
+    if created:
+        try:
+            from .models import AIBehaviorSettings
+            behavior, behavior_created = AIBehaviorSettings.objects.get_or_create(
+                user=instance,
+                defaults={
+                    'tone': 'friendly',
+                    'emoji_usage': 'moderate',
+                    'response_length': 'balanced',
+                    'use_customer_name': True,
+                    'use_bio_context': True,
+                    'persuasive_selling_enabled': False,
+                    'persuasive_cta_text': 'آیا می‌خواهید این محصول را سفارش دهید؟ 🛒',
+                    'unknown_fallback_text': 'من در حال حاضر پاسخ دقیق این سوال را ندارم، اما همکارانم به زودی پاسخ شما را خواهند داد.',
+                }
+            )
+            if behavior_created:
+                logger.info(f"✅ Auto-created AIBehaviorSettings for new user: {instance.username} ({instance.email})")
+            else:
+                logger.info(f"ℹ️ AIBehaviorSettings already existed for user: {instance.username}")
+                
+        except Exception as e:
+            logger.error(f"❌ Error creating AIBehaviorSettings for user {instance.username}: {str(e)}")
+
+
 # ============================================================================
 # INTERCOM INTEGRATION SIGNALS - Support Tickets
 # ============================================================================
