@@ -806,6 +806,11 @@ class AIBehaviorSettings(models.Model):
         flags.append(f"[USE_BIO={'yes' if self.use_bio_context else 'no'}]")
         flags.append(f"[PERSUASIVE={'on' if self.persuasive_selling_enabled else 'off'}]")
         
+        # Fallback text for when AI doesn't know the answer (CRITICAL!)
+        if self.unknown_fallback_text and self.unknown_fallback_text.strip():
+            fallback_clean = self.unknown_fallback_text.strip().replace('\n', ' ')[:200]
+            flags.append(f"[FALLBACK_TEXT={fallback_clean}]")
+        
         # CTA text (can be Persian - it's content, not instruction)
         if self.persuasive_selling_enabled and self.persuasive_cta_text.strip():
             cta_clean = self.persuasive_cta_text.strip().replace('\n', ' ')[:250]
@@ -823,27 +828,27 @@ class AIBehaviorSettings(models.Model):
         Calculate max output tokens based on response_length preference.
         
         Token allocation aligned with actual response needs:
-        - short: 250 tokens (~150-200 Persian words, 1-2 sentences)
-        - balanced: 450 tokens (~300-350 words, 3-4 sentences) [DEFAULT]
-        - detailed: 750 tokens (~500-600 words, 5-7 sentences)
+        - short: 400 tokens (~250-300 Persian words, 1-2 short paragraphs)
+        - balanced: 700 tokens (~450-500 words, 2-3 paragraphs) [DEFAULT]
+        - detailed: 1200 tokens (~800-900 words, 3-5 detailed paragraphs)
         
         These limits ensure:
         1. AI has enough tokens to complete thought
         2. Responses stay within user preference
         3. Total budget (input + output) stays safe:
            - Max input: 2200 tokens (TokenBudgetController)
-           - Max output: 750 tokens (this method)
-           - Total: 2950 tokens << Gemini context window (1M tokens) ✅
+           - Max output: 1200 tokens (this method)
+           - Total: 3400 tokens << Gemini context window (1M tokens) ✅
         
         Returns:
             int: Maximum output tokens for this user's preference
         """
         token_limits = {
-            'short': 250,
-            'balanced': 450,
-            'detailed': 750,
+            'short': 400,      # Short but complete (1-2 paragraphs)
+            'balanced': 700,   # Balanced explanation (2-3 paragraphs)
+            'detailed': 1200,  # Detailed response (3-5 paragraphs)
         }
-        return token_limits.get(self.response_length, 450)
+        return token_limits.get(self.response_length, 700)
     
     def get_fallback_text(self) -> str:
         """
