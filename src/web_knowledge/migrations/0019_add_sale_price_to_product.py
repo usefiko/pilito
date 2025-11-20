@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('web_knowledge', '0020_product_external_id_product_external_source_and_more'),
+        ('web_knowledge', '0001_initial'),
     ]
 
     operations = [
