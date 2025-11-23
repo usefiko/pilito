@@ -166,6 +166,25 @@ class InstaWebhook(APIView):
             # Create TriggerEventLog for workflow processing
             from workflow.models import TriggerEventLog
             
+            # ✅ DEDUPLICATION: Check if this comment has already been processed
+            # Instagram sometimes sends duplicate webhooks for the same comment
+            existing_event = TriggerEventLog.objects.filter(
+                event_type='INSTAGRAM_COMMENT',
+                event_data__comment_id=comment_id
+            ).first()
+            
+            if existing_event:
+                logger.warning(
+                    f"⚠️ Duplicate Instagram comment webhook detected: {comment_id} "
+                    f"(already processed as event_log {existing_event.id}). Skipping."
+                )
+                return {
+                    'type': 'instagram_comment',
+                    'comment_id': comment_id,
+                    'event_log_id': str(existing_event.id),
+                    'status': 'duplicate_skipped'
+                }
+            
             # Extract media type from webhook data
             media_product_type = media.get('media_product_type', '').upper()
             # Map Instagram's media_product_type to our filter types
