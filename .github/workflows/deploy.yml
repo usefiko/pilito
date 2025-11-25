@@ -150,9 +150,14 @@ jobs:
             exit 1
           fi
           
-          # Run migrations
+          # Run migrations with error handling
           echo "📊 Running database migrations..."
-          docker exec django_app python manage.py migrate --noinput
+          if ! docker exec django_app python manage.py migrate --noinput; then
+            echo "⚠️ Migration failed, attempting to show migration status..."
+            docker exec django_app python manage.py showmigrations || true
+            docker logs django_app --tail 100
+            exit 1
+          fi
           
           # Collect static files
           echo "📦 Collecting static files..."

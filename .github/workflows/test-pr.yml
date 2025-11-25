@@ -33,6 +33,11 @@ jobs:
           REDIS_URL=redis://redis:6379/0
           EOF
       
+      - name: Clean up old containers and volumes
+        run: |
+          docker compose down -v || true
+          docker volume prune -f || true
+      
       - name: Build Docker images
         run: docker compose build
       
