@@ -12,6 +12,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 logger = logging.getLogger(__name__)
 
 
+
 class EventType(models.Model):
     """
     Defines types of events that can trigger workflows
@@ -1306,3 +1307,4 @@ class UserResponse(models.Model):
     
     def __str__(self):
         return f"Response to {self.waiting_node.title} from {self.user_id}"
+
