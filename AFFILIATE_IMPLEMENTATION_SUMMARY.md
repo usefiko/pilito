@@ -127,6 +127,11 @@ The base URL for invite links is configured via Django settings:
 
 ## Database Migration
 
+### Migration Files Created:
+1. `0015_add_affiliate_fields.py` - Adds affiliate marketing fields to User model
+2. `0016_otptoken.py` - Creates OTPToken model (if not already present)
+3. `0017_merge_20251125_1010.py` - Merge migration to resolve conflict
+
 To apply the database changes:
 ```bash
 # Run the migration
@@ -135,6 +140,14 @@ python manage.py migrate accounts
 # Or if using Docker
 docker-compose exec web python manage.py migrate accounts
 ```
+
+### Migration Conflict Resolution
+If you encountered the error:
+```
+CommandError: Conflicting migrations detected; multiple leaf nodes in the migration graph
+```
+
+This has been resolved by creating a merge migration (`0017_merge_20251125_1010.py`) that combines both migration branches.
 
 ## Security Considerations
 
