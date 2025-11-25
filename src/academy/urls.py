@@ -3,6 +3,7 @@ from . import views
 
 app_name = 'academy'
 
+
 urlpatterns = [
     # Video endpoints with filtering and search
     path('videos/', views.VideoListView.as_view(), name='video-list'),

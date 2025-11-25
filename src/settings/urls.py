@@ -16,6 +16,7 @@ from settings.support_views import (
 )
 from settings.api.intercom_webhooks import intercom_webhook_handler
 
+
 urlpatterns = [
     # channels
     path("tele-bot", TeleBotAPIView.as_view(), name="tele-bot"),
