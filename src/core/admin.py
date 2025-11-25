@@ -2,7 +2,6 @@ from django.contrib import admin
 from .models import ProxySetting
 
 
-
 @admin.register(ProxySetting)
 class ProxySettingAdmin(admin.ModelAdmin):
     list_display = ('name', 'http_proxy', 'https_proxy', 'is_active', 'updated_at')
