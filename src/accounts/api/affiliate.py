@@ -7,6 +7,7 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
 
+
 class AffiliateInfoAPIView(APIView):
     """
     API endpoint for getting user's affiliate information including:
@@ -56,4 +57,3 @@ class AffiliateInfoAPIView(APIView):
         user = request.user
         serializer = AffiliateSerializer(user)
         return Response(serializer.data, status=status.HTTP_200_OK)
-
