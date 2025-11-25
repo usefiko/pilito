@@ -7,6 +7,7 @@ import uuid
 import random
 import string
 
+
 class User(AbstractUser):
     GENDER_CHOICES = [
         ('M', 'Male'),
@@ -175,3 +176,4 @@ class OTPToken(models.Model):
     
     def __str__(self):
         return f"OTP for {self.phone_number} - {'Used' if self.is_used else 'Active'}"
+

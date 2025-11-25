@@ -8,8 +8,6 @@ User = get_user_model()
 
 
 
-
-
 class WebsiteSource(models.Model):
     """
     Model to store website sources that users want to crawl and analyze
@@ -655,3 +653,4 @@ class Product(models.Model):
     def get_tags_display(self):
         """Get tags as comma-separated string"""
         return ", ".join(self.tags) if self.tags else "No tags"
+    
