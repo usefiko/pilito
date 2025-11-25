@@ -41,12 +41,30 @@ class User(AbstractUser):
     google_avatar_url = models.URLField(max_length=500, null=True, blank=True)
     # Email confirmation field
     email_confirmed = models.BooleanField(default=False)
+    # Affiliate marketing fields
+    invite_code = models.CharField(max_length=20, unique=True, null=True, blank=True)
+    referred_by = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='referrals')
+    wallet_balance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
     objects = UserManager()
+
+    def save(self, *args, **kwargs):
+        if not self.invite_code:
+            # Generate a unique 10-character invite code
+            self.invite_code = self._generate_unique_invite_code()
+        super().save(*args, **kwargs)
+    
+    def _generate_unique_invite_code(self):
+        """Generate a unique invite code for the user"""
+        while True:
+            # Generate a random 10-character alphanumeric code
+            code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
+            if not User.objects.filter(invite_code=code).exists():
+                return code
 
     def __str__(self):
         return str(self.email) +' | '+ str(self.first_name) +' '+ str(self.last_name)

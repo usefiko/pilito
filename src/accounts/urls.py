@@ -1,5 +1,5 @@
 from django.urls import path
-from accounts.api import LoginAPIView,RegisterView,CompleteRegisterView,Refresh,RefreshAccess,Logout,Profile,ProfilePicture,ProfilePictureRemove,ChangePasswordAPIView,DeleteAccountAPIView,WizardCompleteAPIView,WizardCompleteForceAPIView,ForgetPasswordAPIView,ResetPasswordAPIView,GoogleOAuthLoginAPIView,GoogleOAuthCodeAPIView,GoogleOAuthAuthURLAPIView,GoogleOAuthTestAPIView,UserOverview,SendOTPAPIView,VerifyOTPAPIView,AddEmailSendCodeAPIView,AddEmailVerifyCodeAPIView,AddPhoneSendOTPAPIView,AddPhoneVerifyOTPAPIView
+from accounts.api import LoginAPIView,RegisterView,CompleteRegisterView,Refresh,RefreshAccess,Logout,Profile,ProfilePicture,ProfilePictureRemove,ChangePasswordAPIView,DeleteAccountAPIView,WizardCompleteAPIView,WizardCompleteForceAPIView,ForgetPasswordAPIView,ResetPasswordAPIView,GoogleOAuthLoginAPIView,GoogleOAuthCodeAPIView,GoogleOAuthAuthURLAPIView,GoogleOAuthTestAPIView,UserOverview,SendOTPAPIView,VerifyOTPAPIView,AddEmailSendCodeAPIView,AddEmailVerifyCodeAPIView,AddPhoneSendOTPAPIView,AddPhoneVerifyOTPAPIView,AffiliateInfoAPIView
 from accounts.api.intercom import IntercomJWTView, IntercomConfigView, IntercomUserHashView, IntercomValidateJWTView
 from accounts.api.email_confirmation import EmailConfirmationAPIView, ResendEmailConfirmationAPIView, EmailConfirmationStatusAPIView
 from accounts.api.auth_status import AuthStatusAPIView, DashboardAccessAPIView
@@ -51,4 +51,7 @@ urlpatterns = [
     path("link/email/verify", AddEmailVerifyCodeAPIView.as_view(), name="link-email-verify"),
     path("link/phone", AddPhoneSendOTPAPIView.as_view(), name="link-phone-send"),
     path("link/phone/verify", AddPhoneVerifyOTPAPIView.as_view(), name="link-phone-verify"),
+    
+    # Affiliate marketing endpoints
+    path("affiliate", AffiliateInfoAPIView.as_view(), name="affiliate-info"),
 ]

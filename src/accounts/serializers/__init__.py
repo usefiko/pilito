@@ -9,3 +9,4 @@ from accounts.serializers.linking import (
     SendOTPForLinkingSerializer,
     VerifyOTPForLinkingSerializer
 )
+from accounts.serializers.affiliate import AffiliateSerializer, ReferralUserSerializer

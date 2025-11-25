@@ -11,3 +11,4 @@ from accounts.api.forget_password import ForgetPasswordAPIView, ResetPasswordAPI
 from accounts.api.google_oauth import GoogleOAuthLoginAPIView, GoogleOAuthCodeAPIView, GoogleOAuthAuthURLAPIView, GoogleOAuthTestAPIView
 from accounts.api.otp import SendOTPAPIView, VerifyOTPAPIView
 from accounts.api.linking import AddEmailSendCodeAPIView, AddEmailVerifyCodeAPIView, AddPhoneSendOTPAPIView, AddPhoneVerifyOTPAPIView
+from accounts.api.affiliate import AffiliateInfoAPIView

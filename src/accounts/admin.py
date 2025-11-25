@@ -15,6 +15,7 @@ class UserAdmin(ImportExportModelAdmin):
         'state', 'zip_code', 'country', 'language', 'time_zone', 'currency',
         'business_type', 'default_reply_handler', 'wizard_complete',
         'google_id', 'is_google_user', 'google_avatar_url',
+        'invite_code', 'referred_by', 'wallet_balance',
         'profile_picture', 'last_login', 'date_joined', 'created_at', 'updated_at',
         'password', 'is_profile_fill'
     )
@@ -22,6 +23,7 @@ class UserAdmin(ImportExportModelAdmin):
     list_display = (
         'img_tag', 'email', 'username', 'first_name', 'last_name', 
         'email_confirmed', 'is_google_user', 'wizard_complete', 
+        'invite_code', 'wallet_balance', 'referral_count',
         'is_active', 'created_at'
     )
     
@@ -33,10 +35,10 @@ class UserAdmin(ImportExportModelAdmin):
     
     search_fields = [
         'email', 'username', 'phone_number', 'first_name', 'last_name', 
-        'google_id', 'organisation'
+        'google_id', 'organisation', 'invite_code'
     ]
     
-    readonly_fields = ('id', 'created_at', 'updated_at', 'date_joined', 'last_login', 'is_profile_fill', 'confirmation_codes')
+    readonly_fields = ('id', 'invite_code', 'created_at', 'updated_at', 'date_joined', 'last_login', 'is_profile_fill', 'confirmation_codes', 'referral_list')
     
     fieldsets = (
         ('Basic Information', {
@@ -44,6 +46,10 @@ class UserAdmin(ImportExportModelAdmin):
         }),
         ('Account Status', {
             'fields': ('is_active', 'is_staff', 'is_superuser', 'email_confirmed', 'wizard_complete')
+        }),
+        ('Affiliate Marketing', {
+            'fields': ('invite_code', 'referred_by', 'wallet_balance', 'referral_list'),
+            'classes': ('collapse',)
         }),
         ('Google OAuth', {
             'fields': ('is_google_user', 'google_id', 'google_avatar_url'),
@@ -74,6 +80,39 @@ class UserAdmin(ImportExportModelAdmin):
             'classes': ('collapse',)
         })
     )
+    
+    def referral_count(self, obj):
+        """Count of direct referrals"""
+        return obj.referrals.count()
+    referral_count.short_description = "Referrals"
+    
+    def referral_list(self, obj):
+        """Show list of users referred by this user"""
+        from django.utils.html import format_html
+        from django.urls import reverse
+        
+        referrals = obj.referrals.all().order_by('-created_at')[:10]
+        
+        if not referrals:
+            return "No referrals yet"
+        
+        referral_html = []
+        for referral in referrals:
+            admin_url = reverse('admin:accounts_user_change', args=[referral.id])
+            referral_html.append(
+                f"<div style='margin: 5px 0; padding: 5px; border: 1px solid #ddd;'>"
+                f"<strong><a href='{admin_url}'>{referral.email}</a></strong><br>"
+                f"<strong>Joined:</strong> {referral.created_at.strftime('%Y-%m-%d %H:%M:%S')}"
+                f"</div>"
+            )
+        
+        total = obj.referrals.count()
+        if total > 10:
+            referral_html.append(f"<p><em>... and {total - 10} more</em></p>")
+        
+        return format_html('<br>'.join(referral_html))
+    
+    referral_list.short_description = "Referred Users"
     
     def confirmation_codes(self, obj):
         """Show email confirmation codes for this user"""
