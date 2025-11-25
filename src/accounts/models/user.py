@@ -175,3 +175,4 @@ class OTPToken(models.Model):
     
     def __str__(self):
         return f"OTP for {self.phone_number} - {'Used' if self.is_used else 'Active'}"
+

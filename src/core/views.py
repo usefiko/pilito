@@ -9,7 +9,6 @@ logger = logging.getLogger(__name__)
 def index(request):
     return render(request, 'index.html')
 
-
 def health_check(request):
     """
     Health check endpoint for Docker Swarm and load balancers.

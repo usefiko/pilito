@@ -3,7 +3,6 @@ from channels.security.websocket import AllowedHostsOriginValidator
 from message.routing import websocket_urlpatterns
 from message.middleware.websocket_auth import WebSocketAuthMiddleware, WebSocketSecurityMiddleware
 
-
 # Simplified version for easier development
 application = ProtocolTypeRouter({
     'websocket': URLRouter(websocket_urlpatterns)
