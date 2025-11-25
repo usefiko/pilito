@@ -110,6 +110,34 @@ dev-down: ## Stop local development environment
 dev-logs: ## View development logs
 	@docker-compose logs -f
 
+# Django management commands (use exec to avoid creating temporary containers)
+dev-migrate: ## Run Django migrations (local dev)
+	@docker compose exec web python manage.py migrate
+
+dev-makemigrations: ## Make Django migrations (local dev)
+	@docker compose exec web python manage.py makemigrations
+
+dev-shell: ## Open Django shell (local dev)
+	@docker compose exec web python manage.py shell
+
+dev-createsuperuser: ## Create Django superuser (local dev)
+	@docker compose exec web python manage.py createsuperuser
+
+dev-collectstatic: ## Collect static files (local dev)
+	@docker compose exec web python manage.py collectstatic --noinput
+
+# Container cleanup
+cleanup-containers: ## Remove temporary containers
+	@echo "$(YELLOW)Cleaning up temporary containers...$(NC)"
+	@docker ps -a | grep "pilito-web-run" | awk '{print $$1}' | xargs docker rm 2>/dev/null || echo "$(GREEN)No temporary containers to clean$(NC)"
+	@echo "$(GREEN)Cleanup complete!$(NC)"
+
+prune: ## Remove all stopped containers and unused images
+	@echo "$(YELLOW)Pruning Docker resources...$(NC)"
+	@docker container prune -f
+	@docker image prune -f
+	@echo "$(GREEN)Prune complete!$(NC)"
+
 # Utility targets
 build: ## Build Docker images
 	@echo "$(GREEN)Building images...$(NC)"
