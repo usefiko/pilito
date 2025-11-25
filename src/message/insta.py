@@ -140,6 +140,17 @@ class InstaWebhook(APIView):
             media = comment_data.get('media', {})
             media_id = media.get('id')
             
+            # ✅ PREVENT REPLY LOOP: Ignore comment replies (only process top-level comments)
+            # Instagram sends webhooks for both comments AND replies to comments
+            # If this is a reply to another comment, skip it to prevent infinite loop
+            parent_id = comment_data.get('parent_id')
+            if parent_id:
+                logger.info(
+                    f"⚠️ Skipping comment reply (parent_id={parent_id}) from @{ig_username} "
+                    f"to prevent workflow reply loop. Only top-level comments trigger workflows."
+                )
+                return None
+            
             logger.info(f"📝 Processing Instagram comment: {comment_id} from @{ig_username} on media {media_id}")
             
             if not (comment_id and ig_user_id and media_id):
@@ -165,6 +176,25 @@ class InstaWebhook(APIView):
             
             # Create TriggerEventLog for workflow processing
             from workflow.models import TriggerEventLog
+            
+            # ✅ DEDUPLICATION: Check if this comment has already been processed
+            # Instagram sometimes sends duplicate webhooks for the same comment
+            existing_event = TriggerEventLog.objects.filter(
+                event_type='INSTAGRAM_COMMENT',
+                event_data__comment_id=comment_id
+            ).first()
+            
+            if existing_event:
+                logger.warning(
+                    f"⚠️ Duplicate Instagram comment webhook detected: {comment_id} "
+                    f"(already processed as event_log {existing_event.id}). Skipping."
+                )
+                return {
+                    'type': 'instagram_comment',
+                    'comment_id': comment_id,
+                    'event_log_id': str(existing_event.id),
+                    'status': 'duplicate_skipped'
+                }
             
             # Extract media type from webhook data
             media_product_type = media.get('media_product_type', '').upper()

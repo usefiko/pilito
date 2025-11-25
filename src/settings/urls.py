@@ -2,7 +2,7 @@ from django.urls import path
 from settings.views import (
     PricesAPIView, DefaultReplyHandlerAPIView,
     AIPromptsAPIView, AIPromptsManualPromptAPIView,
-    LatestUpToProAPIView
+    LatestUpToProAPIView, AIBehaviorSettingsView, AIBehaviorSettingsResetView
 )
 from settings.channels_view import ConnectTeleAPIView,DisConnectTeleAPIView,TeleBotAPIView
 from message.insta import InstaChannelAPIView
@@ -26,6 +26,9 @@ urlpatterns = [
     path("reply-handler", DefaultReplyHandlerAPIView.as_view(), name="reply-handler"),
     path("ai-prompts/", AIPromptsAPIView.as_view(), name="ai-prompts"),
     path("ai-prompts/manual-prompt/", AIPromptsManualPromptAPIView.as_view(), name="ai-prompts-manual"),
+    # AI Behavior Settings (NEW)
+    path("ai-behavior/me/", AIBehaviorSettingsView.as_view(), name="ai-behavior-settings"),
+    path("ai-behavior/reset/", AIBehaviorSettingsResetView.as_view(), name="ai-behavior-reset"),
     #path("ai", PricesAPIView.as_view(), name="ai"),
     # prices
     path("prices", PricesAPIView.as_view(), name="prices"),

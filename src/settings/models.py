@@ -627,6 +627,251 @@ Keep your responses clear and concise.
         return settings
 
 
+class AIBehaviorSettings(models.Model):
+    """
+    Per-User AI Behavior Customization
+    
+    Allows each business owner (User = Tenant in current architecture) to customize
+    AI personality and behavior without writing prompts. Uses toggle-based approach
+    for simplicity.
+    
+    Architecture Note:
+    - In current system: User = Business Owner = Tenant
+    - Each User has ONE AIBehaviorSettings (OneToOne)
+    - If future multi-staff support needed, this will need refactoring
+    
+    Integration Points:
+    - GeminiChatService.__init__() → max_output_tokens based on response_length
+    - GeminiChatService._build_prompt() → inject behavior flags
+    - Greeting logic → use_customer_name toggle
+    - Bio injection → use_bio_context toggle
+    - Fallback handling → unknown_fallback_text
+    
+    Token Budget:
+    - Flag-based approach uses ~30-40 tokens (vs 150-200 for descriptive)
+    - CTA text: max 300 chars (~75 tokens)
+    - Fallback text: max 500 chars (~125 tokens)
+    - Custom instructions: max 1000 chars (~250 tokens)
+    - Total: ~400 tokens max (well within 700 token system prompt budget)
+    """
+    
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='ai_behavior',
+        verbose_name="کاربر / صاحب کسب‌وکار"
+    )
+    
+    # ═══════════════════════════════════════════════════
+    # 📌 SECTION 1: Persona (AI Personality)
+    # ═══════════════════════════════════════════════════
+    
+    TONE_CHOICES = [
+        ('formal', '🎩 رسمی و حرفه‌ای'),
+        ('friendly', '😊 دوستانه و صمیمی'),
+        ('energetic', '⚡ پرانرژی و هیجان‌انگیز'),
+        ('empathetic', '🤝 همدلانه و حمایتگر'),
+    ]
+    tone = models.CharField(
+        max_length=20,
+        choices=TONE_CHOICES,
+        default='friendly',
+        verbose_name="لحن صحبت",
+        help_text="تعیین کنید AI با چه لحنی با مشتری‌ها صحبت کند"
+    )
+    
+    EMOJI_CHOICES = [
+        ('none', '⛔ هیچ - بدون ایموجی'),
+        ('moderate', '🙂 متعادل - کمی ایموجی'),
+        ('high', '😍 زیاد - پر از ایموجی'),
+    ]
+    emoji_usage = models.CharField(
+        max_length=20,
+        choices=EMOJI_CHOICES,
+        default='moderate',
+        verbose_name="استفاده از ایموجی",
+        help_text="میزان استفاده از ایموجی در پاسخ‌ها"
+    )
+    
+    LENGTH_CHOICES = [
+        ('short', '🔹 کوتاه - 1-2 جمله'),
+        ('balanced', '🔸 متعادل - 3-4 جمله'),
+        ('detailed', '🔶 تفصیلی - 5-7 جمله'),
+    ]
+    response_length = models.CharField(
+        max_length=20,
+        choices=LENGTH_CHOICES,
+        default='balanced',
+        verbose_name="طول پاسخ",
+        help_text="تعیین کنید پاسخ‌ها چقدر طولانی باشند"
+    )
+    
+    # ═══════════════════════════════════════════════════
+    # 📌 SECTION 2: Behavioral Controls
+    # ═══════════════════════════════════════════════════
+    
+    use_customer_name = models.BooleanField(
+        default=True,
+        verbose_name="استفاده از نام مشتری",
+        help_text="اگر فعال باشد، AI نام مشتری را در سلام صدا می‌زند"
+    )
+    
+    use_bio_context = models.BooleanField(
+        default=True,
+        verbose_name="استفاده از اطلاعات بیو",
+        help_text="اگر فعال باشد، AI از بیو مشتری برای شخصی‌سازی استفاده می‌کند"
+    )
+    
+    # ═══════════════════════════════════════════════════
+    # 📌 SECTION 3: Persuasive Selling
+    # ═══════════════════════════════════════════════════
+    
+    persuasive_selling_enabled = models.BooleanField(
+        default=False,
+        verbose_name="فروش فعال",
+        help_text="اگر فعال باشد، AI به صورت فعال محصولات را پیشنهاد می‌دهد"
+    )
+    
+    persuasive_cta_text = models.CharField(
+        max_length=300,
+        blank=True,
+        default="آیا می‌خواهید این محصول را سفارش دهید؟ 🛒",
+        verbose_name="متن دعوت به اقدام (CTA)",
+        help_text="متنی که AI به صورت طبیعی در پیام‌های فروش می‌گنجاند (حداکثر 300 کاراکتر)"
+    )
+    
+    # ═══════════════════════════════════════════════════
+    # 📌 SECTION 4: Response Rules
+    # ═══════════════════════════════════════════════════
+    
+    unknown_fallback_text = models.CharField(
+        max_length=500,
+        default="من در حال حاضر پاسخ دقیق این سوال را ندارم، اما همکارانم به زودی پاسخ شما را خواهند داد.",
+        verbose_name="پاسخ عدم اطلاع",
+        help_text="دقیقاً این متن را برگردان وقتی جواب سوال را نمی‌دانی (حداکثر 500 کاراکتر)"
+    )
+    
+    custom_instructions = models.TextField(
+        max_length=1000,
+        blank=True,
+        null=True,
+        verbose_name="دستورات اضافی",
+        help_text="قوانین اضافی برای AI به زبان انگلیسی (اختیاری، حداکثر 1000 کاراکتر)"
+    )
+    
+    # ═══════════════════════════════════════════════════
+    # 📌 Metadata
+    # ═══════════════════════════════════════════════════
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "🎭 AI Behavior Settings"
+        verbose_name_plural = "🎭 AI Behavior Settings"
+        db_table = "settings_ai_behavior"
+    
+    def __str__(self):
+        return f"AI Behavior for {self.user.username}"
+    
+    # ═══════════════════════════════════════════════════
+    # 📌 Core Methods
+    # ═══════════════════════════════════════════════════
+    
+    def get_prompt_additions(self) -> str:
+        """
+        Generate structured flags for AI behavior interpretation.
+        
+        Uses flag-based approach (not descriptive text) for:
+        - Lower token consumption (~30 tokens vs 150-200)
+        - Centralized behavior mapping in Mother Prompt
+        - Easier A/B testing and modifications
+        - Consistent with modern LLM structured outputs
+        
+        Mother Prompt should contain interpretation rules like:
+        [TONE=friendly] → Use friendly, casual language
+        [EMOJI=moderate] → Use 1-2 emojis per message
+        [LENGTH=short] → Keep responses to 1-2 sentences
+        
+        Returns:
+            str: Space-separated flags for injection into prompt
+        """
+        flags = []
+        
+        # Core personality flags (always in English for consistency)
+        flags.append(f"[TONE={self.tone}]")
+        flags.append(f"[EMOJI={self.emoji_usage}]")
+        flags.append(f"[LENGTH={self.response_length}]")
+        flags.append(f"[USE_NAME={'yes' if self.use_customer_name else 'no'}]")
+        flags.append(f"[USE_BIO={'yes' if self.use_bio_context else 'no'}]")
+        flags.append(f"[PERSUASIVE={'on' if self.persuasive_selling_enabled else 'off'}]")
+        
+        # Fallback text for when AI doesn't know the answer (CRITICAL!)
+        if self.unknown_fallback_text and self.unknown_fallback_text.strip():
+            fallback_clean = self.unknown_fallback_text.strip().replace('\n', ' ')[:200]
+            flags.append(f"[FALLBACK_TEXT={fallback_clean}]")
+        
+        # CTA text (can be Persian - it's content, not instruction)
+        if self.persuasive_selling_enabled and self.persuasive_cta_text.strip():
+            cta_clean = self.persuasive_cta_text.strip().replace('\n', ' ')[:250]
+            flags.append(f"[CTA={cta_clean}]")
+        
+        # Custom instructions (should be in English for consistency)
+        if self.custom_instructions and self.custom_instructions.strip():
+            custom_clean = self.custom_instructions.strip().replace('\n', ' ')[:500]
+            flags.append(f"[CUSTOM={custom_clean}]")
+        
+        return " ".join(flags)
+    
+    def get_max_output_tokens(self) -> int:
+        """
+        Calculate max output tokens based on response_length preference.
+        
+        Token allocation aligned with actual response needs:
+        - short: 400 tokens (~250-300 Persian words, 1-2 short paragraphs)
+        - balanced: 700 tokens (~450-500 words, 2-3 paragraphs) [DEFAULT]
+        - detailed: 1200 tokens (~800-900 words, 3-5 detailed paragraphs)
+        
+        These limits ensure:
+        1. AI has enough tokens to complete thought
+        2. Responses stay within user preference
+        3. Total budget (input + output) stays safe:
+           - Max input: 2200 tokens (TokenBudgetController)
+           - Max output: 1200 tokens (this method)
+           - Total: 3400 tokens << Gemini context window (1M tokens) ✅
+        
+        Returns:
+            int: Maximum output tokens for this user's preference
+        """
+        token_limits = {
+            'short': 400,      # Short but complete (1-2 paragraphs)
+            'balanced': 700,   # Balanced explanation (2-3 paragraphs)
+            'detailed': 1200,  # Detailed response (3-5 paragraphs)
+        }
+        return token_limits.get(self.response_length, 700)
+    
+    def get_fallback_text(self) -> str:
+        """
+        Get exact text to return when AI lacks information.
+        
+        This is NOT a prompt instruction - it's the actual message text
+        that will be sent to the customer. Detection logic stays centralized,
+        only the output text is per-user customizable.
+        
+        Returns:
+            str: Exact customer-facing message (Persian or any language)
+        """
+        return self.unknown_fallback_text.strip()
+    
+    def should_use_bio_context(self) -> bool:
+        """Check if bio context should be injected into prompt"""
+        return self.use_bio_context
+    
+    def should_use_customer_name(self) -> bool:
+        """Check if customer name should be used in greeting"""
+        return self.use_customer_name
+
+
 class Settings(SingletonModel):
     IR_yearly = models.IntegerField(default=0)
     IR_monthly = models.IntegerField(default=0)

@@ -109,6 +109,47 @@ def handle_instagram_comment_dm_reply(
         logger.error(f"[InstagramCommentAction] {error}")
         return {'success': False, 'error': error}
     
+    # ✅ PREVENT SELF-COMMENT: Skip DM if commenter is the business account owner
+    from settings.models import InstagramChannel
+    try:
+        channel = InstagramChannel.objects.get(id=channel_id)
+        if ig_user_id == channel.instagram_user_id:
+            logger.info(
+                f"[InstagramCommentAction] ⚠️ Skipping DM to business owner self-comment "
+                f"(@{ig_username}, ig_user_id={ig_user_id}). Only public reply will be sent if enabled."
+            )
+            # Skip DM but continue to public reply if enabled
+            result = {
+                'success': True,
+                'dm_sent': False,
+                'reply_sent': False,
+                'error': None
+            }
+            
+            # Jump directly to public reply section
+            if public_reply_enabled and public_reply_template:
+                reply_ctx = {
+                    'username': ig_username,
+                    'comment_text': comment_text,
+                    'post_url': post_url or '',
+                }
+                
+                reply_text = render_template(public_reply_template, reply_ctx)
+                if reply_text:
+                    reply_result = instagram_service.reply_to_comment(
+                        comment_id=comment_id,
+                        text=reply_text
+                    )
+                    
+                    result['reply_sent'] = reply_result.get('success', False)
+                    logger.info(f"[InstagramCommentAction] Self-comment public reply: {result['reply_sent']}")
+            
+            logger.info(f"[InstagramCommentAction] Self-comment completed: {result}")
+            return result
+    except InstagramChannel.DoesNotExist:
+        logger.error(f"[InstagramCommentAction] Channel {channel_id} not found")
+        return {'success': False, 'error': f"Channel {channel_id} not found"}
+    
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     # Base context for templates
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

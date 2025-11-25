@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from settings.models import Settings,TelegramChannel,InstagramChannel,AIPrompts,SupportTicket,SupportMessage,SupportMessageAttachment,UpToPro
+from settings.models import Settings,TelegramChannel,InstagramChannel,AIPrompts,SupportTicket,SupportMessage,SupportMessageAttachment,UpToPro,AIBehaviorSettings
 
 class SettingsSerializer(serializers.ModelSerializer):
     class Meta:
@@ -261,3 +261,123 @@ class UpToProSerializer(serializers.ModelSerializer):
                 return request.build_absolute_uri(obj.profileimage.url)
             return obj.profileimage.url
         return None
+
+
+class AIBehaviorSettingsSerializer(serializers.ModelSerializer):
+    """
+    Serializer for AI Behavior Settings
+    
+    Provides frontend with choices and validation for AI behavior customization.
+    User field is read-only as it's automatically set to the request user.
+    """
+    
+    # Display labels for choices (for frontend dropdowns)
+    tone_display = serializers.CharField(source='get_tone_display', read_only=True)
+    emoji_usage_display = serializers.CharField(source='get_emoji_usage_display', read_only=True)
+    response_length_display = serializers.CharField(source='get_response_length_display', read_only=True)
+    
+    # Choices lists for frontend
+    tone_choices = serializers.SerializerMethodField()
+    emoji_usage_choices = serializers.SerializerMethodField()
+    response_length_choices = serializers.SerializerMethodField()
+    
+    # Estimated token usage for monitoring
+    estimated_token_usage = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = AIBehaviorSettings
+        fields = [
+            'id',
+            # Persona
+            'tone',
+            'tone_display',
+            'tone_choices',
+            'emoji_usage',
+            'emoji_usage_display',
+            'emoji_usage_choices',
+            'response_length',
+            'response_length_display',
+            'response_length_choices',
+            # Behavior
+            'use_customer_name',
+            'use_bio_context',
+            # Sales
+            'persuasive_selling_enabled',
+            'persuasive_cta_text',
+            # Response Rules
+            'unknown_fallback_text',
+            'custom_instructions',
+            # Metadata
+            'created_at',
+            'updated_at',
+            'estimated_token_usage',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def get_tone_choices(self, obj):
+        """Return tone choices for dropdown"""
+        return [{'value': k, 'label': v} for k, v in AIBehaviorSettings.TONE_CHOICES]
+    
+    def get_emoji_usage_choices(self, obj):
+        """Return emoji usage choices for dropdown"""
+        return [{'value': k, 'label': v} for k, v in AIBehaviorSettings.EMOJI_CHOICES]
+    
+    def get_response_length_choices(self, obj):
+        """Return response length choices for dropdown"""
+        return [{'value': k, 'label': v} for k, v in AIBehaviorSettings.LENGTH_CHOICES]
+    
+    def get_estimated_token_usage(self, obj):
+        """
+        Estimate token usage for monitoring
+        Persian: ~0.25 token per character (approximate)
+        """
+        cta_tokens = len(obj.persuasive_cta_text or '') * 0.25
+        fallback_tokens = len(obj.unknown_fallback_text or '') * 0.25
+        custom_tokens = len(obj.custom_instructions or '') * 0.25
+        base_tokens = 30  # For flags (TONE, EMOJI, etc.)
+        
+        total = int(base_tokens + cta_tokens + fallback_tokens + custom_tokens)
+        
+        return {
+            'total': total,
+            'max_allowed': 200,  # We allocated 200 tokens for behavior settings
+            'percentage': min(100, int((total / 200) * 100)),
+            'breakdown': {
+                'base_flags': int(base_tokens),
+                'cta_text': int(cta_tokens),
+                'fallback_text': int(fallback_tokens),
+                'custom_instructions': int(custom_tokens),
+            }
+        }
+    
+    def validate_persuasive_cta_text(self, value):
+        """Validate CTA text length"""
+        if value and len(value) > 300:
+            raise serializers.ValidationError(
+                "متن CTA نباید بیشتر از 300 کاراکتر باشد. "
+                f"طول فعلی: {len(value)} کاراکتر"
+            )
+        return value
+    
+    def validate_unknown_fallback_text(self, value):
+        """Validate fallback text length"""
+        if not value or not value.strip():
+            raise serializers.ValidationError(
+                "متن fallback نمی‌تواند خالی باشد. "
+                "یک پیام پیش‌فرض برای زمانی که AI جواب ندارد را وارد کنید."
+            )
+        if len(value) > 500:
+            raise serializers.ValidationError(
+                "متن fallback نباید بیشتر از 500 کاراکتر باشد. "
+                f"طول فعلی: {len(value)} کاراکتر"
+            )
+        return value
+    
+    def validate_custom_instructions(self, value):
+        """Validate custom instructions length"""
+        if value and len(value) > 1000:
+            raise serializers.ValidationError(
+                "دستورات اضافی نباید بیشتر از 1000 کاراکتر باشد. "
+                f"طول فعلی: {len(value)} کاراکتر"
+            )
+        return value
