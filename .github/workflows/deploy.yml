@@ -106,7 +106,7 @@ jobs:
           
           # Stop existing containers
           echo "🛑 Stopping containers..."
-          docker-compose down || true
+          docker compose down || true
           
           # Build with optimized settings for reliable deployment
           echo "🔨 Building containers with optimized settings..."
@@ -116,14 +116,14 @@ jobs:
           export COMPOSE_DOCKER_CLI_BUILD=1
           
           # Build with parallel processing for faster builds (removed --pull for caching)
-          docker-compose build --parallel
+          docker compose build --parallel
           
           # Clean up old build cache only (keep recent for speed)
           docker builder prune --filter "until=48h" -f || true
           
           # Start all services (including Celery and monitoring)
           echo "⚡ Starting all services..."
-          docker-compose up -d --remove-orphans
+          docker compose up -d --remove-orphans
           
           # Wait for services to initialize
           echo "⏳ Waiting for services to start..."
@@ -133,9 +133,9 @@ jobs:
           echo "🔍 Performing health checks..."
           
           # Check if all containers are running
-          if ! docker-compose ps | grep -q "Up"; then
+          if ! docker compose ps | grep -q "Up"; then
             echo "❌ Some containers failed to start!"
-            docker-compose logs --tail=20
+            docker compose logs --tail=20
             exit 1
           fi
           
