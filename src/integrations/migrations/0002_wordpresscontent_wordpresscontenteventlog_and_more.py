@@ -66,22 +66,51 @@ def safe_create_wordpress_tables(apps, schema_editor):
         
         # Create wordpress_content_event_log table if it doesn't exist
         if not event_log_table_exists:
+            # First check if integrations_integrationtoken table exists
             cursor.execute("""
-                CREATE TABLE wordpress_content_event_log (
-                    id UUID PRIMARY KEY,
-                    event_id VARCHAR(100) UNIQUE NOT NULL,
-                    event_type VARCHAR(30) NOT NULL,
-                    wp_post_id INTEGER NOT NULL,
-                    payload JSONB NOT NULL,
-                    processed_successfully BOOLEAN DEFAULT TRUE,
-                    error_message TEXT,
-                    processing_time_ms INTEGER,
-                    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-                    token_id UUID REFERENCES integrations_integrationtoken(id) ON DELETE SET NULL,
-                    user_id BIGINT NOT NULL REFERENCES accounts_user(id) ON DELETE CASCADE
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_schema = 'public' 
+                    AND table_name = 'integrations_integrationtoken'
                 )
             """)
-            print("✅ Created wordpress_content_event_log table")
+            token_table_exists = cursor.fetchone()[0]
+            
+            # Create table with or without foreign key depending on whether token table exists
+            if token_table_exists:
+                cursor.execute("""
+                    CREATE TABLE wordpress_content_event_log (
+                        id UUID PRIMARY KEY,
+                        event_id VARCHAR(100) UNIQUE NOT NULL,
+                        event_type VARCHAR(30) NOT NULL,
+                        wp_post_id INTEGER NOT NULL,
+                        payload JSONB NOT NULL,
+                        processed_successfully BOOLEAN DEFAULT TRUE,
+                        error_message TEXT,
+                        processing_time_ms INTEGER,
+                        created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+                        token_id UUID REFERENCES integrations_integrationtoken(id) ON DELETE SET NULL,
+                        user_id BIGINT NOT NULL REFERENCES accounts_user(id) ON DELETE CASCADE
+                    )
+                """)
+                print("✅ Created wordpress_content_event_log table with token_id foreign key")
+            else:
+                cursor.execute("""
+                    CREATE TABLE wordpress_content_event_log (
+                        id UUID PRIMARY KEY,
+                        event_id VARCHAR(100) UNIQUE NOT NULL,
+                        event_type VARCHAR(30) NOT NULL,
+                        wp_post_id INTEGER NOT NULL,
+                        payload JSONB NOT NULL,
+                        processed_successfully BOOLEAN DEFAULT TRUE,
+                        error_message TEXT,
+                        processing_time_ms INTEGER,
+                        created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+                        token_id UUID,
+                        user_id BIGINT NOT NULL REFERENCES accounts_user(id) ON DELETE CASCADE
+                    )
+                """)
+                print("✅ Created wordpress_content_event_log table (will add foreign key constraint later)")
         else:
             print("⏭️  wordpress_content_event_log table already exists, skipping")
 
