@@ -23,3 +23,4 @@ class WorkflowConfig(AppConfig):
             import logging
             logger = logging.getLogger(__name__)
             logger.warning(f"Failed to initialize workflow app: {e}")
+            
