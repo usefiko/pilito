@@ -80,6 +80,7 @@ ALLOWED_HOSTS = [
     '127.0.0.1',
     '0.0.0.0',
     '185.164.72.165',
+    '46.249.98.162',  # New production server
     'log.pilito.com',
     # Docker internal network hostnames for monitoring
     'web',
@@ -107,7 +108,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://185.164.72.165:8000",
     "http://185.164.72.165:5173",
-    "http://185.164.72.165:5173",
+    "http://46.249.98.162:8000",  # New production server
     # Google OAuth domains
     "https://accounts.google.com",
     "https://oauth2.googleapis.com",
@@ -126,7 +127,7 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
     "http://185.164.72.165:8000",
     "http://185.164.72.165:5173",
-    "http://185.164.72.165:5173",
+    "http://46.249.98.162:8000",  # New production server
     # Google OAuth domains
     'https://accounts.google.com',
     'https://oauth2.googleapis.com',
