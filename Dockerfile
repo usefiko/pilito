@@ -1,10 +1,11 @@
-# Optimized multi-stage Dockerfile with better caching
+# Highly optimized Dockerfile with smaller image size
+# This reduces PyTorch size by using CPU-only version if GPU not needed
 FROM python:3.11-slim AS base
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=off \
+    PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
 WORKDIR /app
@@ -30,10 +31,19 @@ FROM system-deps AS python-deps
 # Copy only requirements first (for better layer caching)
 COPY src/requirements/*.txt /tmp/requirements/
 
-# Install Python packages (this layer will be cached)
-# Use increased retries and timeout for large packages like torch
+# Create a requirements file without torch (install CPU version separately)
+RUN grep -v "sentence-transformers" /tmp/requirements/base.txt > /tmp/requirements/base_no_torch.txt || \
+    cp /tmp/requirements/base.txt /tmp/requirements/base_no_torch.txt
+
+# Install Python packages WITHOUT large ML libraries first
 RUN pip install --upgrade pip setuptools wheel && \
-    pip install --retries 10 --timeout 300 --resume-retries 10 -r /tmp/requirements/base.txt
+    pip install --retries 10 --timeout 300 -r /tmp/requirements/base_no_torch.txt
+
+# Install sentence-transformers with CPU-only PyTorch (MUCH smaller)
+# This reduces image size from ~7GB to ~2GB
+RUN pip install --retries 10 --timeout 300 \
+    torch --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --retries 10 --timeout 300 sentence-transformers
 
 # ─────────────────────────────────────────
 # Stage 3: Final application (only rebuilds when code changes)
@@ -47,6 +57,10 @@ COPY ./entrypoint.sh /entrypoint.sh
 # Setup and cleanup
 RUN chmod +x /entrypoint.sh && \
     find /app -type f -name "*.pyc" -delete && \
-    find /app -type d -name "__pycache__" -delete
+    find /app -type d -name "__pycache__" -delete && \
+    # Remove unnecessary torch files to save space
+    find /usr/local/lib/python3.11/site-packages/torch -name "*.a" -delete && \
+    find /usr/local/lib/python3.11/site-packages/torch -name "test" -type d -exec rm -rf {} + || true
 
 ENTRYPOINT ["/entrypoint.sh"]
+
