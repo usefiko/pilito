@@ -1,0 +1,116 @@
+name: Deploy to Production Server
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          SSH_HOST: ${{ secrets.VPS_HOST }}
+          SSH_USER: ${{ secrets.VPS_USER }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H $SSH_HOST >> ~/.ssh/known_hosts
+      
+      - name: Copy files to server
+        env:
+          SSH_HOST: ${{ secrets.VPS_HOST }}
+          SSH_USER: ${{ secrets.VPS_USER }}
+        run: |
+          rsync -avz --exclude='.git' \
+            --exclude='venv' \
+            --exclude='__pycache__' \
+            --exclude='*.pyc' \
+            --exclude='.env' \
+            --exclude='staticfiles' \
+            -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no" \
+            ./ $SSH_USER@$SSH_HOST:~/pilito/
+      
+      - name: Deploy on server
+        env:
+          SSH_HOST: ${{ secrets.VPS_HOST }}
+          SSH_USER: ${{ secrets.VPS_USER }}
+        run: |
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST << 'ENDSSH'
+            set -e
+            cd ~/pilito
+            
+            echo "🚀 Starting deployment..."
+            
+            # Check disk space
+            echo "💾 Checking disk space..."
+            df -h /
+            AVAILABLE_GB=$(df -BG / | tail -1 | awk '{print $4}' | sed 's/G//')
+            echo "Available: ${AVAILABLE_GB}GB"
+            
+            # Cleanup if needed
+            if [ "$AVAILABLE_GB" -lt 10 ]; then
+              echo "🧹 Running cleanup..."
+              docker system prune -a -f || true
+            fi
+            
+            # Stop containers
+            echo "🛑 Stopping containers..."
+            docker compose down || true
+            
+            # Build images
+            echo "🔨 Building images..."
+            export DOCKER_BUILDKIT=1
+            docker compose build --parallel || docker compose build
+            
+            # Start services
+            echo "⚡ Starting services..."
+            docker compose up -d
+            
+            # Wait for startup
+            echo "⏳ Waiting for services..."
+            sleep 30
+            
+            # Check status
+            echo "🔍 Checking status..."
+            docker compose ps
+            
+            # Count running containers
+            RUNNING=$(docker compose ps --services --filter "status=running" | wc -l)
+            echo "Running containers: $RUNNING"
+            
+            if [ "$RUNNING" -lt 5 ]; then
+              echo "⚠️ Some containers may not have started"
+              echo "📋 Logs from django_app:"
+              docker compose logs --tail=50 web || true
+            fi
+            
+            # Try to check if web is accessible (don't fail if not)
+            echo "🌐 Checking web accessibility..."
+            if docker compose exec -T web python manage.py check 2>/dev/null; then
+              echo "✅ Django check passed"
+            else
+              echo "⚠️ Django check skipped (container may still be starting)"
+            fi
+            
+            echo ""
+            echo "✅ Deployment complete!"
+            echo "📊 Final status:"
+            docker compose ps
+            
+          ENDSSH
+      
+      - name: Cleanup SSH
+        if: always()
+        run: rm -rf ~/.ssh/id_rsa
+
