@@ -37,6 +37,7 @@ services:
 
   db:
     image: pgvector/pgvector:pg15
+    platform: linux/amd64
     container_name: postgres_db
     volumes:
       - postgres_data:/var/lib/postgresql/data/
@@ -49,6 +50,7 @@ services:
 
   redis:
     image: redis:7
+    platform: linux/amd64
     container_name: redis_cache
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     # 🔒 SECURITY: Redis port removed from public exposure
@@ -162,6 +164,7 @@ services:
   # Monitoring Stack
   prometheus:
     image: prom/prometheus:latest
+    platform: linux/amd64
     container_name: prometheus
     volumes:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
@@ -182,6 +185,7 @@ services:
 
   grafana:
     image: grafana/grafana:latest
+    platform: linux/amd64
     container_name: grafana
     volumes:
       - grafana_data:/var/lib/grafana
@@ -201,6 +205,7 @@ services:
 
   redis_exporter:
     image: oliver006/redis_exporter:latest
+    platform: linux/amd64
     container_name: redis_exporter
     command:
       - '--redis.addr=redis://redis:6379'
@@ -212,6 +217,7 @@ services:
 
   postgres_exporter:
     image: prometheuscommunity/postgres-exporter:latest
+    platform: linux/amd64
     container_name: postgres_exporter
     environment:
       DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable"

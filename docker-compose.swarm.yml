@@ -78,6 +78,7 @@ services:
 
   db:
     image: pgvector/pgvector:pg15
+    platform: linux/amd64
     volumes:
       - postgres_data:/var/lib/postgresql/data/
     networks:
@@ -130,6 +131,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    platform: linux/amd64
     command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru --save 60 1000 --appendonly yes
     networks:
       - pilito_network
@@ -270,6 +272,7 @@ services:
   # Monitoring Stack
   prometheus:
     image: prom/prometheus:latest
+    platform: linux/amd64
     volumes:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - ./monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml
@@ -317,6 +320,7 @@ services:
 
   grafana:
     image: grafana/grafana:latest
+    platform: linux/amd64
     volumes:
       - grafana_data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
@@ -363,6 +367,7 @@ services:
 
   redis_exporter:
     image: oliver006/redis_exporter:latest
+    platform: linux/amd64
     command:
       - '--redis.addr=redis://redis:6379'
     networks:
@@ -401,6 +406,7 @@ services:
 
   postgres_exporter:
     image: prometheuscommunity/postgres-exporter:latest
+    platform: linux/amd64
     environment:
       DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable"
     networks:
