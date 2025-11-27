@@ -90,6 +90,72 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H $SSH_HOST >> ~/.ssh/known_hosts
       
+      - name: Check and clean disk space on server
+        env:
+          SSH_HOST: ${{ secrets.VPS_HOST }}
+          SSH_USER: ${{ secrets.VPS_USER }}
+        run: |
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST << 'ENDSSH'
+            set -e
+            
+            echo "🔍 Checking disk space..."
+            df -h
+            
+            echo ""
+            echo "🗑️  Cleaning up Docker resources..."
+            
+            # Stop all containers first to release locks
+            echo "Stopping containers..."
+            docker ps -q | xargs -r docker stop || true
+            
+            # Remove stopped containers
+            echo "Removing stopped containers..."
+            docker container prune -f || true
+            
+            # Remove dangling images
+            echo "Removing dangling images..."
+            docker image prune -f || true
+            
+            # Remove unused images (keep only last 2 versions)
+            echo "Removing old unused images..."
+            docker images | grep -v "REPOSITORY" | awk '{print $1":"$2}' | tail -n +3 | xargs -r docker rmi -f || true
+            
+            # Remove unused volumes (be careful with this)
+            echo "Removing unused volumes..."
+            docker volume prune -f || true
+            
+            # Remove build cache
+            echo "Removing build cache..."
+            docker builder prune -f --all || true
+            
+            # Clean containerd snapshots if using containerd
+            if command -v ctr &> /dev/null; then
+              echo "Cleaning containerd snapshots..."
+              ctr -n moby content ls -q | xargs -r ctr -n moby content rm || true
+            fi
+            
+            echo ""
+            echo "✅ Cleanup complete!"
+            echo "📊 Disk space after cleanup:"
+            df -h
+            
+            # Check if we have enough space (at least 15GB free)
+            AVAILABLE_GB=$(df -BG / | tail -1 | awk '{print $4}' | sed 's/G//')
+            if [ "$AVAILABLE_GB" -lt 15 ]; then
+              echo ""
+              echo "⚠️  WARNING: Only ${AVAILABLE_GB}GB available!"
+              echo "Docker build requires at least 15GB free space for PyTorch installation."
+              echo "Consider:"
+              echo "  1. Removing old Docker images manually: docker images"
+              echo "  2. Cleaning up /var/lib/docker manually"
+              echo "  3. Increasing server disk size"
+              exit 1
+            fi
+            
+            echo ""
+            echo "✅ Sufficient disk space available (${AVAILABLE_GB}GB)"
+          ENDSSH
+      
       - name: Copy files to server
         env:
           SSH_HOST: ${{ secrets.VPS_HOST }}
@@ -120,9 +186,10 @@ jobs:
               ./swarm_init.sh
             fi
             
-            # Build new images
+            # Build new images with no cache for fresh build
             echo "🔨 Building Docker images..."
-            docker compose -f docker-compose.swarm.yml build
+            export DOCKER_BUILDKIT=1
+            docker compose -f docker-compose.swarm.yml build --no-cache --parallel
             
             # Deploy the stack
             echo "📦 Deploying stack..."
@@ -130,7 +197,7 @@ jobs:
             
             # Wait for deployment to stabilize
             echo "⏳ Waiting for deployment to stabilize..."
-            sleep 20
+            sleep 30
             
             # Check health
             echo "🏥 Running health checks..."
@@ -139,6 +206,10 @@ jobs:
             # Show status
             echo "📊 Deployment Status:"
             docker stack services pilito
+            
+            # Clean up after successful deployment
+            echo "🗑️  Post-deployment cleanup..."
+            docker image prune -f || true
             
             echo "✅ Deployment complete!"
           ENDSSH
@@ -166,6 +237,11 @@ jobs:
               echo "⚠️  Warning: Multiple failed tasks detected!"
               docker stack ps pilito --filter "desired-state=shutdown" --filter "current-state=failed" --no-trunc
             fi
+            
+            # Show disk space after deployment
+            echo ""
+            echo "📊 Final disk space:"
+            df -h
           ENDSSH
       
       - name: Cleanup SSH
@@ -214,4 +290,3 @@ jobs:
       - name: Cleanup SSH
         if: always()
         run: rm -rf ~/.ssh/id_rsa
-
