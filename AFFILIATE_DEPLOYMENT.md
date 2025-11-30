@@ -75,7 +75,7 @@ Content-Type: application/json
 - `src/billing/signals.py` - Commission processing logic
 - `src/billing/api/affiliate.py` - API endpoints
 - `src/settings/migrations/0018_affiliationconfig.py`
-- `src/accounts/migrations/0002_user_affiliate_active.py`
+- `src/accounts/migrations/0011_user_affiliate_active.py`
 - `src/billing/migrations/0002_wallettransaction.py`
 - `AFFILIATE_SYSTEM_README.md` - Full documentation
 - `AFFILIATE_DEPLOYMENT.md` - This file

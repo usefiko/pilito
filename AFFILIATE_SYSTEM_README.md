@@ -302,7 +302,7 @@ def process_affiliate_commission(sender, instance, created, **kwargs):
 1. **Settings App** - `0018_affiliationconfig.py`
    - Creates `AffiliationConfig` table
 
-2. **Accounts App** - `0002_user_affiliate_active.py`
+2. **Accounts App** - `0011_user_affiliate_active.py`
    - Adds `affiliate_active` field to User model
 
 3. **Billing App** - `0002_wallettransaction.py`
@@ -472,7 +472,7 @@ Possible additions:
 
 ### Migrations
 - `src/settings/migrations/0018_affiliationconfig.py`
-- `src/accounts/migrations/0002_user_affiliate_active.py`
+- `src/accounts/migrations/0011_user_affiliate_active.py`
 - `src/billing/migrations/0002_wallettransaction.py`
 
 ---
