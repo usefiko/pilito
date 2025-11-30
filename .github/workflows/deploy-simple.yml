@@ -64,17 +64,35 @@ jobs:
               docker system prune -a -f || true
             fi
             
-            # Stop containers
-            echo "🛑 Stopping containers..."
-            docker compose down || true
+            # Stop old containers (but keep database running for migrations)
+            echo "🛑 Stopping old containers..."
+            docker compose stop web celery_worker celery_beat celery_ai redis_cache prometheus grafana redis_exporter postgres_exporter || true
             
-            # Build images
+            # Ensure database is running for migrations
+            echo "🗄️ Ensuring database is running..."
+            docker compose up -d db
+            sleep 5
+            
+            # Build new images
             echo "🔨 Building images..."
             export DOCKER_BUILDKIT=1
-            docker compose build --parallel || docker compose build
+            docker compose build --parallel web celery_worker celery_beat celery_ai || docker compose build web celery_worker celery_beat celery_ai
             
-            # Start services
-            echo "⚡ Starting services..."
+            # Run migrations BEFORE starting web server
+            echo "📦 Running database migrations..."
+            docker compose run --rm web python manage.py migrate --noinput || {
+              echo "❌ Migration failed! Checking details..."
+              docker compose logs db
+              exit 1
+            }
+            echo "✅ Migrations completed successfully"
+            
+            # Collect static files
+            echo "📁 Collecting static files..."
+            docker compose run --rm web python manage.py collectstatic --noinput || echo "⚠️ Static files collection failed (non-critical)"
+            
+            # Start all services
+            echo "⚡ Starting all services..."
             docker compose up -d
             
             # Wait for startup

@@ -118,40 +118,40 @@ if [ -f "docker-compose.yml" ]; then
     
 else
     echo "📦 Traditional deployment..."
-    
-    # Activate virtual environment if exists
-    if [ -d "venv" ]; then
-        source venv/bin/activate
-    elif [ -d "../venv" ]; then
-        source ../venv/bin/activate
-    fi
+
+# Activate virtual environment if exists
+if [ -d "venv" ]; then
+    source venv/bin/activate
+elif [ -d "../venv" ]; then
+    source ../venv/bin/activate
+fi
     
     # Install dependencies
     pip install -r src/requirements/production.txt || pip install -r src/requirements/base.txt
-    
-    # Run migrations
-    echo "🔄 Running migrations..."
+
+# Run migrations
+echo "🔄 Running migrations..."
     python src/manage.py migrate --noinput || python manage.py migrate --noinput
-    
-    # Collect static files
-    echo "📦 Collecting static files..."
+
+# Collect static files
+echo "📦 Collecting static files..."
     python src/manage.py collectstatic --noinput || python manage.py collectstatic --noinput || echo "⚠️  Static files collection skipped"
-    
-    # Restart services
-    echo "🔄 Restarting services..."
-    
-    # Try systemd
-    if systemctl is-active --quiet gunicorn 2>/dev/null; then
-        systemctl restart gunicorn || echo "⚠️  Gunicorn restart failed"
-    fi
-    
-    if systemctl is-active --quiet celery 2>/dev/null; then
-        systemctl restart celery || echo "⚠️  Celery restart failed"
-    fi
-    
-    # Try supervisor
-    if command -v supervisorctl &> /dev/null; then
-        supervisorctl restart all || echo "⚠️  Supervisor restart failed"
+
+# Restart services
+echo "🔄 Restarting services..."
+
+# Try systemd
+if systemctl is-active --quiet gunicorn 2>/dev/null; then
+    systemctl restart gunicorn || echo "⚠️  Gunicorn restart failed"
+fi
+
+if systemctl is-active --quiet celery 2>/dev/null; then
+    systemctl restart celery || echo "⚠️  Celery restart failed"
+fi
+
+# Try supervisor
+if command -v supervisorctl &> /dev/null; then
+    supervisorctl restart all || echo "⚠️  Supervisor restart failed"
     fi
 fi
 
@@ -168,7 +168,7 @@ if [ -f "docker-compose.yml" ]; then
     echo "  docker-compose logs -f"
     echo "  docker-compose ps"
 else
-    echo "  journalctl -u gunicorn -f"
+echo "  journalctl -u gunicorn -f"
     echo "  systemctl status gunicorn celery"
 fi
 

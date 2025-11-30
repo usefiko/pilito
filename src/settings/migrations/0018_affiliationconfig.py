@@ -7,7 +7,7 @@ import django.core.exceptions
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('settings', '0017_intercomtickettype_supportmessage_and_more'),
+        ('settings', '0017_intercomtickettype_alter_generalsettings_options_and_more'),
     ]
 
     operations = [
