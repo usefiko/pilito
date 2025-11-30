@@ -973,4 +973,8 @@ iate/Referral System Configuration
     def calculate_commission(self, amount):
         """Calculate commission amount from payment"""
         from decimal import Decimal
-        return (Decimal(str(amount)) * self.percentage / Decimal('100')).quantize(Decimal('0.01'))
+        # Ensure both amount and percentage are Decimal for proper calculation
+        amount_decimal = Decimal(str(amount))
+        percentage_decimal = Decimal(str(self.percentage))
+        commission = (amount_decimal * percentage_decimal / Decimal('100')).quantize(Decimal('0.01'))
+        return commission
