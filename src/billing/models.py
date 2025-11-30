@@ -263,3 +263,82 @@ class Purchases(models.Model):
 
     class Meta:
         verbose_name_plural = "Legacy Purchases"
+
+
+class WalletTransaction(models.Model):
+    """
+    Track wallet transactions for affiliate commissions and other wallet operations
+    """
+    TRANSACTION_TYPE_CHOICES = [
+        ('commission', 'Affiliate Commission'),
+        ('payment', 'Payment'),
+        ('refund', 'Refund'),
+        ('withdrawal', 'Withdrawal'),
+        ('adjustment', 'Manual Adjustment'),
+    ]
+    
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='wallet_transactions',
+        help_text="User whose wallet is affected"
+    )
+    transaction_type = models.CharField(
+        max_length=20,
+        choices=TRANSACTION_TYPE_CHOICES,
+        default='commission'
+    )
+    amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        help_text="Transaction amount (positive for credit, negative for debit)"
+    )
+    balance_after = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        help_text="Wallet balance after this transaction"
+    )
+    description = models.TextField(
+        help_text="Description of the transaction"
+    )
+    
+    # Reference fields for traceability
+    related_payment = models.ForeignKey(
+        Payment,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='wallet_transactions',
+        help_text="Related payment if this is a commission"
+    )
+    referred_user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='generated_commissions',
+        help_text="User who made the payment that generated this commission"
+    )
+    
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_wallet_transactions',
+        help_text="Admin user who created manual adjustments"
+    )
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "💰 Wallet Transaction"
+        verbose_name_plural = "💰 Wallet Transactions"
+        indexes = [
+            models.Index(fields=['user', '-created_at']),
+            models.Index(fields=['related_payment']),
+        ]
+    
+    def __str__(self):
+        return f"{self.user.email} - {self.get_transaction_type_display()} - {self.amount}"

@@ -44,6 +44,11 @@ class User(AbstractUser):
     # Affiliate marketing fields
     invite_code = models.CharField(max_length=20, unique=True, null=True, blank=True)
     referred_by = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='referrals')
+    affiliate_active = models.BooleanField(
+        default=False,
+        verbose_name="Affiliate System Active",
+        help_text="Enable or disable affiliate rewards for this user"
+    )
     wallet_balance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

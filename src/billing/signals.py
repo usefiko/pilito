@@ -1,77 +1,82 @@
-from django.db.models.signals import post_save, pre_save
+"""
+Signals for billing app
+Handles affiliate commission payouts when payments are completed
+"""
+from django.db.models.signals import post_save
 from django.dispatch import receiver
-from django.utils import timezone
-from datetime import timedelta
-from .models import Subscription, Payment
-
-
-@receiver(pre_save, sender=Subscription)
-def auto_calculate_end_date(sender, instance, **kwargs):
-    """
-    Token plans don't imply duration; end_date must be set explicitly elsewhere.
-    """
-    pass
+from django.db import transaction
+from decimal import Decimal
+from billing.models import Payment, WalletTransaction
+from settings.models import AffiliationConfig
 
 
 @receiver(post_save, sender=Payment)
-def handle_payment_completion(sender, instance, created, **kwargs):
+def process_affiliate_commission(sender, instance, created, **kwargs):
     """
-    Handle subscription creation/renewal when payment is completed
-    """
-    if instance.status == 'completed' and instance.subscription:
-        subscription = instance.subscription
-        
-        # Ensure subscription is active when payment is completed
-        if not subscription.is_active:
-            subscription.is_active = True
-            subscription.save()
-
-
-@receiver(pre_save, sender=Subscription)
-def check_subscription_expiry(sender, instance, **kwargs):
-    """
-    Check subscription expiry - but DON'T automatically deactivate on token depletion.
-    Only deactivate if end_date has truly passed (for time-based subscriptions).
-    Token depletion should be handled explicitly through controlled deactivation.
+    Process affiliate commission when a payment is completed.
     
-    IMPORTANT: For Free Trial subscriptions, tokens are burned (set to 0) when expired.
-    """
-    import logging
-    logger = logging.getLogger(__name__)
+    This signal:
+    1. Checks if payment is newly completed
+    2. Verifies user has a referrer with affiliate active
+    3. Calculates commission based on AffiliationConfig
+    4. Adds commission to referrer's wallet
+    5. Creates wallet transaction record
+    6. Is idempotent (won't pay twice for same payment)
     
-    # Only deactivate if end_date has passed (for time-based subscriptions)
-    if instance.end_date and timezone.now() > instance.end_date:
-        instance.is_active = False
-        
-        # ✅ CRITICAL: For Free Trial subscriptions, burn tokens when expired
-        # This ensures AI responses are blocked even if tokens_remaining > 0
-        if instance.full_plan and instance.full_plan.name == 'Free Trial':
-            if instance.tokens_remaining and instance.tokens_remaining > 0:
-                logger.warning(
-                    f"🔥 Burning tokens for expired Free Trial subscription {instance.id} "
-                    f"(user: {instance.user.username}). "
-                    f"Tokens before: {instance.tokens_remaining}, after: 0"
-                )
-                instance.tokens_remaining = 0
-    
-    # REMOVED: Automatic deactivation on zero tokens
-    # This was causing sudden unexpected deactivations and chat conversions
-    # Token-based deactivation should be handled explicitly with proper logging
-
-
-@receiver(post_save, sender=Subscription)
-def enforce_workflow_state_on_subscription_change(sender, instance, created, **kwargs):
+    Args:
+        instance: Payment object that was saved
+        created: Boolean indicating if this is a new payment
     """
-    When a subscription becomes inactive (expired or 0 tokens), pause all workflows for that user.
-    """
-    try:
-        from workflow.models import Workflow
-    except Exception:
+    # Only process completed payments
+    if instance.status != 'completed':
         return
-
-    # If subscription is inactive, ensure user's workflows are paused
-    if not instance.is_active:
-        try:
-            Workflow.objects.filter(created_by=instance.user, status='ACTIVE').update(status='PAUSED')
-        except Exception:
-            pass
+    
+    # Check if commission already paid (idempotent check)
+    if WalletTransaction.objects.filter(
+        related_payment=instance,
+        transaction_type='commission'
+    ).exists():
+        return  # Already paid, don't pay again
+    
+    # Get the user who made the payment
+    paying_user = instance.user
+    
+    # Check if user was referred by someone
+    if not paying_user.referred_by:
+        return  # No referrer, nothing to do
+    
+    referrer = paying_user.referred_by
+    
+    # Check if referrer has affiliate system active
+    if not referrer.affiliate_active:
+        return  # Referrer doesn't have affiliate enabled
+    
+    # Get affiliation config
+    try:
+        affiliation_config = AffiliationConfig.get_config()
+    except Exception:
+        return  # No config found
+    
+    # Check if affiliate system is globally active
+    if not affiliation_config.is_active:
+        return
+    
+    # Calculate commission
+    commission_amount = affiliation_config.calculate_commission(instance.amount)
+    
+    # Use atomic transaction to ensure consistency
+    with transaction.atomic():
+        # Update referrer's wallet balance
+        referrer.wallet_balance += commission_amount
+        referrer.save(update_fields=['wallet_balance', 'updated_at'])
+        
+        # Create wallet transaction record
+        WalletTransaction.objects.create(
+            user=referrer,
+            transaction_type='commission',
+            amount=commission_amount,
+            balance_after=referrer.wallet_balance,
+            description=f"Affiliate commission ({affiliation_config.percentage}%) from {paying_user.email}'s payment of {instance.amount}",
+            related_payment=instance,
+            referred_user=paying_user
+        )

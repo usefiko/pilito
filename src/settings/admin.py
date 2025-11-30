@@ -1,5 +1,5 @@
 from django.contrib import admin
-from settings.models import Settings, GeneralSettings, TelegramChannel, InstagramChannel, AIPrompts, IntercomTicketType, SupportTicket, SupportMessage, SupportMessageAttachment, BusinessPrompt, UpToPro, AIBehaviorSettings
+from settings.models import Settings, GeneralSettings, TelegramChannel, InstagramChannel, AIPrompts, IntercomTicketType, SupportTicket, SupportMessage, SupportMessageAttachment, BusinessPrompt, UpToPro, AIBehaviorSettings, AffiliationConfig
 
 # =============================================
 # SYSTEM CONFIGURATION
@@ -121,6 +121,82 @@ class GeneralSettingsAdmin(admin.ModelAdmin):
 @admin.register(Settings)
 class SettingsAdmin(admin.ModelAdmin):
     list_display = ("IR_yearly", "IR_monthly", "TR_yearly", "TR_monthly", "token1M")
+
+
+@admin.register(AffiliationConfig)
+class AffiliationConfigAdmin(admin.ModelAdmin):
+    """
+    Admin interface for Affiliation/Referral Configuration
+    
+    Singleton model - only one instance can exist.
+    Configure the commission percentage for affiliate rewards.
+    """
+    list_display = ("__str__", "percentage", "is_active", "total_referrals", "total_commissions", "updated_at")
+    readonly_fields = ("created_at", "updated_at", "total_referrals", "total_commissions", "example_calculation")
+    
+    fieldsets = (
+        ('🤝 Affiliate System Configuration', {
+            'fields': ('percentage', 'is_active'),
+            'description': '''
+                <p><strong>💰 Configure Affiliate Commission System</strong></p>
+                <p>When a referred user makes a payment, their referrer automatically receives a commission.</p>
+                <ul>
+                    <li><strong>Percentage:</strong> Commission percentage (e.g., 10 = 10%)</li>
+                    <li><strong>Active:</strong> Enable or disable the entire affiliate system</li>
+                </ul>
+                <p><em>Note: Users must enable their affiliate system in their profile to receive commissions.</em></p>
+            '''
+        }),
+        ('📊 Statistics', {
+            'fields': ('total_referrals', 'total_commissions', 'example_calculation'),
+            'classes': ('collapse',)
+        }),
+        ('📅 Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def total_referrals(self, obj):
+        """Show total number of users who have referrers"""
+        from accounts.models import User
+        count = User.objects.filter(referred_by__isnull=False).count()
+        return f"{count} users"
+    total_referrals.short_description = "Total Referrals"
+    
+    def total_commissions(self, obj):
+        """Show total commissions paid out"""
+        from billing.models import WalletTransaction
+        from django.db.models import Sum
+        total = WalletTransaction.objects.filter(
+            transaction_type='commission'
+        ).aggregate(total=Sum('amount'))['total'] or 0
+        return f"{total:,.2f}"
+    total_commissions.short_description = "Total Commissions Paid"
+    
+    def example_calculation(self, obj):
+        """Show example commission calculation"""
+        examples = [
+            (100, obj.calculate_commission(100)),
+            (500, obj.calculate_commission(500)),
+            (1000, obj.calculate_commission(1000)),
+        ]
+        html = "<table style='margin-top:10px;'>"
+        html += "<tr><th>Payment Amount</th><th>Commission ({0}%)</th></tr>".format(obj.percentage)
+        for amount, commission in examples:
+            html += f"<tr><td>{amount:,}</td><td>{commission:,.2f}</td></tr>"
+        html += "</table>"
+        return html
+    example_calculation.short_description = "Example Calculations"
+    example_calculation.allow_tags = True
+    
+    def has_add_permission(self, request):
+        # Only allow one instance (singleton pattern)
+        return not AffiliationConfig.objects.exists()
+    
+    def has_delete_permission(self, request, obj=None):
+        # Cannot delete singleton
+        return False
 
 
 # =============================================  

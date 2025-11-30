@@ -1,5 +1,6 @@
 from django.urls import path
 from billing.api import CurrentPlanAPIView,Payment,PaymentVerify,PaymentHistory,ZPPayment,ZPVerify
+from billing.api.affiliate import AffiliateStatsView, ToggleAffiliateSystemView
 from .views import (
     TokenPlanListView, FullPlanListView, PlanListView, PurchasePlanView, CurrentSubscriptionView,
     ConsumeTokensView, UserPaymentHistoryView, UserSubscriptionHistoryView,
@@ -9,6 +10,10 @@ from .views import (
 )
 
 urlpatterns = [
+    # Affiliate/Referral System
+    path('affiliate/stats/', AffiliateStatsView.as_view(), name='affiliate-stats'),
+    path('affiliate/toggle/', ToggleAffiliateSystemView.as_view(), name='affiliate-toggle'),
+    
     # New subscription system endpoints
     path('plans/', PlanListView.as_view(), name='plans'),
     path('plans/token/', TokenPlanListView.as_view(), name='token-plans'),

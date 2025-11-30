@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from import_export.admin import ImportExportModelAdmin
-from .models import TokenPlan, FullPlan, Subscription, Payment, TokenUsage, Purchases
+from .models import TokenPlan, FullPlan, Subscription, Payment, TokenUsage, Purchases, WalletTransaction
 
 
 @admin.register(TokenPlan)
@@ -182,3 +182,63 @@ class PurchasesAdmin(ImportExportModelAdmin):
     list_filter = ("created_at", "user", "paid")
     
 admin.site.register(Purchases, PurchasesAdmin)
+
+
+@admin.register(WalletTransaction)
+class WalletTransactionAdmin(ImportExportModelAdmin):
+    """
+    Admin interface for Wallet Transactions
+    
+    Shows all wallet transactions including affiliate commissions
+    """
+    list_display = (
+        'id', 'user_email', 'transaction_type', 'amount_display', 
+        'balance_after', 'referred_user_email', 'created_at'
+    )
+    list_filter = ('transaction_type', 'created_at')
+    search_fields = (
+        'user__email', 'user__username', 
+        'referred_user__email', 'description'
+    )
+    ordering = ('-created_at',)
+    readonly_fields = ('created_at', 'balance_after')
+    raw_id_fields = ('user', 'related_payment', 'referred_user', 'created_by')
+    
+    fieldsets = (
+        ('Transaction Information', {
+            'fields': ('user', 'transaction_type', 'amount', 'balance_after', 'description')
+        }),
+        ('Related Information', {
+            'fields': ('related_payment', 'referred_user', 'created_by'),
+            'classes': ('collapse',)
+        }),
+        ('Timestamp', {
+            'fields': ('created_at',),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def user_email(self, obj):
+        return obj.user.email
+    user_email.short_description = 'User'
+    user_email.admin_order_field = 'user__email'
+    
+    def amount_display(self, obj):
+        """Display amount with color coding"""
+        if obj.amount >= 0:
+            return format_html('<span style="color: green;">+{:,.2f}</span>', obj.amount)
+        return format_html('<span style="color: red;">{:,.2f}</span>', obj.amount)
+    amount_display.short_description = 'Amount'
+    amount_display.admin_order_field = 'amount'
+    
+    def referred_user_email(self, obj):
+        """Show which user generated this commission"""
+        if obj.referred_user:
+            return obj.referred_user.email
+        return "-"
+    referred_user_email.short_description = 'From User'
+    referred_user_email.admin_order_field = 'referred_user__email'
+    
+    def has_add_permission(self, request):
+        # Transactions are created automatically by signals
+        return False

@@ -927,3 +927,50 @@ class UpToPro(models.Model):
     
     def __str__(self):
         return f"{self.name} - Rating: {self.rate}"
+
+
+class AffiliationConfig(SingletonModel):
+    """
+    Affil
+
+iate/Referral System Configuration
+    
+    This model stores the commission percentage for the affiliate reward system.
+    Only one instance can exist (singleton pattern).
+    
+    When a referred user makes a payment, X% commission is automatically
+    added to the referring user's wallet balance.
+    """
+    percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=10.00,
+        verbose_name="Commission Percentage (%)",
+        help_text="Percentage of payment to give as commission to referring user (e.g., 10 = 10%)"
+    )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name="Affiliate System Active",
+        help_text="Enable or disable the entire affiliate reward system"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "🤝 Affiliation Configuration"
+        verbose_name_plural = "🤝 Affiliation Configuration"
+    
+    def __str__(self):
+        status = "Active" if self.is_active else "Inactive"
+        return f"Affiliate System: {self.percentage}% ({status})"
+    
+    @classmethod
+    def get_config(cls):
+        """Get or create the affiliation config instance"""
+        config, created = cls.objects.get_or_create(pk=1)
+        return config
+    
+    def calculate_commission(self, amount):
+        """Calculate commission amount from payment"""
+        from decimal import Decimal
+        return (Decimal(str(amount)) * self.percentage / Decimal('100')).quantize(Decimal('0.01'))
