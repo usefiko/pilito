@@ -64,6 +64,12 @@ jobs:
               docker system prune -a -f || true
             fi
             
+            # Clean up conflicting migration files
+            echo "🔧 Cleaning up old migration files..."
+            rm -f src/accounts/migrations/0002_user_affiliate_active.py || true
+            rm -f src/accounts/migrations/__pycache__/0002_user_affiliate_active.cpython-*.pyc || true
+            echo "✅ Old migration files cleaned"
+            
             # Stop old containers (but keep database running for migrations)
             echo "🛑 Stopping old containers..."
             docker compose stop web celery_worker celery_beat celery_ai redis_cache prometheus grafana redis_exporter postgres_exporter || true
