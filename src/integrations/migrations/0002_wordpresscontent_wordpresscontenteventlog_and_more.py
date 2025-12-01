@@ -78,21 +78,21 @@ def safe_create_wordpress_tables(apps, schema_editor):
             
             # Create table with or without foreign key depending on whether token table exists
             if token_table_exists:
-            cursor.execute("""
-                CREATE TABLE wordpress_content_event_log (
-                    id UUID PRIMARY KEY,
-                    event_id VARCHAR(100) UNIQUE NOT NULL,
-                    event_type VARCHAR(30) NOT NULL,
-                    wp_post_id INTEGER NOT NULL,
-                    payload JSONB NOT NULL,
-                    processed_successfully BOOLEAN DEFAULT TRUE,
-                    error_message TEXT,
-                    processing_time_ms INTEGER,
-                    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-                    token_id UUID REFERENCES integrations_integrationtoken(id) ON DELETE SET NULL,
-                    user_id BIGINT NOT NULL REFERENCES accounts_user(id) ON DELETE CASCADE
-                )
-            """)
+                cursor.execute("""
+                    CREATE TABLE wordpress_content_event_log (
+                        id UUID PRIMARY KEY,
+                        event_id VARCHAR(100) UNIQUE NOT NULL,
+                        event_type VARCHAR(30) NOT NULL,
+                        wp_post_id INTEGER NOT NULL,
+                        payload JSONB NOT NULL,
+                        processed_successfully BOOLEAN DEFAULT TRUE,
+                        error_message TEXT,
+                        processing_time_ms INTEGER,
+                        created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+                        token_id UUID REFERENCES integrations_integrationtoken(id) ON DELETE SET NULL,
+                        user_id BIGINT NOT NULL REFERENCES accounts_user(id) ON DELETE CASCADE
+                    )
+                """)
                 print("✅ Created wordpress_content_event_log table with token_id foreign key")
             else:
                 cursor.execute("""
