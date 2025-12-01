@@ -5,6 +5,7 @@ from accounts.api.email_confirmation import EmailConfirmationAPIView, ResendEmai
 from accounts.api.auth_status import AuthStatusAPIView, DashboardAccessAPIView
 
 
+
 urlpatterns = [
     path("login", LoginAPIView.as_view(), name="login"),
     path('register', RegisterView.as_view(), name='register'),
@@ -56,4 +57,3 @@ urlpatterns = [
     # Affiliate marketing endpoints
     path("affiliate", AffiliateInfoAPIView.as_view(), name="affiliate-info"),
 ]
-

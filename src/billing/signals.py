@@ -60,7 +60,7 @@ def process_affiliate_commission(sender, instance, created, **kwargs):
     # Check if affiliate system is globally active
     if not affiliation_config.is_active:
         return
-    
+
     # Check if payment is within the commission validity period
     # (Only pay commission for payments made within X days of registration)
     if not affiliation_config.is_within_validity_period(
