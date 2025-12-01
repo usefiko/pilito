@@ -55,6 +55,12 @@ class AffiliateStatsView(APIView):
             total=Sum('amount')
         )['total'] or 0
         
+        # Get affiliation config for validity check
+        try:
+            affiliation_config = AffiliationConfig.get_config()
+        except:
+            affiliation_config = None
+        
         # Build list of referred users with their payment info
         referred_users_list = []
         for referred_user in referred_users:
@@ -74,6 +80,20 @@ class AffiliateStatsView(APIView):
                 transaction_type='commission'
             ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
             
+            # Check if this user's payments still qualify for commission (within validity period)
+            is_within_validity = False
+            validity_expires_at = None
+            if affiliation_config:
+                is_within_validity = affiliation_config.is_within_validity_period(
+                    user_registration_date=referred_user.date_joined
+                )
+                if affiliation_config.commission_validity_days > 0:
+                    from django.utils import timezone
+                    from datetime import timedelta
+                    validity_expires_at = referred_user.date_joined + timedelta(
+                        days=affiliation_config.commission_validity_days
+                    )
+            
             # Build payment history for this user
             payment_history = [{
                 'payment_id': payment.id,
@@ -90,10 +110,12 @@ class AffiliateStatsView(APIView):
                 'username': referred_user.username,
                 'first_name': referred_user.first_name,
                 'last_name': referred_user.last_name,
-                'registered_at': referred_user.created_at,
+                'registered_at': referred_user.date_joined,
                 'total_paid': float(total_paid),
                 'commission_earned_from_user': float(commission_from_user),
                 'payment_count': user_payments.count(),
+                'is_within_validity': is_within_validity,
+                'validity_expires_at': validity_expires_at,
                 'payments': payment_history
             })
         
@@ -101,14 +123,20 @@ class AffiliateStatsView(APIView):
         try:
             config = AffiliationConfig.get_config()
             commission_percentage = float(config.percentage)
+            commission_validity_days = config.commission_validity_days
+            validity_display = config.get_validity_display()
         except:
             commission_percentage = 0.0
+            commission_validity_days = 0
+            validity_display = "Unknown"
         
         # Build response
         response_data = {
             'affiliate_active': True,
             'invite_code': user.invite_code,
             'commission_percentage': commission_percentage,
+            'commission_validity_days': commission_validity_days,
+            'validity_display': validity_display,
             'stats': {
                 'total_commission_earned': float(total_commission),
                 'total_amount_from_referrals': float(total_amount_from_referrals),

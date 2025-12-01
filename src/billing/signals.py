@@ -61,6 +61,14 @@ def process_affiliate_commission(sender, instance, created, **kwargs):
     if not affiliation_config.is_active:
         return
     
+    # Check if payment is within the commission validity period
+    # (Only pay commission for payments made within X days of registration)
+    if not affiliation_config.is_within_validity_period(
+        user_registration_date=paying_user.date_joined,
+        payment_date=instance.payment_date if hasattr(instance, 'payment_date') and instance.payment_date else None
+    ):
+        return  # Payment is outside the validity period
+    
     # Calculate commission
     commission_amount = affiliation_config.calculate_commission(instance.amount)
     

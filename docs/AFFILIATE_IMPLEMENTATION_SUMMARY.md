@@ -1,74 +1,143 @@
 # Affiliate Marketing Implementation - Summary
 
 ## Overview
-Successfully implemented a comprehensive affiliate marketing system in the accounts app. Users can now invite friends and earn rewards when those friends register using their invite code.
+Successfully implemented a comprehensive affiliate marketing system. Users can now invite friends and earn **commission-based rewards** when those friends make payments (within a configurable validity period after registration).
 
 ## Features Implemented
 
 ### 1. User Model Updates
-Added three new fields to the User model:
+Added fields to the User model:
 - **invite_code**: A unique 10-character alphanumeric code automatically generated for each user
 - **referred_by**: ForeignKey to track which user referred this user
 - **wallet_balance**: Decimal field to track earnings from referrals (default: 0.00)
+- **affiliate_active**: Boolean field to enable/disable affiliate rewards (default: False)
 
 The invite code is automatically generated when a user is created using a custom `save()` method.
 
-### 2. Registration Flow
+### 2. Affiliation Configuration (NEW)
+Added `AffiliationConfig` singleton model in the settings app:
+- **percentage**: Commission percentage (e.g., 10 = 10% of payment)
+- **commission_validity_days**: Number of days after registration during which payments qualify for commission (0 = unlimited)
+- **is_active**: Global enable/disable switch for the entire affiliate system
+
+### 3. Registration Flow
 Updated the registration process to handle affiliate codes:
 - Added `affiliate` parameter to RegisterSerializer (optional)
 - When a user registers with an affiliate code:
   - The new user is linked to the referrer via `referred_by` field
-  - The referrer receives a bonus of 10.00 in their wallet
   - Invalid codes don't block registration (silently ignored)
 
-### 3. Affiliate API Endpoint
-Created a new authenticated API endpoint: `/api/v1/accounts/affiliate`
+### 4. Commission-Based Rewards (NEW)
+Instead of a fixed bonus at registration, commissions are now paid when:
+- The referred user makes a **completed payment**
+- The referrer has **affiliate_active = True**
+- The **global affiliate system is active**
+- The payment is **within the validity period** (X days after registration)
 
-**Response includes:**
+**How it works:**
+1. User A invites User B using their invite code
+2. User B registers (no immediate bonus)
+3. User B makes a payment within 30 days (configurable)
+4. User A receives X% of the payment as commission (e.g., 10%)
+5. Commission is added to User A's wallet_balance
+6. A WalletTransaction record is created for audit trail
+
+### 5. Affiliate API Endpoints
+
+#### GET `/api/billing/affiliate/stats/`
+Returns comprehensive affiliate statistics:
+
 ```json
 {
-    "invite_link": "https://app.pilito.com/auth/register?affiliate=ABC123XYZ0",
+    "affiliate_active": true,
     "invite_code": "ABC123XYZ0",
-    "direct_referrals": [
+    "commission_percentage": 10.0,
+    "commission_validity_days": 30,
+    "validity_display": "30 days after registration",
+    "stats": {
+        "total_commission_earned": 125.00,
+        "total_amount_from_referrals": 1250.00,
+        "total_registrations": 5,
+        "active_referrals": 4
+    },
+    "referred_users": [
         {
-            "id": 123,
-            "username": "john_doe",
+            "user_id": 123,
             "email": "john@example.com",
-            "first_name": "John",
-            "last_name": "Doe",
-            "created_at": "2025-11-25T10:30:00Z"
+            "username": "john_doe",
+            "registered_at": "2025-11-25T10:30:00Z",
+            "total_paid": 500.00,
+            "commission_earned_from_user": 50.00,
+            "is_within_validity": true,
+            "validity_expires_at": "2025-12-25T10:30:00Z",
+            "payment_count": 2,
+            "payments": [...]
         }
     ],
-    "total_referrals": 5,
-    "wallet_balance": "50.00"
+    "recent_commissions": [...]
 }
 ```
 
-### 4. Admin Panel Updates
+#### POST `/api/billing/affiliate/toggle/`
+Enable/disable affiliate system for the user:
+```json
+// Request
+{ "action": "enable" }  // or "disable" or "toggle"
+
+// Response
+{
+    "success": true,
+    "affiliate_active": true,
+    "invite_code": "ABC123XYZ0",
+    "message": "Affiliate system enabled successfully"
+}
+```
+
+### 6. Admin Panel Updates
 Enhanced the Django admin panel with:
-- Display of invite_code and wallet_balance in user list
+- Display of invite_code, wallet_balance, and affiliate_active in user list
 - New "Referral Count" column showing number of direct referrals
 - New "Affiliate Marketing" fieldset with:
   - Invite code (read-only)
   - Referred by (editable)
   - Wallet balance (editable)
+  - Affiliate active toggle
   - Referral list showing all users referred by this user
 - Search capability by invite_code
 
+#### AffiliationConfig Admin (NEW)
+- **Location**: Settings → 🤝 Affiliation Configuration
+- Configure commission percentage and validity period
+- View total referrals and commissions paid
+- Example calculations
+
+#### WalletTransaction Admin (NEW)
+- **Location**: Billing → 💰 Wallet Transactions
+- View all commission transactions
+- Filter by transaction type and date
+- Full audit trail
+
 ## Files Modified/Created
 
-### Created:
-1. `src/accounts/migrations/0015_add_affiliate_fields.py` - Database migration
-2. `src/accounts/serializers/affiliate.py` - Affiliate serializers
-3. `src/accounts/api/affiliate.py` - Affiliate API view
+### New Files (Commission System):
+1. `src/billing/signals.py` - Commission processing logic with validity check
+2. `src/billing/api/affiliate.py` - Affiliate stats and toggle API endpoints
+3. `src/settings/migrations/0018_affiliationconfig.py` - AffiliationConfig model
+4. `src/settings/migrations/0019_affiliationconfig_commission_validity_days.py` - Validity field
+5. `src/accounts/migrations/0011_user_affiliate_active.py` - User affiliate_active field
+6. `src/billing/migrations/0002_wallettransaction.py` - WalletTransaction model
+7. `AFFILIATE_SYSTEM_README.md` - Complete documentation
+8. `AFFILIATE_DEPLOYMENT.md` - Quick deployment guide
 
-### Modified:
-1. `src/accounts/models/user.py` - Added affiliate fields and invite code generation
-2. `src/accounts/serializers/register.py` - Added affiliate parameter handling
-3. `src/accounts/serializers/__init__.py` - Exported affiliate serializers
-4. `src/accounts/api/__init__.py` - Exported affiliate API view
-5. `src/accounts/urls.py` - Added affiliate endpoint
-6. `src/accounts/admin.py` - Enhanced admin panel with affiliate fields
+### Modified Files:
+1. `src/accounts/models/user.py` - Added affiliate_active field
+2. `src/settings/models.py` - Added AffiliationConfig model with validity period
+3. `src/billing/models.py` - Added WalletTransaction model
+4. `src/billing/urls.py` - Added affiliate API routes
+5. `src/settings/admin.py` - Added AffiliationConfigAdmin
+6. `src/billing/admin.py` - Added WalletTransactionAdmin
+7. `src/accounts/serializers/register.py` - Added affiliate parameter handling
+8. `src/accounts/admin.py` - Enhanced admin panel with affiliate fields
 
 ## Usage
 
@@ -115,10 +184,22 @@ Extract the affiliate code from URL parameters and pass it to the registration A
 
 ## Configuration
 
-### Referral Bonus Amount
-Currently set to 10.00 in the RegisterSerializer. To change this:
-- Edit `src/accounts/serializers/register.py`
-- Modify line: `referrer.wallet_balance += Decimal('10.00')`
+### Commission Settings (Admin Panel)
+All commission settings are now configurable via Django Admin:
+
+1. Go to **Settings → 🤝 Affiliation Configuration**
+2. Set:
+   - **Percentage**: Commission % (e.g., 10 = 10% of payment)
+   - **Validity Days**: How many days after registration payments qualify (0 = unlimited)
+   - **Active**: Enable/disable the entire system
+3. Save
+
+**Example Configuration:**
+- Percentage: 10%
+- Validity Days: 30
+- Active: Yes
+
+This means referrers get 10% of each payment made by their referrals within 30 days of registration.
 
 ### Frontend URL
 The base URL for invite links is configured via Django settings:
@@ -156,17 +237,26 @@ This has been resolved by creating a merge migration (`0017_merge_20251125_1010.
 3. **Authentication Required**: Affiliate info endpoint requires authentication
 4. **Wallet Balance**: Only modifiable by admin or through controlled processes
 
-## Future Enhancements (Optional)
+## Features Status
 
+### ✅ Implemented:
+1. ✅ Commission-based rewards (% of payments)
+2. ✅ Configurable commission validity period
+3. ✅ Wallet transaction history (WalletTransaction model)
+4. ✅ User-level affiliate enable/disable
+5. ✅ Global system enable/disable
+6. ✅ Idempotent commission processing
+7. ✅ Full audit trail
+
+### 🔮 Future Enhancements (Optional)
 Consider adding:
 1. Multi-level referral system (referrals of referrals)
-2. Different bonus amounts based on conditions
-3. Wallet transaction history
-4. Wallet payout/withdrawal functionality
-5. Referral analytics dashboard
-6. Time-limited promotional bonus amounts
-7. Maximum referral limits per user
-8. Webhook notifications when new referrals sign up
+2. Tiered commission rates based on referral count
+3. Wallet payout/withdrawal functionality
+4. Referral analytics dashboard
+5. Maximum referral limits per user
+6. Webhook notifications when new referrals sign up
+7. Custom promotional invite codes
 
 ## Testing
 

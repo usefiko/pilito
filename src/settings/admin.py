@@ -129,26 +129,27 @@ class AffiliationConfigAdmin(admin.ModelAdmin):
     Admin interface for Affiliation/Referral Configuration
     
     Singleton model - only one instance can exist.
-    Configure the commission percentage for affiliate rewards.
+    Configure the commission percentage and validity period for affiliate rewards.
     """
-    list_display = ("__str__", "percentage", "is_active", "total_referrals", "total_commissions", "updated_at")
-    readonly_fields = ("created_at", "updated_at", "total_referrals", "total_commissions", "example_calculation")
+    list_display = ("__str__", "percentage", "validity_display", "is_active", "total_referrals", "total_commissions", "updated_at")
+    readonly_fields = ("created_at", "updated_at", "total_referrals", "total_commissions", "example_calculation", "validity_info")
     
     fieldsets = (
         ('🤝 Affiliate System Configuration', {
-            'fields': ('percentage', 'is_active'),
+            'fields': ('percentage', 'commission_validity_days', 'is_active'),
             'description': '''
                 <p><strong>💰 Configure Affiliate Commission System</strong></p>
                 <p>When a referred user makes a payment, their referrer automatically receives a commission.</p>
                 <ul>
                     <li><strong>Percentage:</strong> Commission percentage (e.g., 10 = 10%)</li>
+                    <li><strong>Validity Days:</strong> Number of days after registration during which payments qualify for commission (0 = unlimited)</li>
                     <li><strong>Active:</strong> Enable or disable the entire affiliate system</li>
                 </ul>
                 <p><em>Note: Users must enable their affiliate system in their profile to receive commissions.</em></p>
             '''
         }),
         ('📊 Statistics', {
-            'fields': ('total_referrals', 'total_commissions', 'example_calculation'),
+            'fields': ('total_referrals', 'total_commissions', 'example_calculation', 'validity_info'),
             'classes': ('collapse',)
         }),
         ('📅 Timestamps', {
@@ -189,6 +190,32 @@ class AffiliationConfigAdmin(admin.ModelAdmin):
         return html
     example_calculation.short_description = "Example Calculations"
     example_calculation.allow_tags = True
+    
+    def validity_display(self, obj):
+        """Show validity period in list display"""
+        return obj.get_validity_display()
+    validity_display.short_description = "Validity Period"
+    
+    def validity_info(self, obj):
+        """Show detailed validity information"""
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        if obj.commission_validity_days == 0:
+            info = "<p><strong>⏰ Validity:</strong> Unlimited - commissions apply to all payments forever</p>"
+        else:
+            info = f"""
+                <p><strong>⏰ Validity Period:</strong> {obj.commission_validity_days} days after registration</p>
+                <p><strong>Example:</strong></p>
+                <ul>
+                    <li>User registers on Jan 1</li>
+                    <li>Commissions apply until: Jan {obj.commission_validity_days} (inclusive)</li>
+                    <li>Payments after {obj.commission_validity_days} days do NOT generate commissions</li>
+                </ul>
+            """
+        return info
+    validity_info.short_description = "Validity Details"
+    validity_info.allow_tags = True
     
     def has_add_permission(self, request):
         # Only allow one instance (singleton pattern)

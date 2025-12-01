@@ -40,8 +40,9 @@ This document describes the complete affiliate/referral reward system implemente
 #### 1. `AffiliationConfig` (settings app)
 ```python
 class AffiliationConfig(SingletonModel):
-    percentage = DecimalField()  # Commission % (e.g., 10 = 10%)
-    is_active = BooleanField()   # Global enable/disable
+    percentage = DecimalField()            # Commission % (e.g., 10 = 10%)
+    commission_validity_days = IntegerField()  # Days after registration to apply commission (0 = unlimited)
+    is_active = BooleanField()             # Global enable/disable
     created_at = DateTimeField()
     updated_at = DateTimeField()
 ```
@@ -51,6 +52,8 @@ class AffiliationConfig(SingletonModel):
 **Key Methods**:
 - `get_config()`: Get or create the config instance
 - `calculate_commission(amount)`: Calculate commission for a payment amount
+- `is_within_validity_period(user_registration_date, payment_date)`: Check if payment qualifies for commission
+- `get_validity_display()`: Human-readable validity period
 
 #### 2. `User` model updates (accounts app)
 ```python
@@ -96,6 +99,7 @@ class WalletTransaction(models.Model):
 1. **User A** registers using **User B's** invite code
    - `User A.referred_by` = `User B`
    - `User A.invite_code` = auto-generated unique code
+   - `User A.date_joined` = registration timestamp (validity period starts)
 
 2. **User A** makes a payment
    - Payment status changes to `'completed'`
@@ -106,15 +110,34 @@ class WalletTransaction(models.Model):
    - Checks if User A has a referrer (User B)
    - Checks if User B has `affiliate_active = True`
    - Checks if global affiliate system is active
+   - ✨ **NEW**: Checks if payment is within validity period (X days after registration)
 
 4. **Commission calculation**
    - Gets `AffiliationConfig.percentage` (e.g., 10%)
+   - Gets `AffiliationConfig.commission_validity_days` (e.g., 30 days)
+   - Verifies payment date is within `registration_date + validity_days`
    - Calculates: `commission = payment_amount * percentage / 100`
 
 5. **Atomic transaction**
    - Updates `User B.wallet_balance += commission`
    - Creates `WalletTransaction` record
    - Links to original payment for traceability
+
+### ⏰ Commission Validity Period
+
+The `commission_validity_days` field controls how long after registration a user's payments qualify for affiliate commissions:
+
+| Setting | Behavior |
+|---------|----------|
+| `0` | **Unlimited** - Commissions apply to all payments, forever |
+| `30` | Commissions apply only to payments made within 30 days of registration |
+| `90` | Commissions apply only to payments made within 90 days of registration |
+
+**Example:**
+- User registers on **January 1**
+- `commission_validity_days = 30`
+- Payment on **January 15** → ✅ Commission applies
+- Payment on **February 5** (35 days later) → ❌ No commission
 
 ### Signal Implementation
 
@@ -144,8 +167,19 @@ def process_affiliate_commission(sender, instance, created, **kwargs):
     if not referrer.affiliate_active:
         return
     
-    # Calculate and pay commission
+    # Get config and check if active
     config = AffiliationConfig.get_config()
+    if not config.is_active:
+        return
+    
+    # ✨ NEW: Check if payment is within validity period
+    if not config.is_within_validity_period(
+        user_registration_date=instance.user.date_joined,
+        payment_date=instance.payment_date
+    ):
+        return  # Payment is outside the validity period
+    
+    # Calculate and pay commission
     commission = config.calculate_commission(instance.amount)
     
     with transaction.atomic():
@@ -173,6 +207,8 @@ def process_affiliate_commission(sender, instance, created, **kwargs):
   "affiliate_active": true,
   "invite_code": "ABC123XYZ0",
   "commission_percentage": 10.0,
+  "commission_validity_days": 30,
+  "validity_display": "30 days after registration",
   "stats": {
     "total_commission_earned": 1250.50,
     "total_amount_from_referrals": 12505.00,
@@ -190,6 +226,8 @@ def process_affiliate_commission(sender, instance, created, **kwargs):
       "total_paid": 1500.00,
       "commission_earned_from_user": 150.00,
       "payment_count": 3,
+      "is_within_validity": true,
+      "validity_expires_at": "2025-02-14T10:30:00Z",
       "payments": [
         {
           "payment_id": 101,
@@ -259,12 +297,14 @@ def process_affiliate_commission(sender, instance, created, **kwargs):
 
 **Fields**:
 - **Percentage**: Commission percentage (e.g., 10 = 10%)
+- **Validity Days**: Number of days after registration during which payments qualify for commission (0 = unlimited)
 - **Active**: Global enable/disable switch
 
 **Statistics**:
 - Total referrals in system
 - Total commissions paid out
 - Example calculations (100, 500, 1000 payment amounts)
+- Validity period details
 
 **Permissions**:
 - ✅ Can edit
@@ -302,10 +342,13 @@ def process_affiliate_commission(sender, instance, created, **kwargs):
 1. **Settings App** - `0018_affiliationconfig.py`
    - Creates `AffiliationConfig` table
 
-2. **Accounts App** - `0011_user_affiliate_active.py`
+2. **Settings App** - `0019_affiliationconfig_commission_validity_days.py`
+   - Adds `commission_validity_days` field to AffiliationConfig
+
+3. **Accounts App** - `0011_user_affiliate_active.py`
    - Adds `affiliate_active` field to User model
 
-3. **Billing App** - `0002_wallettransaction.py`
+4. **Billing App** - `0002_wallettransaction.py`
    - Creates `WalletTransaction` table with indexes
 
 ### Relationships
@@ -410,7 +453,26 @@ Payment (by Referred User)
 2. Check if referred user has `referred_by` set
 3. Check if referrer has `affiliate_active = True`
 4. Check if `AffiliationConfig.is_active = True`
-5. Check Django logs for errors in signal
+5. **Check if payment is within validity period** (user registered within X days)
+6. Check Django logs for errors in signal
+
+### Payment is within validity period but no commission?
+
+```python
+# Check in Django shell:
+from settings.models import AffiliationConfig
+from accounts.models import User
+
+config = AffiliationConfig.get_config()
+print(f"Validity days: {config.commission_validity_days}")
+
+user = User.objects.get(email="referred@example.com")
+print(f"Registered: {user.date_joined}")
+
+# Check if still valid
+is_valid = config.is_within_validity_period(user.date_joined)
+print(f"Within validity: {is_valid}")
+```
 
 ### Duplicate commissions?
 
@@ -482,9 +544,12 @@ Possible additions:
 All features have been implemented:
 
 - ✅ AffiliationConfig model with singleton logic
+- ✅ Commission percentage configuration
+- ✅ **Commission validity period** (X days after registration)
 - ✅ User.affiliate_active field (default: disabled)
 - ✅ WalletTransaction model for audit trail
 - ✅ Signal for automatic commission processing
+- ✅ Validity period check before paying commission
 - ✅ Idempotent payment logic
 - ✅ API endpoints for stats and toggle
 - ✅ Admin UI for configuration and monitoring
@@ -493,12 +558,12 @@ All features have been implemented:
 
 **Next Steps**:
 1. Run migrations on server: `python manage.py migrate`
-2. Access Django Admin to configure percentage
+2. Access Django Admin to configure percentage and validity days
 3. Test with real payment flows
 4. Monitor via admin and API
 
 ---
 
-*Generated: 2025-11-30*
-*Version: 1.0*
+*Generated: 2025-12-01*
+*Version: 1.1 - Added commission validity period*
 

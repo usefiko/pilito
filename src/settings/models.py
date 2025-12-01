@@ -931,15 +931,14 @@ class UpToPro(models.Model):
 
 class AffiliationConfig(SingletonModel):
     """
-    Affil
-
-iate/Referral System Configuration
+    Affiliate/Referral System Configuration
     
     This model stores the commission percentage for the affiliate reward system.
     Only one instance can exist (singleton pattern).
     
     When a referred user makes a payment, X% commission is automatically
-    added to the referring user's wallet balance.
+    added to the referring user's wallet balance - but only within the
+    validity period after registration.
     """
     percentage = models.DecimalField(
         max_digits=5,
@@ -947,6 +946,11 @@ iate/Referral System Configuration
         default=10.00,
         verbose_name="Commission Percentage (%)",
         help_text="Percentage of payment to give as commission to referring user (e.g., 10 = 10%)"
+    )
+    commission_validity_days = models.PositiveIntegerField(
+        default=30,
+        verbose_name="Commission Validity (Days)",
+        help_text="Number of days after registration during which payments qualify for commission (0 = unlimited)"
     )
     is_active = models.BooleanField(
         default=True,
@@ -978,3 +982,44 @@ iate/Referral System Configuration
         percentage_decimal = Decimal(str(self.percentage))
         commission = (amount_decimal * percentage_decimal / Decimal('100')).quantize(Decimal('0.01'))
         return commission
+    
+    def is_within_validity_period(self, user_registration_date, payment_date=None):
+        """
+        Check if a payment is within the commission validity period.
+        
+        Args:
+            user_registration_date: The date when the referred user registered
+            payment_date: The date of the payment (defaults to now if not provided)
+            
+        Returns:
+            bool: True if payment qualifies for commission, False otherwise
+        """
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        # If validity is 0, commission applies forever (unlimited)
+        if self.commission_validity_days == 0:
+            return True
+        
+        if payment_date is None:
+            payment_date = timezone.now()
+        
+        # Make both dates timezone-aware for comparison
+        if timezone.is_naive(user_registration_date):
+            user_registration_date = timezone.make_aware(user_registration_date)
+        if timezone.is_naive(payment_date):
+            payment_date = timezone.make_aware(payment_date)
+        
+        # Calculate the validity deadline
+        validity_deadline = user_registration_date + timedelta(days=self.commission_validity_days)
+        
+        return payment_date <= validity_deadline
+    
+    def get_validity_display(self):
+        """Human-readable validity period"""
+        if self.commission_validity_days == 0:
+            return "Unlimited (forever)"
+        elif self.commission_validity_days == 1:
+            return "1 day after registration"
+        else:
+            return f"{self.commission_validity_days} days after registration"
