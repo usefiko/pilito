@@ -75,7 +75,10 @@ except ImportError:
 ALLOWED_HOSTS = [
     'api.pilito.com',
     'pilito.com',
+    'pilito.ir',  # Persian domain
     'app.pilito.com',
+    'www.pilito.com',
+    'www.pilito.ir',
     'localhost',
     '127.0.0.1',
     '0.0.0.0',
