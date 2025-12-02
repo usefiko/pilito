@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from django.db.models import Sum
-from .models import TokenPlan, FullPlan, Subscription, Payment, TokenUsage, Purchases
+from .models import TokenPlan, FullPlan, Subscription, Payment, TokenUsage, Purchases, BillingInformation, Withdraw
 from .utils import enforce_account_deactivation_for_user
 
 User = get_user_model()
@@ -421,3 +421,68 @@ class ZarinpalPaymentSerializer(serializers.Serializer):
                 })
         
         return attrs
+
+
+class BillingInformationSerializer(serializers.ModelSerializer):
+    """
+    Serializer for user billing/banking information
+    """
+    user_email = serializers.CharField(source='user.email', read_only=True)
+    
+    class Meta:
+        model = BillingInformation
+        fields = [
+            'id', 'user', 'user_email', 'first_name', 'last_name', 
+            'sheba_number', 'bank_name', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'user', 'created_at', 'updated_at']
+
+
+class WithdrawSerializer(serializers.ModelSerializer):
+    """
+    Serializer for withdrawal requests
+    """
+    user_email = serializers.CharField(source='user.email', read_only=True)
+    processed_by_email = serializers.CharField(source='processed_by.email', read_only=True, allow_null=True)
+    
+    class Meta:
+        model = Withdraw
+        fields = [
+            'id', 'user', 'user_email', 'amount', 'status', 'date', 
+            'processed_date', 'processed_by', 'processed_by_email', 
+            'admin_notes', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'user', 'date', 'processed_date', 'processed_by', 'created_at', 'updated_at']
+
+
+class CreateWithdrawSerializer(serializers.ModelSerializer):
+    """
+    Serializer for creating withdrawal requests
+    """
+    class Meta:
+        model = Withdraw
+        fields = ['amount']
+    
+    def validate_amount(self, value):
+        """
+        Validate withdrawal amount against user's wallet balance and minimum withdrawal amount
+        """
+        user = self.context['request'].user
+        
+        # Check minimum withdrawal amount ($100)
+        if value < 100:
+            raise serializers.ValidationError("Minimum withdrawal amount is 100 Tomans.")
+        
+        # Check if user has sufficient balance
+        if user.wallet_balance < value:
+            raise serializers.ValidationError(
+                f"Insufficient balance. Available: {user.wallet_balance} Tomans, Requested: {value} Tomans"
+            )
+        
+        # Check if user has billing information
+        if not hasattr(user, 'billing_information'):
+            raise serializers.ValidationError(
+                "Please add your billing information before requesting a withdrawal."
+            )
+        
+        return value

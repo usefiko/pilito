@@ -23,13 +23,13 @@ class UserAdmin(ImportExportModelAdmin):
     list_display = (
         'img_tag', 'email', 'username', 'first_name', 'last_name', 
         'email_confirmed', 'is_google_user', 'wizard_complete', 
-        'invite_code', 'wallet_balance', 'referral_count',
+        'invite_code', 'wallet_balance', 'affiliate_active', 'referral_count',
         'is_active', 'created_at'
     )
     
     list_filter = (
         'email_confirmed', 'is_google_user', 'wizard_complete', 'is_active', 
-        'is_staff', 'gender', 'country', 'business_type', 'default_reply_handler',
+        'is_staff', 'affiliate_active', 'gender', 'country', 'business_type', 'default_reply_handler',
         'created_at', 'updated_at'
     )
     
@@ -48,7 +48,7 @@ class UserAdmin(ImportExportModelAdmin):
             'fields': ('is_active', 'is_staff', 'is_superuser', 'email_confirmed', 'wizard_complete')
         }),
         ('Affiliate Marketing', {
-            'fields': ('invite_code', 'referred_by', 'wallet_balance', 'referral_list'),
+            'fields': ('invite_code', 'referred_by', 'wallet_balance', 'affiliate_active', 'referral_list'),
             'classes': ('collapse',)
         }),
         ('Google OAuth', {

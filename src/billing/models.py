@@ -342,3 +342,114 @@ class WalletTransaction(models.Model):
     
     def __str__(self):
         return f"{self.user.email} - {self.get_transaction_type_display()} - {self.amount}"
+
+
+class BillingInformation(models.Model):
+    """
+    Store billing/banking information for users to receive withdrawals
+    """
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='billing_information',
+        help_text="User who owns this billing information"
+    )
+    first_name = models.CharField(
+        max_length=100,
+        help_text="First name for banking"
+    )
+    last_name = models.CharField(
+        max_length=100,
+        help_text="Last name for banking"
+    )
+    sheba_number = models.CharField(
+        max_length=26,
+        help_text="IBAN/Sheba number for bank transfers"
+    )
+    bank_name = models.CharField(
+        max_length=100,
+        help_text="Name of the bank"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "💳 Billing Information"
+        verbose_name_plural = "💳 Billing Information"
+    
+    def __str__(self):
+        return f"{self.user.email} - {self.first_name} {self.last_name}"
+
+
+class Withdraw(models.Model):
+    """
+    Withdrawal requests from users to transfer wallet balance to their bank account
+    """
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('processing', 'Processing'),
+        ('paid', 'Paid'),
+        ('rejected', 'Rejected'),
+        ('cancelled', 'Cancelled'),
+    ]
+    
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='withdrawals',
+        help_text="User requesting withdrawal"
+    )
+    amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        help_text="Amount to withdraw in Tomans"
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending',
+        help_text="Status of withdrawal request"
+    )
+    date = models.DateTimeField(
+        auto_now_add=True,
+        help_text="Date when withdrawal was requested"
+    )
+    processed_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Date when withdrawal was processed/paid"
+    )
+    processed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='processed_withdrawals',
+        help_text="Admin who processed this withdrawal"
+    )
+    admin_notes = models.TextField(
+        blank=True,
+        help_text="Admin notes about this withdrawal"
+    )
+    wallet_transaction = models.OneToOneField(
+        WalletTransaction,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='withdrawal',
+        help_text="Related wallet transaction for this withdrawal"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "💸 Withdraw Request"
+        verbose_name_plural = "💸 Withdraw Requests"
+        indexes = [
+            models.Index(fields=['user', '-created_at']),
+            models.Index(fields=['status', '-created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.user.email} - {self.amount} Tomans ({self.get_status_display()})"
