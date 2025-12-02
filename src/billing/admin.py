@@ -243,3 +243,191 @@ class WalletTransactionAdmin(ImportExportModelAdmin):
     def has_add_permission(self, request):
         # Transactions are created automatically by signals
         return False
+
+
+@admin.register(BillingInformation)
+class BillingInformationAdmin(ImportExportModelAdmin):
+    """
+    Admin interface for Billing Information
+    
+    View and manage user banking information for withdrawals
+    """
+    list_display = ('user_email', 'full_name', 'sheba_number', 'bank_name', 'created_at')
+    search_fields = ('user__email', 'user__username', 'first_name', 'last_name', 'sheba_number', 'bank_name')
+    ordering = ('-created_at',)
+    readonly_fields = ('created_at', 'updated_at')
+    raw_id_fields = ('user',)
+    
+    fieldsets = (
+        ('User Information', {
+            'fields': ('user',)
+        }),
+        ('Banking Details', {
+            'fields': ('first_name', 'last_name', 'sheba_number', 'bank_name')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def user_email(self, obj):
+        return obj.user.email
+    user_email.short_description = 'User Email'
+    user_email.admin_order_field = 'user__email'
+    
+    def full_name(self, obj):
+        return f"{obj.first_name} {obj.last_name}"
+    full_name.short_description = 'Name'
+
+
+@admin.register(Withdraw)
+class WithdrawAdmin(ImportExportModelAdmin):
+    """
+    Admin interface for Withdrawal Requests
+    
+    Manage user withdrawal requests with status updates
+    """
+    list_display = (
+        'id', 'user_email', 'amount_display', 'status_display', 
+        'date', 'processed_date', 'processed_by_email'
+    )
+    list_filter = ('status', 'date', 'processed_date')
+    search_fields = (
+        'user__email', 'user__username', 
+        'processed_by__email', 'admin_notes'
+    )
+    ordering = ('-created_at',)
+    readonly_fields = ('date', 'created_at', 'updated_at', 'wallet_transaction', 'user_wallet_balance')
+    raw_id_fields = ('user', 'processed_by', 'wallet_transaction')
+    
+    fieldsets = (
+        ('Request Information', {
+            'fields': ('user', 'amount', 'date', 'user_wallet_balance')
+        }),
+        ('Status Management', {
+            'fields': ('status', 'processed_date', 'processed_by', 'admin_notes'),
+            'description': 'Update status to "paid" to mark as completed. Status changes are tracked.'
+        }),
+        ('Transaction Link', {
+            'fields': ('wallet_transaction',),
+            'classes': ('collapse',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    actions = ['mark_as_paid', 'mark_as_processing', 'mark_as_rejected']
+    
+    def user_email(self, obj):
+        return obj.user.email
+    user_email.short_description = 'User Email'
+    user_email.admin_order_field = 'user__email'
+    
+    def amount_display(self, obj):
+        """Display amount with formatting"""
+        return format_html('<strong>{:,.0f} Tomans</strong>', obj.amount)
+    amount_display.short_description = 'Amount'
+    amount_display.admin_order_field = 'amount'
+    
+    def status_display(self, obj):
+        """Display status with color coding"""
+        status_colors = {
+            'pending': 'orange',
+            'processing': 'blue',
+            'paid': 'green',
+            'rejected': 'red',
+            'cancelled': 'gray'
+        }
+        color = status_colors.get(obj.status, 'black')
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">● {}</span>', 
+            color, 
+            obj.get_status_display()
+        )
+    status_display.short_description = 'Status'
+    status_display.admin_order_field = 'status'
+    
+    def processed_by_email(self, obj):
+        """Show who processed this withdrawal"""
+        if obj.processed_by:
+            return obj.processed_by.email
+        return "-"
+    processed_by_email.short_description = 'Processed By'
+    processed_by_email.admin_order_field = 'processed_by__email'
+    
+    def user_wallet_balance(self, obj):
+        """Show current wallet balance of the user"""
+        return format_html('{:,.2f} Tomans', obj.user.wallet_balance)
+    user_wallet_balance.short_description = 'Current Wallet Balance'
+    
+    def save_model(self, request, obj, form, change):
+        """Override save to track who processed the withdrawal"""
+        if change:
+            # Check if status changed to paid
+            original_obj = Withdraw.objects.get(pk=obj.pk)
+            if original_obj.status != 'paid' and obj.status == 'paid':
+                obj.processed_date = timezone.now()
+                obj.processed_by = request.user
+        
+        super().save_model(request, obj, form, change)
+    
+    # Admin Actions
+    def mark_as_paid(self, request, queryset):
+        """Mark selected withdrawals as paid"""
+        updated = 0
+        for withdraw in queryset:
+            if withdraw.status != 'paid':
+                withdraw.status = 'paid'
+                withdraw.processed_date = timezone.now()
+                withdraw.processed_by = request.user
+                withdraw.save()
+                updated += 1
+        
+        self.message_user(
+            request,
+            f'{updated} withdrawal(s) marked as paid successfully.'
+        )
+    mark_as_paid.short_description = 'Mark selected as Paid'
+    
+    def mark_as_processing(self, request, queryset):
+        """Mark selected withdrawals as processing"""
+        updated = queryset.update(status='processing')
+        self.message_user(
+            request,
+            f'{updated} withdrawal(s) marked as processing.'
+        )
+    mark_as_processing.short_description = 'Mark selected as Processing'
+    
+    def mark_as_rejected(self, request, queryset):
+        """Mark selected withdrawals as rejected"""
+        updated = 0
+        for withdraw in queryset:
+            if withdraw.status == 'pending':
+                # Refund the amount back to wallet
+                withdraw.user.wallet_balance += withdraw.amount
+                withdraw.user.save(update_fields=['wallet_balance', 'updated_at'])
+                
+                # Create refund transaction
+                WalletTransaction.objects.create(
+                    user=withdraw.user,
+                    transaction_type='refund',
+                    amount=withdraw.amount,
+                    balance_after=withdraw.user.wallet_balance,
+                    description=f"Refund for rejected withdrawal request #{withdraw.id}",
+                    created_by=request.user
+                )
+                
+                withdraw.status = 'rejected'
+                withdraw.processed_date = timezone.now()
+                withdraw.processed_by = request.user
+                withdraw.save()
+                updated += 1
+        
+        self.message_user(
+            request,
+            f'{updated} withdrawal(s) rejected and refunded.'
+        )
+    mark_as_rejected.short_description = 'Reject selected (with refund)'
