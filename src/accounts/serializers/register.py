@@ -50,13 +50,17 @@ class RegisterSerializer(serializers.ModelSerializer):
                 affiliate_error = "Invalid affiliate code"
                 pass
         
-        # Send email confirmation
+        # Send email confirmation (don't fail registration if email fails)
+        email_sent = False
+        email_error = None
         try:
             email_sent, result = send_email_confirmation(user)
             if not email_sent:
-                raise serializers.ValidationError(f"Failed to send confirmation email: {result}")
+                email_error = result
+                print(f"Email sending warning: {result}")
         except Exception as e:
             # Log the error but don't fail registration
+            email_error = str(e)
             print(f"Email sending error: {str(e)}")
         
         try:
@@ -68,9 +72,17 @@ class RegisterSerializer(serializers.ModelSerializer):
             "refresh_token": refresh,
             "access_token": access,
             "user_data": UserShortSerializer(user).data,
-            "email_confirmation_sent": email_sent if 'email_sent' in locals() else False,
-            "message": "Registration successful! Please check your email for confirmation code."
+            "email_confirmation_sent": email_sent,
+            "message": "Registration successful!" + (" Please check your email for confirmation code." if email_sent else " Email confirmation will be sent shortly.")
         }
+        
+        # Add email error info if applicable
+        if not email_sent and email_error:
+            response_data["email_info"] = {
+                "email_sent": False,
+                "error": email_error,
+                "can_resend": True
+            }
         
         # Add affiliate information to response
         if affiliate_code:

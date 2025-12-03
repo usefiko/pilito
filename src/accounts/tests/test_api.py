@@ -93,6 +93,10 @@ class AccountsAPITest(APITestCase):
         
         new_user = User.objects.get(email='newuser@example.com')
         self.assertEqual(new_user.referred_by, referrer)
+        
+        # Email confirmation status should be in response
+        # (it may fail if SMTP is not configured in tests, but registration should succeed)
+        self.assertIn('email_confirmation_sent', response.data)
     
     def test_registration_with_invalid_affiliate_code(self):
         """Test registration with an invalid affiliate code"""
