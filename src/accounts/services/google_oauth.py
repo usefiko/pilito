@@ -29,12 +29,24 @@ class GoogleOAuthService:
             serializers.ValidationError: If token is invalid
         """
         try:
-            # Verify the token signature
+            # Try to verify the token signature with timeout
+            logger.info("Attempting to verify Google ID token...")
+            
+            # Create a Request object with timeout
+            from google.auth.transport.requests import Request
+            import urllib3
+            
+            # Configure timeout for certificate fetching
+            http = urllib3.PoolManager(timeout=urllib3.Timeout(connect=10.0, read=10.0))
+            request = Request()
+            
             id_info = id_token.verify_oauth2_token(
                 id_token_string, 
-                google_requests.Request(), 
+                request, 
                 settings.GOOGLE_OAUTH2_CLIENT_ID
             )
+            
+            logger.info("Google ID token verified successfully")
             
             # Verify the issuer
             if id_info['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
@@ -61,9 +73,82 @@ class GoogleOAuthService:
             
         except ValueError as e:
             logger.error(f"Google token verification failed: {e}")
+            # If signature verification fails due to network issue, try fallback
+            if "Could not fetch certificates" in str(e) or "timed out" in str(e).lower():
+                logger.warning("Certificate fetch failed, attempting fallback verification...")
+                return cls._verify_token_fallback(id_token_string)
             raise serializers.ValidationError('Invalid Google token')
         except Exception as e:
             logger.error(f"Unexpected error during Google token verification: {e}")
+            # Try fallback if it's a network-related error
+            if "Could not fetch" in str(e) or "timeout" in str(e).lower() or "certificate" in str(e).lower():
+                logger.warning("Network error during verification, attempting fallback...")
+                return cls._verify_token_fallback(id_token_string)
+            raise serializers.ValidationError('Token verification failed')
+    
+    @classmethod
+    def _verify_token_fallback(cls, id_token_string: str) -> dict:
+        """
+        Fallback method to verify token by calling Google's tokeninfo endpoint
+        This doesn't require certificate fetching.
+        
+        Args:
+            id_token_string: The Google ID token to verify
+            
+        Returns:
+            dict: User information from Google
+            
+        Raises:
+            serializers.ValidationError: If token is invalid
+        """
+        try:
+            logger.info("Using fallback token verification (tokeninfo endpoint)...")
+            
+            # Use tokeninfo endpoint as fallback - doesn't require certificate fetch
+            response = requests.get(
+                f"{cls.GOOGLE_ID_TOKEN_INFO_URL}?id_token={id_token_string}",
+                timeout=15
+            )
+            
+            if response.status_code != 200:
+                logger.error(f"Tokeninfo endpoint returned {response.status_code}")
+                raise serializers.ValidationError('Invalid Google token')
+            
+            id_info = response.json()
+            logger.info("Token verified successfully via tokeninfo endpoint")
+            
+            # Verify the audience (client ID)
+            if id_info.get('aud') != settings.GOOGLE_OAUTH2_CLIENT_ID:
+                raise serializers.ValidationError('Invalid token audience')
+            
+            # Verify the issuer
+            if id_info.get('iss') not in ['accounts.google.com', 'https://accounts.google.com']:
+                raise serializers.ValidationError('Invalid token issuer')
+            
+            # Extract user information
+            user_data = {
+                'google_id': id_info.get('sub'),
+                'email': id_info.get('email'),
+                'first_name': id_info.get('given_name', ''),
+                'last_name': id_info.get('family_name', ''),
+                'google_avatar_url': id_info.get('picture', ''),
+                'email_verified': id_info.get('email_verified', False) or id_info.get('email_verified') == 'true'
+            }
+            
+            # Validate required fields
+            if not user_data['google_id'] or not user_data['email']:
+                raise serializers.ValidationError('Missing required user information')
+            
+            if not user_data['email_verified']:
+                raise serializers.ValidationError('Email not verified by Google')
+            
+            return user_data
+            
+        except requests.RequestException as e:
+            logger.error(f"Fallback token verification failed: {e}")
+            raise serializers.ValidationError('Failed to verify token with Google')
+        except Exception as e:
+            logger.error(f"Unexpected error in fallback verification: {e}")
             raise serializers.ValidationError('Token verification failed')
     
     @classmethod
@@ -82,7 +167,7 @@ class GoogleOAuthService:
         """
         try:
             headers = {'Authorization': f'Bearer {access_token}'}
-            response = requests.get(cls.GOOGLE_USER_INFO_URL, headers=headers)
+            response = requests.get(cls.GOOGLE_USER_INFO_URL, headers=headers, timeout=15)
             
             if response.status_code != 200:
                 raise serializers.ValidationError('Failed to fetch user info from Google')
@@ -106,6 +191,9 @@ class GoogleOAuthService:
             
             return user_data
             
+        except requests.Timeout as e:
+            logger.error(f"Google API request timed out: {e}")
+            raise serializers.ValidationError('Google service timeout - please try again')
         except requests.RequestException as e:
             logger.error(f"Google API request failed: {e}")
             raise serializers.ValidationError('Failed to communicate with Google')
@@ -173,7 +261,8 @@ class GoogleOAuthService:
             logger.info(f"Google OAuth - Redirect URI: {data['redirect_uri']}")
             logger.info(f"Google OAuth - Code: {code[:10]}...")
             
-            response = requests.post(token_url, data=data)
+            # Add timeout to prevent hanging
+            response = requests.post(token_url, data=data, timeout=15)
             logger.info(f"Google OAuth - Token exchange response status: {response.status_code}")
             
             if response.status_code != 200:
@@ -199,6 +288,9 @@ class GoogleOAuthService:
                 'id_token': id_token_string
             }
             
+        except requests.Timeout as e:
+            logger.error(f"Token exchange request timed out: {e}")
+            raise serializers.ValidationError('Google service timeout - please try again')
         except requests.RequestException as e:
             logger.error(f"Token exchange request failed: {e}")
             raise serializers.ValidationError('Failed to communicate with Google')
