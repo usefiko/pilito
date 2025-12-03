@@ -59,15 +59,15 @@ class User(AbstractUser):
 
     def save(self, *args, **kwargs):
         if not self.invite_code:
-            # Generate a unique 10-character invite code
+            # Generate a unique 4-character invite code
             self.invite_code = self._generate_unique_invite_code()
         super().save(*args, **kwargs)
     
     def _generate_unique_invite_code(self):
-        """Generate a unique invite code for the user"""
+        """Generate a unique 4-character invite code for the user"""
         while True:
-            # Generate a random 10-character alphanumeric code
-            code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
+            # Generate a random 4-character alphanumeric code (digits only for shorter, cleaner URLs)
+            code = ''.join(random.choices(string.digits, k=4))
             if not User.objects.filter(invite_code=code).exists():
                 return code
 

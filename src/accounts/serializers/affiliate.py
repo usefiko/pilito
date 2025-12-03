@@ -22,10 +22,12 @@ class AffiliateSerializer(serializers.Serializer):
     
     def to_representation(self, instance):
         """Generate the affiliate data for the user"""
-        # Build the invite link using the user's invite code
+        # Build the invite link in the new format: app.pilito.com/6543
         from django.conf import settings
         base_url = getattr(settings, 'FRONTEND_URL', 'https://app.pilito.com')
-        invite_link = f"{base_url}/auth/register?affiliate={instance.invite_code}"
+        # Remove protocol and trailing slash for cleaner format
+        domain = base_url.replace('https://', '').replace('http://', '').rstrip('/')
+        invite_link = f"{domain}/{instance.invite_code}"
         
         # Get all direct referrals
         direct_referrals = User.objects.filter(referred_by=instance).order_by('-created_at')
