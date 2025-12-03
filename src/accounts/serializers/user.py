@@ -11,13 +11,21 @@ class UserShortSerializer(serializers.ModelSerializer):
     email_confirmation_status = serializers.SerializerMethodField()
     free_trial_days_left = serializers.SerializerMethodField()
     free_trial = serializers.SerializerMethodField()
+    referrer_username = serializers.SerializerMethodField()
     
     class Meta:
         model = get_user_model()
         fields = ('is_profile_fill','id','first_name','last_name','email','phone_number','username','age',
                   'gender','address','organisation','description','profile_picture','updated_at','created_at',
                   'state','zip_code','country','language','time_zone','currency','business_type','default_reply_handler',
-                  'wizard_complete','email_confirmed','email_confirmation_status','free_trial_days_left','free_trial')
+                  'wizard_complete','email_confirmed','email_confirmation_status','free_trial_days_left','free_trial',
+                  'invite_code','referred_by','referrer_username','affiliate_active','wallet_balance')
+    
+    def get_referrer_username(self, obj):
+        """Get the username of the user who referred this user"""
+        if obj.referred_by:
+            return obj.referred_by.username
+        return None
     
     def get_email_confirmation_status(self, obj):
         """Get email confirmation status and details"""

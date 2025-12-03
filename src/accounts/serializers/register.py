@@ -24,6 +24,10 @@ class RegisterSerializer(serializers.ModelSerializer):
         )
         
         # Process affiliate/referral code
+        affiliate_applied = False
+        referrer_info = None
+        affiliate_error = None
+        
         if affiliate_code:
             try:
                 referrer = User.objects.get(invite_code=affiliate_code)
@@ -34,8 +38,16 @@ class RegisterSerializer(serializers.ModelSerializer):
                 from decimal import Decimal
                 referrer.wallet_balance += Decimal('10.00')
                 referrer.save()
+                
+                affiliate_applied = True
+                referrer_info = {
+                    'id': referrer.id,
+                    'username': referrer.username,
+                    'invite_code': referrer.invite_code
+                }
             except User.DoesNotExist:
                 # Invalid affiliate code, but don't fail registration
+                affiliate_error = "Invalid affiliate code"
                 pass
         
         # Send email confirmation
@@ -52,13 +64,24 @@ class RegisterSerializer(serializers.ModelSerializer):
         except Exception as e:
             raise serializers.ValidationError(f"Token generation error: {str(e)}")
         
-        return {
+        response_data = {
             "refresh_token": refresh,
             "access_token": access,
             "user_data": UserShortSerializer(user).data,
             "email_confirmation_sent": email_sent if 'email_sent' in locals() else False,
             "message": "Registration successful! Please check your email for confirmation code."
         }
+        
+        # Add affiliate information to response
+        if affiliate_code:
+            response_data["affiliate_info"] = {
+                "affiliate_code_provided": affiliate_code,
+                "affiliate_applied": affiliate_applied,
+                "referrer": referrer_info,
+                "error": affiliate_error
+            }
+        
+        return response_data
 
 
 class CompleteRegisterSerializer(serializers.ModelSerializer):

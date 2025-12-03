@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google OAuth Test - Pilito</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4285f4;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #666;
+            margin-top: 30px;
+        }
+        .status {
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        button {
+            background: #4285f4;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 5px 10px 0;
+        }
+        button:hover {
+            background: #357ae8;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .code-block {
+            background: #f4f4f4;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+        .step {
+            margin: 20px 0;
+            padding: 15px;
+            border-left: 4px solid #4285f4;
+            background: #f8f9fa;
+        }
+        .log {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin: 15px 0;
+        }
+        .log-entry {
+            margin: 5px 0;
+        }
+        .log-time {
+            color: #858585;
+        }
+        .log-info {
+            color: #4ec9b0;
+        }
+        .log-success {
+            color: #6a9955;
+        }
+        .log-error {
+            color: #f48771;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Google OAuth Test Page</h1>
+        
+        <div id="status" class="status info">
+            <strong>Status:</strong> Ready to test
+        </div>
+
+        <h2>Step 1: Test Configuration</h2>
+        <div class="step">
+            <button onclick="testConfiguration()">Test Backend Configuration</button>
+            <div id="configResult"></div>
+        </div>
+
+        <h2>Step 2: Get Authorization URL</h2>
+        <div class="step">
+            <button onclick="getAuthUrl()">Get Auth URL from Backend</button>
+            <div id="authUrlResult"></div>
+        </div>
+
+        <h2>Step 3: Login with Google</h2>
+        <div class="step">
+            <button id="googleLoginBtn" onclick="loginWithGoogle()" disabled>
+                🔗 Login with Google
+            </button>
+            <p style="color: #666;">First get the auth URL in Step 2</p>
+        </div>
+
+        <h2>Step 4: Check Current Session</h2>
+        <div class="step">
+            <button onclick="checkSession()">Check Cookies & Session</button>
+            <div id="sessionResult"></div>
+        </div>
+
+        <h2>Logs</h2>
+        <div id="logs" class="log">
+            <div class="log-entry log-info">Test page loaded. Ready to begin testing.</div>
+        </div>
+
+        <h2>Configuration Info</h2>
+        <table>
+            <tr>
+                <th>Setting</th>
+                <th>Value</th>
+            </tr>
+            <tr>
+                <td>Backend API</td>
+                <td>https://api.pilito.com</td>
+            </tr>
+            <tr>
+                <td>Auth URL Endpoint</td>
+                <td>/api/v1/usr/google/auth-url</td>
+            </tr>
+            <tr>
+                <td>Callback Endpoint</td>
+                <td>/api/v1/usr/google/callback</td>
+            </tr>
+            <tr>
+                <td>Frontend Redirect</td>
+                <td>https://app.pilito.com/auth/success</td>
+            </tr>
+        </table>
+
+        <h2>Troubleshooting Checklist</h2>
+        <div class="step">
+            <p><strong>If Google login doesn't work, check:</strong></p>
+            <ul>
+                <li>✓ Backend configuration is correct (Step 1)</li>
+                <li>✓ Auth URL is retrieved successfully (Step 2)</li>
+                <li>✓ Google redirect URI in Google Console matches: <code>https://api.pilito.com/api/v1/usr/google/callback</code></li>
+                <li>✓ Browser console has no CORS errors</li>
+                <li>✓ Network tab shows successful requests</li>
+                <li>✓ Cookies are being set after login</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://api.pilito.com';
+        const API_PREFIX = '/api/v1/usr';
+        let authUrl = null;
+
+        function log(message, type = 'info') {
+            const logsDiv = document.getElementById('logs');
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.innerHTML = `<span class="log-time">[${time}]</span> ${message}`;
+            logsDiv.appendChild(entry);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+
+        function setStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = `status ${type}`;
+            statusDiv.innerHTML = `<strong>Status:</strong> ${message}`;
+        }
+
+        async function testConfiguration() {
+            log('Testing backend configuration...', 'info');
+            setStatus('Testing configuration...', 'info');
+            
+            const resultDiv = document.getElementById('configResult');
+            resultDiv.innerHTML = '<p>Loading...</p>';
+
+            try {
+                const response = await fetch(`${API_BASE}${API_PREFIX}/google/auth-url`);
+                const data = await response.json();
+
+                if (response.ok && data.auth_url) {
+                    resultDiv.innerHTML = `
+                        <div class="status success">
+                            ✅ Backend is configured correctly!
+                            <br><br>
+                            <strong>Auth URL received:</strong>
+                            <div class="code-block">${data.auth_url.substring(0, 100)}...</div>
+                        </div>
+                    `;
+                    log('✅ Backend configuration test passed', 'success');
+                    setStatus('Backend is configured correctly', 'success');
+                } else {
+                    throw new Error('Invalid response from backend');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="status error">
+                        ❌ Backend configuration test failed
+                        <br><br>
+                        Error: ${error.message}
+                    </div>
+                `;
+                log(`❌ Backend configuration test failed: ${error.message}`, 'error');
+                setStatus('Backend configuration test failed', 'error');
+            }
+        }
+
+        async function getAuthUrl() {
+            log('Fetching authorization URL from backend...', 'info');
+            setStatus('Fetching authorization URL...', 'info');
+            
+            const resultDiv = document.getElementById('authUrlResult');
+            resultDiv.innerHTML = '<p>Loading...</p>';
+
+            try {
+                const response = await fetch(`${API_BASE}${API_PREFIX}/google/auth-url`);
+                const data = await response.json();
+
+                if (response.ok && data.auth_url) {
+                    authUrl = data.auth_url;
+                    
+                    resultDiv.innerHTML = `
+                        <div class="status success">
+                            ✅ Authorization URL retrieved successfully!
+                            <br><br>
+                            <div class="code-block" style="word-break: break-all;">
+                                ${data.auth_url}
+                            </div>
+                            <br>
+                            <button onclick="copyAuthUrl()">📋 Copy URL</button>
+                        </div>
+                    `;
+                    
+                    document.getElementById('googleLoginBtn').disabled = false;
+                    document.getElementById('googleLoginBtn').style.background = '#4285f4';
+                    
+                    log('✅ Authorization URL retrieved', 'success');
+                    setStatus('Ready to login with Google', 'success');
+                } else {
+                    throw new Error('Invalid response from backend');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="status error">
+                        ❌ Failed to get authorization URL
+                        <br><br>
+                        Error: ${error.message}
+                    </div>
+                `;
+                log(`❌ Failed to get authorization URL: ${error.message}`, 'error');
+                setStatus('Failed to get authorization URL', 'error');
+            }
+        }
+
+        function copyAuthUrl() {
+            navigator.clipboard.writeText(authUrl);
+            log('📋 Authorization URL copied to clipboard', 'info');
+        }
+
+        function loginWithGoogle() {
+            if (!authUrl) {
+                alert('Please get the authorization URL first (Step 2)');
+                return;
+            }
+
+            log('🔗 Redirecting to Google...', 'info');
+            setStatus('Redirecting to Google...', 'info');
+            
+            // Redirect to Google OAuth
+            window.location.href = authUrl;
+        }
+
+        function checkSession() {
+            log('Checking cookies and session...', 'info');
+            
+            const resultDiv = document.getElementById('sessionResult');
+            const cookies = document.cookie.split(';').reduce((acc, cookie) => {
+                const [key, value] = cookie.trim().split('=');
+                acc[key] = value;
+                return acc;
+            }, {});
+
+            let html = '<div class="status info"><strong>Cookies Found:</strong><br><br>';
+            
+            if (Object.keys(cookies).length === 0) {
+                html += '❌ No cookies found<br>';
+                log('❌ No cookies found in browser', 'error');
+            } else {
+                Object.keys(cookies).forEach(key => {
+                    html += `✓ ${key}: ${cookies[key].substring(0, 30)}...<br>`;
+                    log(`Cookie found: ${key}`, 'success');
+                });
+            }
+
+            // Check URL parameters (for callback handling)
+            const urlParams = new URLSearchParams(window.location.search);
+            const success = urlParams.get('success');
+            const data = urlParams.get('data');
+            const error = urlParams.get('error');
+
+            html += '<br><strong>URL Parameters:</strong><br><br>';
+            
+            if (success) {
+                html += `✅ Success: ${success}<br>`;
+                log(`✅ Success parameter: ${success}`, 'success');
+            }
+            if (data) {
+                try {
+                    const decodedData = JSON.parse(atob(data));
+                    html += `✅ User data received:<br>`;
+                    html += `<div class="code-block">${JSON.stringify(decodedData, null, 2)}</div>`;
+                    log('✅ User data decoded successfully', 'success');
+                    setStatus('Login successful!', 'success');
+                } catch (e) {
+                    html += `❌ Failed to decode data<br>`;
+                    log('❌ Failed to decode user data', 'error');
+                }
+            }
+            if (error) {
+                html += `❌ Error: ${error}<br>`;
+                const message = urlParams.get('message');
+                if (message) {
+                    html += `Message: ${message}<br>`;
+                }
+                log(`❌ Error in URL: ${error}`, 'error');
+                setStatus(`Login failed: ${error}`, 'error');
+            }
+
+            if (!success && !error) {
+                html += '⚠️ No OAuth callback parameters found<br>';
+                log('⚠️ No OAuth callback parameters in URL', 'info');
+            }
+
+            html += '</div>';
+            resultDiv.innerHTML = html;
+        }
+
+        // Check if we're on a callback URL
+        window.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('success') || urlParams.has('error')) {
+                log('🔄 Callback detected in URL, checking session...', 'info');
+                checkSession();
+            }
+        });
+    </script>
+</body>
+</html>
+
