@@ -1,7 +1,7 @@
 """
 Celery tasks for accounts app.
 
-Handles asynchronous operations like syncing users to Intercom.
+Handles asynchronous operations like syncing users to Intercom and sending emails.
 """
 
 from celery import shared_task
@@ -10,6 +10,67 @@ import logging
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
+
+
+@shared_task(
+    name='accounts.send_email_confirmation',
+    bind=True,
+    autoretry_for=(Exception,),
+    retry_kwargs={'max_retries': 5, 'countdown': 60},
+    retry_backoff=True,
+    retry_backoff_max=900  # Max 15 minutes between retries
+)
+def send_email_confirmation_async(self, user_id: int):
+    """
+    Send email confirmation asynchronously with automatic retries.
+    
+    This task will retry up to 5 times with exponential backoff:
+    - Retry 1: after 60 seconds
+    - Retry 2: after 120 seconds  
+    - Retry 3: after 240 seconds
+    - Retry 4: after 480 seconds
+    - Retry 5: after 900 seconds (15 min max)
+    
+    Args:
+        user_id: ID of the user to send email confirmation to
+        
+    Returns:
+        Dictionary with email sending result
+    """
+    from accounts.utils import send_email_confirmation
+    
+    try:
+        user = User.objects.get(id=user_id)
+        
+        logger.info(f"📧 Attempting to send email confirmation to user {user_id} ({user.email})")
+        
+        email_sent, result = send_email_confirmation(user)
+        
+        if not email_sent:
+            logger.warning(f"⚠️  Email send failed for user {user_id}: {result}")
+            # Raise exception to trigger Celery retry
+            raise Exception(f"Email sending failed: {result}")
+        
+        logger.info(f"✅ Email successfully sent to user {user_id} ({user.email})")
+        return {
+            'success': True,
+            'user_id': user_id,
+            'email': user.email,
+            'confirmation_code': result
+        }
+        
+    except User.DoesNotExist:
+        logger.error(f"❌ User {user_id} not found for email confirmation")
+        return {
+            'success': False,
+            'user_id': user_id,
+            'error': 'User not found'
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Email send error for user {user_id} (attempt {self.request.retries + 1}/{self.max_retries}): {str(e)}")
+        # Reraise to trigger Celery retry
+        raise
 
 
 @shared_task(

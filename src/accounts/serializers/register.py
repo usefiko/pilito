@@ -3,6 +3,9 @@ from accounts.serializers.user import UserShortSerializer
 from accounts.functions import login
 from accounts.utils import send_email_confirmation
 from django.contrib.auth import get_user_model
+import logging
+
+logger = logging.getLogger(__name__)
 User = get_user_model()
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -50,18 +53,39 @@ class RegisterSerializer(serializers.ModelSerializer):
                 affiliate_error = "Invalid affiliate code"
                 pass
         
-        # Send email confirmation (don't fail registration if email fails)
+        # Send email confirmation asynchronously via Celery (non-blocking)
         email_sent = False
         email_error = None
+        email_queued = False
+        
         try:
-            email_sent, result = send_email_confirmation(user)
-            if not email_sent:
-                email_error = result
-                print(f"Email sending warning: {result}")
+            # Import the async task
+            from accounts.tasks import send_email_confirmation_async
+            
+            # Queue the email to be sent asynchronously (starts after 2 seconds)
+            task = send_email_confirmation_async.apply_async(
+                args=[user.id],
+                countdown=2  # Start after 2 seconds
+            )
+            
+            email_queued = True
+            logger.info(f"✅ Email confirmation queued for async sending (task: {task.id})")
+            print(f"✅ Email confirmation queued for user {user.id} (task: {task.id})")
+            
         except Exception as e:
-            # Log the error but don't fail registration
-            email_error = str(e)
-            print(f"Email sending error: {str(e)}")
+            # If queueing fails, fall back to synchronous sending (with timeout handling)
+            email_error = f"Failed to queue email: {str(e)}"
+            logger.warning(f"⚠️  Failed to queue email for user {user.id}, falling back to sync: {e}")
+            print(f"⚠️  Failed to queue email, attempting sync send: {str(e)}")
+            
+            try:
+                email_sent, result = send_email_confirmation(user)
+                if not email_sent:
+                    email_error = result
+                    print(f"Email sending warning: {result}")
+            except Exception as sync_error:
+                email_error = str(sync_error)
+                print(f"Email sending error: {str(sync_error)}")
         
         try:
             access, refresh = login(user)
@@ -72,14 +96,23 @@ class RegisterSerializer(serializers.ModelSerializer):
             "refresh_token": refresh,
             "access_token": access,
             "user_data": UserShortSerializer(user).data,
-            "email_confirmation_sent": email_sent,
-            "message": "Registration successful!" + (" Please check your email for confirmation code." if email_sent else " Email confirmation will be sent shortly.")
+            "email_confirmation_sent": email_sent or email_queued,  # True if sent or queued
+            "message": "Registration successful!" + (
+                " Please check your email for confirmation code." if (email_sent or email_queued)
+                else " Email confirmation will be sent shortly."
+            )
         }
         
-        # Add email error info if applicable
-        if not email_sent and email_error:
+        # Add email status info
+        if email_queued:
+            response_data["email_info"] = {
+                "email_queued": True,
+                "message": "Email confirmation is being sent in the background"
+            }
+        elif not email_sent and email_error:
             response_data["email_info"] = {
                 "email_sent": False,
+                "email_queued": False,
                 "error": email_error,
                 "can_resend": True
             }
