@@ -94,6 +94,16 @@ services:
       - REDIS_URL=redis://redis:6379
       - RAPIDAPI_KEY=${RAPIDAPI_KEY}
       - C_FORCE_ROOT=true
+      # Email Configuration - same as web service
+      - EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+      - EMAIL_HOST=smtp.c1.liara.email
+      - EMAIL_PORT=587
+      - EMAIL_USE_TLS=True
+      - EMAIL_USE_SSL=False
+      - EMAIL_HOST_USER=zen_torvalds_599nek
+      - EMAIL_HOST_PASSWORD=8d071fc6-a36c-43f1-9f09-b25bd408af87
+      - EMAIL_TIMEOUT=30
+      - DEFAULT_FROM_EMAIL=noreply@mail.pilito.com
     dns:
       - 8.8.8.8
       - 8.8.4.4
