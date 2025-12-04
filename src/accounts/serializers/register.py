@@ -15,6 +15,18 @@ class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ('username', 'email', 'password', 'affiliate')
+    
+    def validate_email(self, value):
+        """Check if email already exists"""
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("A user with this email already exists. Please use a different email or try logging in.")
+        return value
+    
+    def validate_username(self, value):
+        """Check if username already exists"""
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError("This username is already taken. Please choose a different username.")
+        return value
 
     def create(self, validated_data):
         # Extract affiliate code from validated data
