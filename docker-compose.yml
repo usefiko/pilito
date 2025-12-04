@@ -31,6 +31,10 @@ services:
       # Google OAuth Configuration (Production)
       - GOOGLE_OAUTH2_REDIRECT_URI=https://api.pilito.com/api/v1/usr/google/callback
       - GOOGLE_OAUTH2_FRONTEND_REDIRECT=https://app.pilito.com/auth/success
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
     depends_on:
       - db
       - redis
@@ -90,6 +94,10 @@ services:
       - REDIS_URL=redis://redis:6379
       - RAPIDAPI_KEY=${RAPIDAPI_KEY}
       - C_FORCE_ROOT=true
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
     ports:
       - "9808:9808"
     depends_on:
@@ -129,6 +137,10 @@ services:
       - REDIS_URL=redis://redis:6379
       - RAPIDAPI_KEY=${RAPIDAPI_KEY}
       - C_FORCE_ROOT=true
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
     depends_on:
       - db
       - redis
