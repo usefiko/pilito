@@ -173,6 +173,16 @@ app.conf.task_routes = {
         'routing_key': 'low.billing',
     },
     
+    # 📧 Account Email Tasks → Default Priority (user registration)
+    'accounts.send_email_confirmation': {
+        'queue': 'default',
+        'routing_key': 'default.email',
+    },
+    'accounts.sync_user_to_intercom': {
+        'queue': 'low_priority',
+        'routing_key': 'low.sync',
+    },
+    
     # 📝 Web Knowledge Tasks → Default Priority (user-triggered)
     'web_knowledge.tasks.generate_prompt_async_task': {
         'queue': 'default',

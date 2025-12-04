@@ -65,53 +65,23 @@ class RegisterSerializer(serializers.ModelSerializer):
                 affiliate_error = "Invalid affiliate code"
                 pass
         
-        # Send email confirmation
-        # Try async first, but use sync as immediate fallback for reliability
+        # Send email confirmation asynchronously via Celery
+        # This prevents SMTP timeout from blocking the registration API response
         email_sent = False
         email_error = None
         email_queued = False
         
-        # Try synchronous sending first (same as resend endpoint that works)
         try:
-            logger.info(f"📧 Sending email confirmation to user {user.id} ({user.email})")
-            email_sent, result = send_email_confirmation(user)
-            
-            if email_sent:
-                logger.info(f"✅ Email sent successfully to user {user.id}")
-                print(f"✅ Email sent successfully to {user.email}")
-            else:
-                email_error = result
-                logger.warning(f"⚠️  Email sending returned False: {result}")
-                print(f"⚠️  Email sending warning: {result}")
-                
-                # Try async as backup
-                try:
-                    from accounts.tasks import send_email_confirmation_async
-                    task = send_email_confirmation_async.apply_async(
-                        args=[user.id],
-                        countdown=5
-                    )
-                    email_queued = True
-                    logger.info(f"📬 Email queued for retry via Celery (task: {task.id})")
-                except Exception as celery_error:
-                    logger.warning(f"Could not queue email task: {celery_error}")
-                    
-        except Exception as e:
-            email_error = str(e)
-            logger.error(f"❌ Email sending error for user {user.id}: {e}")
-            print(f"❌ Email sending error: {str(e)}")
-            
-            # Try async as backup
-            try:
-                from accounts.tasks import send_email_confirmation_async
-                task = send_email_confirmation_async.apply_async(
-                    args=[user.id],
-                    countdown=5
-                )
-                email_queued = True
-                logger.info(f"📬 Email queued for retry via Celery (task: {task.id})")
-            except Exception as celery_error:
-                logger.warning(f"Could not queue email task: {celery_error}")
+            from accounts.tasks import send_email_confirmation_async
+            task = send_email_confirmation_async.apply_async(
+                args=[user.id],
+                countdown=2  # Small delay to ensure user is fully committed to DB
+            )
+            email_queued = True
+            logger.info(f"📬 Email confirmation queued via Celery for user {user.id} ({user.email}) - task: {task.id}")
+        except Exception as celery_error:
+            logger.warning(f"Could not queue email task for user {user.id}: {celery_error}")
+            email_error = str(celery_error)
         
         try:
             access, refresh = login(user)
