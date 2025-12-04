@@ -3,10 +3,9 @@ from accounts.serializers.user import UserShortSerializer
 from accounts.functions import login
 from accounts.utils import send_email_confirmation
 from django.contrib.auth import get_user_model
-import logging
 
-logger = logging.getLogger(__name__)
 User = get_user_model()
+
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
@@ -15,18 +14,6 @@ class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ('username', 'email', 'password', 'affiliate')
-    
-    def validate_email(self, value):
-        """Check if email already exists"""
-        if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("A user with this email already exists. Please use a different email or try logging in.")
-        return value
-    
-    def validate_username(self, value):
-        """Check if username already exists"""
-        if User.objects.filter(username=value).exists():
-            raise serializers.ValidationError("This username is already taken. Please choose a different username.")
-        return value
 
     def create(self, validated_data):
         # Extract affiliate code from validated data
@@ -39,10 +26,6 @@ class RegisterSerializer(serializers.ModelSerializer):
         )
         
         # Process affiliate/referral code
-        affiliate_applied = False
-        referrer_info = None
-        affiliate_error = None
-        
         if affiliate_code:
             try:
                 referrer = User.objects.get(invite_code=affiliate_code)
@@ -53,76 +36,32 @@ class RegisterSerializer(serializers.ModelSerializer):
                 from decimal import Decimal
                 referrer.wallet_balance += Decimal('10.00')
                 referrer.save()
-                
-                affiliate_applied = True
-                referrer_info = {
-                    'id': referrer.id,
-                    'username': referrer.username,
-                    'invite_code': referrer.invite_code
-                }
             except User.DoesNotExist:
                 # Invalid affiliate code, but don't fail registration
-                affiliate_error = "Invalid affiliate code"
                 pass
         
-        # Send email confirmation asynchronously via Celery
-        # This prevents SMTP timeout from blocking the registration API response
+        # Send email confirmation
         email_sent = False
-        email_error = None
-        email_queued = False
-        
         try:
-            from accounts.tasks import send_email_confirmation_async
-            task = send_email_confirmation_async.apply_async(
-                args=[user.id],
-                countdown=2  # Small delay to ensure user is fully committed to DB
-            )
-            email_queued = True
-            logger.info(f"📬 Email confirmation queued via Celery for user {user.id} ({user.email}) - task: {task.id}")
-        except Exception as celery_error:
-            logger.warning(f"Could not queue email task for user {user.id}: {celery_error}")
-            email_error = str(celery_error)
+            email_sent, result = send_email_confirmation(user)
+            if not email_sent:
+                print(f"⚠️ Email sending warning: {result}")
+        except Exception as e:
+            # Log the error but don't fail registration
+            print(f"❌ Email sending error: {str(e)}")
         
         try:
             access, refresh = login(user)
         except Exception as e:
             raise serializers.ValidationError(f"Token generation error: {str(e)}")
         
-        response_data = {
+        return {
             "refresh_token": refresh,
             "access_token": access,
             "user_data": UserShortSerializer(user).data,
-            "email_confirmation_sent": email_sent or email_queued,  # True if sent or queued
-            "message": "Registration successful!" + (
-                " Please check your email for confirmation code." if (email_sent or email_queued)
-                else " Email confirmation will be sent shortly."
-            )
+            "email_confirmation_sent": email_sent,
+            "message": "Registration successful! Please check your email for confirmation code."
         }
-        
-        # Add email status info
-        if email_queued:
-            response_data["email_info"] = {
-                "email_queued": True,
-                "message": "Email confirmation is being sent in the background"
-            }
-        elif not email_sent and email_error:
-            response_data["email_info"] = {
-                "email_sent": False,
-                "email_queued": False,
-                "error": email_error,
-                "can_resend": True
-            }
-        
-        # Add affiliate information to response
-        if affiliate_code:
-            response_data["affiliate_info"] = {
-                "affiliate_code_provided": affiliate_code,
-                "affiliate_applied": affiliate_applied,
-                "referrer": referrer_info,
-                "error": affiliate_error
-            }
-        
-        return response_data
 
 
 class CompleteRegisterSerializer(serializers.ModelSerializer):

@@ -18,9 +18,8 @@ services:
     environment:
       - REDIS_URL=redis://redis:6379
       - RAPIDAPI_KEY=${RAPIDAPI_KEY}
-      # Email Configuration - Console backend for development (prints to logs)
-      # To use real email, set EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
-      - EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
+      # Email Configuration - Liara Email SMTP
+      - EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
       - EMAIL_HOST=smtp.c1.liara.email
       - EMAIL_PORT=587
       - EMAIL_USE_TLS=True
@@ -95,8 +94,8 @@ services:
       - REDIS_URL=redis://redis:6379
       - RAPIDAPI_KEY=${RAPIDAPI_KEY}
       - C_FORCE_ROOT=true
-      # Email Configuration - Console backend for development (prints to logs)
-      - EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
+      # Email Configuration - Liara Email SMTP
+      - EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
       - EMAIL_HOST=smtp.c1.liara.email
       - EMAIL_PORT=587
       - EMAIL_USE_TLS=True
