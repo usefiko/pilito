@@ -3,6 +3,20 @@
 from django.db import migrations, models
 
 
+def clear_old_tokens(apps, schema_editor):
+    """
+    Clear old 6-digit tokens before changing column size to 4.
+    These are temporary verification tokens, so it's safe to delete them.
+    Users will simply need to request new codes.
+    """
+    EmailConfirmationToken = apps.get_model('accounts', 'EmailConfirmationToken')
+    OTPToken = apps.get_model('accounts', 'OTPToken')
+    
+    # Delete all existing tokens (they have 6-digit codes that won't fit)
+    EmailConfirmationToken.objects.all().delete()
+    OTPToken.objects.all().delete()
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -10,6 +24,10 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # First, clear existing tokens with 6-digit codes
+        migrations.RunPython(clear_old_tokens, migrations.RunPython.noop),
+        
+        # Now safe to change column size
         migrations.AlterField(
             model_name='emailconfirmationtoken',
             name='code',
