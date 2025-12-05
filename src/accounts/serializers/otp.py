@@ -201,6 +201,12 @@ class VerifyOTPSerializer(serializers.Serializer):
         required=True,
         help_text="6-digit OTP code received via SMS"
     )
+    affiliate = serializers.CharField(
+        write_only=True,
+        required=False,
+        allow_blank=True,
+        help_text="Affiliate/invite code for referral (optional)"
+    )
     
     def validate_phone_number(self, value):
         """Validate phone number format"""
@@ -271,6 +277,22 @@ class VerifyOTPSerializer(serializers.Serializer):
             # If user is newly created, set a flag
             attrs['is_new_user'] = created
             attrs['user'] = user
+            
+            # Process affiliate/referral code (for new users or users without referrer)
+            affiliate_code = attrs.get('affiliate', None)
+            if affiliate_code and not user.referred_by:  # Don't update if already has referrer
+                try:
+                    referrer = User.objects.get(invite_code=affiliate_code)
+                    user.referred_by = referrer
+                    user.save()
+                    
+                    # Add referral bonus to referrer's wallet (e.g., 10.00)
+                    from decimal import Decimal
+                    referrer.wallet_balance += Decimal('10.00')
+                    referrer.save()
+                except User.DoesNotExist:
+                    # Invalid affiliate code, but don't fail registration
+                    pass
             
             # Generate JWT tokens
             access_token, refresh_token = generate_jwt_tokens(user)
