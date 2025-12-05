@@ -29,7 +29,7 @@ class AddEmailSendCodeAPIView(APIView):
     API endpoint to send verification code to email for linking to phone-based account.
     
     Authenticated users who registered with phone number can use this endpoint
-    to add an email address to their account. A 6-digit verification code
+    to add an email address to their account. A 4-digit verification code
     will be sent to the provided email.
     """
     permission_classes = [IsAuthenticated]
@@ -46,7 +46,7 @@ class AddEmailSendCodeAPIView(APIView):
         
         **Flow:**
         1. User provides email address
-        2. System sends 6-digit verification code to email
+        2. System sends 4-digit verification code to email
         3. Code is valid for 15 minutes
         4. User verifies code using verify endpoint
         """,
@@ -127,7 +127,7 @@ class AddEmailVerifyCodeAPIView(APIView):
         
         **Requirements:**
         - User must be authenticated
-        - Valid 6-digit verification code
+        - Valid 4-digit verification code
         - Code must not be expired (15 minutes validity)
         
         **Flow:**
@@ -185,7 +185,7 @@ class AddPhoneSendOTPAPIView(APIView):
     API endpoint to send OTP to phone number for linking to email-based account.
     
     Authenticated users who registered with email can use this endpoint
-    to add a phone number to their account. A 6-digit OTP will be sent
+    to add a phone number to their account. A 4-digit OTP will be sent
     to the provided phone number via SMS.
     """
     permission_classes = [IsAuthenticated]
@@ -202,7 +202,7 @@ class AddPhoneSendOTPAPIView(APIView):
         
         **Flow:**
         1. User provides phone number
-        2. System sends 6-digit OTP via SMS
+        2. System sends 4-digit OTP via SMS
         3. OTP is valid for 5 minutes
         4. User verifies OTP using verify endpoint
         """,
@@ -283,7 +283,7 @@ class AddPhoneVerifyOTPAPIView(APIView):
         
         **Requirements:**
         - User must be authenticated
-        - Valid 6-digit OTP code
+        - Valid 4-digit OTP code
         - OTP must not be expired (5 minutes validity)
         - Maximum 3 verification attempts per OTP
         

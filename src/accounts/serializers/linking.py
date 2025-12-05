@@ -111,10 +111,10 @@ class VerifyEmailCodeForLinkingSerializer(serializers.Serializer):
     Serializer for verifying email code and linking email to account
     """
     code = serializers.CharField(
-        max_length=6,
-        min_length=6,
+        max_length=4,
+        min_length=4,
         required=True,
-        help_text="6-digit verification code sent to your email"
+        help_text="4-digit verification code sent to your email"
     )
     
     def validate_code(self, value):
@@ -330,10 +330,10 @@ class VerifyOTPForLinkingSerializer(serializers.Serializer):
         help_text="Phone number to verify"
     )
     code = serializers.CharField(
-        max_length=6,
-        min_length=6,
+        max_length=4,
+        min_length=4,
         required=True,
-        help_text="6-digit OTP code received via SMS"
+        help_text="4-digit OTP code received via SMS"
     )
     
     def validate_phone_number(self, value):

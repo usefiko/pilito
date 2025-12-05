@@ -18,7 +18,7 @@ class SendOTPAPIView(APIView):
     """
     API endpoint to send OTP code to phone number via SMS.
     
-    This endpoint sends a 6-digit OTP code to the provided phone number
+    This endpoint sends a 4-digit OTP code to the provided phone number
     using Kavenegar SMS service. The OTP is valid for 5 minutes.
     """
     permission_classes = [AllowAny]

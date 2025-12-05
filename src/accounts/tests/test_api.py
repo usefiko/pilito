@@ -89,7 +89,10 @@ class AccountsAPITest(APITestCase):
         
         # Verify database was updated correctly
         referrer.refresh_from_db()
-        self.assertEqual(referrer.wallet_balance, initial_wallet + 10)
+        # Note: Wallet balance is NOT updated at registration time anymore
+        # Commission is only given when referred user makes a payment
+        # See billing/signals.py process_affiliate_commission for commission logic
+        self.assertEqual(referrer.wallet_balance, initial_wallet)
         
         new_user = User.objects.get(email='newuser@example.com')
         self.assertEqual(new_user.referred_by, referrer)

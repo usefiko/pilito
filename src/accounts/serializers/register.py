@@ -70,16 +70,13 @@ class RegisterSerializer(serializers.ModelSerializer):
             )
         
         # Process affiliate/referral code
+        # Note: Commission is paid when referred user makes payments, not at registration
+        # See billing/signals.py process_affiliate_commission for commission logic
         if affiliate_code and not user.referred_by:  # Don't update if already has referrer
             try:
                 referrer = User.objects.get(invite_code=affiliate_code)
                 user.referred_by = referrer
                 user.save()
-                
-                # Add referral bonus to referrer's wallet (e.g., 10.00)
-                from decimal import Decimal
-                referrer.wallet_balance += Decimal('10.00')
-                referrer.save()
             except User.DoesNotExist:
                 # Invalid affiliate code, but don't fail registration
                 pass

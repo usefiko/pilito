@@ -196,10 +196,10 @@ class VerifyOTPSerializer(serializers.Serializer):
         help_text="Phone number used to receive OTP"
     )
     code = serializers.CharField(
-        max_length=6,
-        min_length=6,
+        max_length=4,
+        min_length=4,
         required=True,
-        help_text="6-digit OTP code received via SMS"
+        help_text="4-digit OTP code received via SMS"
     )
     affiliate = serializers.CharField(
         write_only=True,
@@ -279,17 +279,14 @@ class VerifyOTPSerializer(serializers.Serializer):
             attrs['user'] = user
             
             # Process affiliate/referral code (for new users or users without referrer)
+            # Note: Commission is paid when referred user makes payments, not at registration
+            # See billing/signals.py process_affiliate_commission for commission logic
             affiliate_code = attrs.get('affiliate', None)
             if affiliate_code and not user.referred_by:  # Don't update if already has referrer
                 try:
                     referrer = User.objects.get(invite_code=affiliate_code)
                     user.referred_by = referrer
                     user.save()
-                    
-                    # Add referral bonus to referrer's wallet (e.g., 10.00)
-                    from decimal import Decimal
-                    referrer.wallet_balance += Decimal('10.00')
-                    referrer.save()
                 except User.DoesNotExist:
                     # Invalid affiliate code, but don't fail registration
                     pass

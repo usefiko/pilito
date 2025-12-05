@@ -116,15 +116,15 @@ class PasswordResetToken(models.Model):
 
 class EmailConfirmationToken(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    code = models.CharField(max_length=6)
+    code = models.CharField(max_length=4)
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField()
     is_used = models.BooleanField(default=False)
     
     def save(self, *args, **kwargs):
         if not self.code:
-            # Generate 6-digit OTP
-            self.code = ''.join(random.choices(string.digits, k=6))
+            # Generate 4-digit OTP
+            self.code = ''.join(random.choices(string.digits, k=4))
         if not self.expires_at:
             # Token expires in 15 minutes
             self.expires_at = timezone.now() + timezone.timedelta(minutes=15)
@@ -140,7 +140,7 @@ class EmailConfirmationToken(models.Model):
 class OTPToken(models.Model):
     """Model for storing OTP codes for phone number authentication"""
     phone_number = models.CharField(max_length=100)
-    code = models.CharField(max_length=6)
+    code = models.CharField(max_length=4)
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField()
     is_used = models.BooleanField(default=False)
@@ -154,8 +154,8 @@ class OTPToken(models.Model):
     
     def save(self, *args, **kwargs):
         if not self.code:
-            # Generate 6-digit OTP
-            self.code = ''.join(random.choices(string.digits, k=6))
+            # Generate 4-digit OTP
+            self.code = ''.join(random.choices(string.digits, k=4))
         if not self.expires_at:
             # Token expires in 5 minutes (configurable via settings)
             from django.conf import settings
