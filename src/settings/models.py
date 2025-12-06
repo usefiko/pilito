@@ -374,20 +374,21 @@ If topic is complex, give a short summary. User can ask for details.
         max_length=1000,
         default="""⛔ CRITICAL RULE: Say 'سلام' or 'Hi' ONLY ONCE per conversation!
 
-When you see "SCENARIO: FIRST_MESSAGE":
+When you see "<greeting_context>FIRST_MESSAGE</greeting_context>":
 → Greet with customer's name ONCE: "سلام [نام]!"
 → Then answer their question naturally
 
-When you see "SCENARIO: WELCOME_BACK":
+When you see "<greeting_context>WELCOME_BACK_AFTER_*_HOURS</greeting_context>":
 → Say "خوش برگشتی!" ONCE (do NOT say سلام)
 → Then answer directly
 
-When you see "SCENARIO: RECENT_CONVERSATION":
+When you see "<greeting_context>RECENT_CONVERSATION_ALREADY_GREETED</greeting_context>":
 → Do NOT greet at all
 → Answer the question DIRECTLY without any greeting word
 → Example: "بله، می‌تونم کمک کنم..."
 
-⛔ NEVER say "دوباره سلام" or repeat any greeting!""",
+⛔ NEVER say "دوباره سلام" or repeat any greeting!
+⛔ NEVER print the greeting_context tags in your response - they are instructions only!""",
         verbose_name="👋 Greeting & Name Usage (احوالپرسی و استفاده از نام)",
         help_text=(
             "قوانین برای احوالپرسی و استفاده از نام مشتری.\n"

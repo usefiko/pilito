@@ -1146,14 +1146,15 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
                 threshold_hours = getattr(settings, 'welcome_back_threshold_hours', 12)
                 
                 # Determine greeting scenario (just add context marker, not full instructions)
+                # Use XML-like tags so Gemini treats them as instructions, not text to copy
                 if ai_message_count == 0:
-                    prompt_parts.append("🔹 SCENARIO: FIRST_MESSAGE")
+                    prompt_parts.append("<greeting_context>FIRST_MESSAGE</greeting_context>")
                 elif last_ai_msg:
                     hours_since_last = (timezone.now() - last_ai_msg.created_at).total_seconds() / 3600
                     if hours_since_last >= threshold_hours:
-                        prompt_parts.append(f"🔹 SCENARIO: WELCOME_BACK (after {threshold_hours}+ hours)")
+                        prompt_parts.append(f"<greeting_context>WELCOME_BACK_AFTER_{threshold_hours}_HOURS</greeting_context>")
                     else:
-                        prompt_parts.append("🔹 SCENARIO: RECENT_CONVERSATION (already greeted)")
+                        prompt_parts.append("<greeting_context>RECENT_CONVERSATION_ALREADY_GREETED</greeting_context>")
             
             # Combine all parts
             full_prompt = "\n\n".join(prompt_parts)
