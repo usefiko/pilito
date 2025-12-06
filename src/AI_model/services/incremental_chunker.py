@@ -392,15 +392,15 @@ class IncrementalChunker:
             else:
                 manual_text_normalized = manual_text
             
-            # ✅ NEW: Persian-aware chunking with STANDARD size
-            # Industry standard: 256-512 tokens per chunk
+            # ✅ FIXED: Persian-aware chunking with CORRECT STANDARD size
+            # Industry standard: 400-600 tokens per chunk
             # For Persian: ~4.26 tokens per word
-            # Target: 35 words × 4.26 ≈ 150 tokens (base)
-            # With overlap and boundaries: ~400 tokens (industry standard)
+            # Target: 120 words × 4.26 ≈ 511 tokens (perfect!)
+            # Overlap: 30 words × 4.26 ≈ 128 tokens (25% overlap)
             chunks_with_metadata = PersianChunker.chunk_text_with_metadata(
                 text=manual_text_normalized,
-                chunk_size=35,  # ✅ ~400 tokens for Persian (industry standard)
-                overlap=10,     # ~30% overlap
+                chunk_size=120,  # ✅ ~511 tokens for Persian (CORRECT!)
+                overlap=30,      # ✅ 25% overlap (industry standard)
                 page_title="Manual Prompt",
                 page_url="",
                 h1_tags=[],
