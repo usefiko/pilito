@@ -70,8 +70,14 @@ def extract_cta_from_text(text: str) -> Tuple[str, Optional[List[Dict]]]:
             "url": url,
         })
     
-    # Remove CTA tokens from text
-    clean_text = re.sub(CTA_PATTERN, '', text)
+    # Replace CTA tokens with plain URL as fallback
+    # So if Instagram button fails, user still sees the link
+    def replace_with_url(match):
+        title = match.group(1).strip()
+        url = match.group(2).strip()
+        return url  # Keep URL in text as fallback
+    
+    clean_text = re.sub(CTA_PATTERN, replace_with_url, text)
     
     # ✅ حذف فاصله‌های اضافی (نکته از review)
     clean_text = re.sub(r'\s{2,}', ' ', clean_text).strip()

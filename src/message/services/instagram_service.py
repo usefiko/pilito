@@ -56,14 +56,14 @@ class InstagramService:
             if buttons and len(message_text or '') > 400:
                 logger.debug(f"Text too long ({len(message_text)} chars) for Button Template, falling back to plain text")
             
-        payload = {
-            'recipient': {
-                'id': recipient_id
-            },
-            'message': {
-                'text': message_text
+            payload = {
+                'recipient': {
+                    'id': recipient_id
+                },
+                'message': {
+                    'text': message_text
+                }
             }
-        }
         
         # Updated headers format according to Instagram API documentation
         headers = {
