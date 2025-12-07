@@ -214,11 +214,15 @@ class MessageSystemIntegration:
         """
         Check if user has enough tokens for AI processing
         
+        Uses get_accurate_tokens_remaining() for ACCURATE token calculation
+        based on actual AI usage from AIUsageLog.
+        
         Returns:
             Dict with token check results
         """
         try:
             from billing.models import Subscription
+            from billing.utils import get_accurate_tokens_remaining
             
             try:
                 subscription = self.user.subscription
@@ -235,33 +239,44 @@ class MessageSystemIntegration:
                 logger.warning(
                     f"User {self.user.username} subscription is not active. "
                     f"Status: {subscription.status}, "
-                    f"Tokens: {subscription.tokens_remaining}, "
                     f"End date: {subscription.end_date}"
                 )
                 return {
                     'has_tokens': False,
                     'reason': 'subscription_inactive',
-                    'tokens_remaining': subscription.tokens_remaining or 0
+                    'tokens_remaining': 0
                 }
             
+            # ✅ Use ACCURATE token calculation based on actual AI usage
+            original_tokens, consumed_tokens, tokens_remaining = get_accurate_tokens_remaining(self.user)
+            
+            logger.debug(
+                f"Token check for {self.user.username}: "
+                f"Original: {original_tokens}, Consumed: {consumed_tokens}, Remaining: {tokens_remaining}"
+            )
+            
             # Check if user has minimum required tokens
-            tokens_remaining = subscription.tokens_remaining or 0
             if tokens_remaining < MINIMUM_TOKENS_FOR_AI:
                 logger.warning(
                     f"User {self.user.username} has insufficient tokens. "
                     f"Required: {MINIMUM_TOKENS_FOR_AI}, "
-                    f"Available: {tokens_remaining}"
+                    f"Available: {tokens_remaining}, "
+                    f"Consumed: {consumed_tokens}/{original_tokens}"
                 )
                 return {
                     'has_tokens': False,
                     'reason': 'insufficient_tokens',
-                    'tokens_remaining': tokens_remaining
+                    'tokens_remaining': tokens_remaining,
+                    'consumed_tokens': consumed_tokens,
+                    'original_tokens': original_tokens
                 }
             
             # All checks passed
             return {
                 'has_tokens': True,
-                'tokens_remaining': tokens_remaining
+                'tokens_remaining': tokens_remaining,
+                'consumed_tokens': consumed_tokens,
+                'original_tokens': original_tokens
             }
             
         except Exception as e:
