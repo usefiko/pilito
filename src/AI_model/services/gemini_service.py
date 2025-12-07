@@ -96,24 +96,38 @@ CRITICAL RULES:
 4. Respond ONLY with the actual answer - no meta-commentary
 
 🚫 GREETING RULES (CRITICAL - MUST FOLLOW):
-- When you see <greeting_context>RECENT_CONVERSATION_ALREADY_GREETED</greeting_context>:
-  → Do NOT say "سلام", "Hi", "خوش برگشتی", or ANY greeting
-  → Start DIRECTLY with the answer to the question
-  → Example: "پیلیتو یک پلتفرم..." NOT "سلام! پیلیتو یک پلتفرم..."
-- When you see <greeting_context>FIRST_MESSAGE</greeting_context>:
-  → Greet ONCE with customer name: "سلام [نام]!"
-- When you see <greeting_context>WELCOME_BACK_AFTER_12_HOURS</greeting_context>:
-  → Say "خوش برگشتی!" ONCE, then answer directly
+- <greeting_context>RECENT_CONVERSATION_ALREADY_GREETED</greeting_context>:
+  → Do NOT say "سلام", "Hi", "خوش برگشتی" - Start DIRECTLY with answer
+- <greeting_context>FIRST_MESSAGE</greeting_context>:
+  → Greet ONCE: "سلام [نام]!" then answer
+- <greeting_context>WELCOME_BACK_AFTER_12_HOURS</greeting_context>:
+  → Say "خوش برگشتی!" ONCE then answer
 
-When you see AI_BEHAVIOR_FLAGS, apply them SILENTLY:
-- LENGTH=short: 1-2 paragraphs
-- LENGTH=balanced: 2-3 paragraphs  
-- LENGTH=detailed: 3-5 paragraphs with complete explanations
+📝 FORMATTING RULES (IMPORTANT FOR READABILITY):
+- Use line breaks (\\n\\n) between paragraphs
+- When listing items, put EACH item on a NEW LINE with number/bullet
+- For long responses: add blank line between sections
+- Example correct format:
+  1. اول این کار رو بکن
+  
+  2. بعد این کار رو بکن
+  
+  3. در نهایت این کار رو بکن
+- Example WRONG format (don't do this):
+  1. اول این کار رو بکن 2. بعد این کار رو بکن 3. این هم بکن
+
+🔗 CTA BUTTON RULES:
+- For website links use: [[CTA:متن دکمه|https://url]]
+- Example: [[CTA:ثبت‌نام در پیلیتو|https://pilito.com]]
+- ALWAYS use CTA format for main website/product links
+
+AI_BEHAVIOR_FLAGS (apply SILENTLY):
+- LENGTH=short/balanced/detailed: control response length
 - TONE/EMOJI/USE_NAME: apply as specified
-- USE_BIO=yes: Use customer's bio info ONLY in first message or when relevant to the question
-- FALLBACK_TEXT: use this exact text if you don't know the answer
+- USE_BIO=yes: Use bio info in first message or when relevant
+- FALLBACK_TEXT: use if you don't know the answer
 
-Be helpful, complete, and direct. Give full answers based on LENGTH setting.""",
+Be helpful and use KNOWLEDGE BASE fully. Give complete answers.""",
                     safety_settings=safety_settings
                 )
                 logger.info(f"Gemini API configured for user {user.username if user else 'System'} using GeneralSettings")
@@ -296,24 +310,20 @@ CRITICAL RULES:
 3. NEVER output analysis or show your reasoning process
 4. Respond ONLY with the actual answer - no meta-commentary
 
-🚫 GREETING RULES (CRITICAL - MUST FOLLOW):
-- When you see <greeting_context>RECENT_CONVERSATION_ALREADY_GREETED</greeting_context>:
-  → Do NOT say "سلام", "Hi", "خوش برگشتی", or ANY greeting
-  → Start DIRECTLY with the answer to the question
-- When you see <greeting_context>FIRST_MESSAGE</greeting_context>:
-  → Greet ONCE with customer name: "سلام [نام]!"
-- When you see <greeting_context>WELCOME_BACK_AFTER_12_HOURS</greeting_context>:
-  → Say "خوش برگشتی!" ONCE, then answer directly
+🚫 GREETING RULES:
+- RECENT_CONVERSATION_ALREADY_GREETED: No greeting, start with answer
+- FIRST_MESSAGE: "سلام [نام]!" once
+- WELCOME_BACK: "خوش برگشتی!" once
 
-When you see AI_BEHAVIOR_FLAGS, apply them SILENTLY:
-- LENGTH=short: 1-2 paragraphs
-- LENGTH=balanced: 2-3 paragraphs  
-- LENGTH=detailed: 3-5 paragraphs with complete explanations
-- TONE/EMOJI/USE_NAME: apply as specified
-- USE_BIO=yes: Use customer's bio info ONLY in first message or when relevant
-- FALLBACK_TEXT: use this exact text if you don't know the answer
+📝 FORMATTING RULES:
+- Use line breaks between paragraphs
+- Put EACH list item on NEW LINE with number/bullet
+- Add blank lines between sections
 
-Be helpful, complete, and direct. Give full answers based on LENGTH setting.""",
+🔗 CTA BUTTON: [[CTA:متن|https://url]] for website links
+
+AI_BEHAVIOR_FLAGS: Apply LENGTH/TONE/EMOJI/USE_NAME silently.
+Be helpful, use KNOWLEDGE BASE fully.""",
                         safety_settings=[
                             {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
                             {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
@@ -1096,8 +1106,8 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
                         name=self.user.business_type,
                         ai_answer_prompt__isnull=False
                     ).first()
-                    if business and business.ai_answer_prompt:
-                        prompt_parts.append(business.ai_answer_prompt)
+                if business and business.ai_answer_prompt:
+                    prompt_parts.append(business.ai_answer_prompt)
                         logger.debug(f"✅ Using BusinessPrompt: {business.name}")
                     else:
                         logger.debug(f"⚠️ No BusinessPrompt found for business_type: {self.user.business_type}")
@@ -1112,12 +1122,17 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
                 from django.utils import timezone
                 from django.core.cache import cache
                 
-                # ✅ Use cache to track if we've already greeted this conversation
-                # This prevents race conditions when multiple messages come quickly
+                # ═══════════════════════════════════════════════════════════════════
+                # 🔒 ATOMIC GREETING LOCK - Prevents race conditions
+                # Use cache.add() which is atomic: returns True only if key didn't exist
+                # ═══════════════════════════════════════════════════════════════════
                 greeted_cache_key = f"greeted_conv_{conversation.id}"
-                already_greeted = cache.get(greeted_cache_key, False)
                 
-                # Get last AI message time
+                # Try to acquire greeting lock atomically
+                # cache.add() returns True if key was set (we're first), False if exists
+                is_first_greeter = cache.add(greeted_cache_key, True, timeout=3600)
+                
+                # Get last AI message time for welcome_back logic
                 last_ai_msg = Message.objects.filter(
                     conversation=conversation,
                     type='AI'
@@ -1127,25 +1142,24 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
                 settings = GeneralSettings.get_settings()
                 threshold_hours = getattr(settings, 'welcome_back_threshold_hours', 12)
                 
-                # Determine greeting scenario
-                if already_greeted:
-                    # Already greeted in this session (cached)
-                    logger.debug(f"🔄 Conversation {conversation.id} already greeted (cache hit)")
-                    prompt_parts.append("<greeting_context>RECENT_CONVERSATION_ALREADY_GREETED</greeting_context>")
-                elif last_ai_msg:
+                # Determine greeting scenario based on ATOMIC lock result
+                if is_first_greeter and not last_ai_msg:
+                    # WE are the first AND no previous AI messages = true first message
+                    prompt_parts.append("<greeting_context>FIRST_MESSAGE</greeting_context>")
+                    logger.info(f"👋 FIRST greeting for conversation {conversation.id} (atomic lock acquired)")
+                elif is_first_greeter and last_ai_msg:
+                    # We got the lock, but there's previous AI - check welcome_back
                     hours_since_last = (timezone.now() - last_ai_msg.created_at).total_seconds() / 3600
                     if hours_since_last >= threshold_hours:
                         prompt_parts.append(f"<greeting_context>WELCOME_BACK_AFTER_{threshold_hours}_HOURS</greeting_context>")
-                        # Set cache for future messages in this session
-                        cache.set(greeted_cache_key, True, timeout=3600)  # 1 hour
+                        logger.info(f"👋 WELCOME_BACK for conversation {conversation.id} after {hours_since_last:.1f}h")
                     else:
                         prompt_parts.append("<greeting_context>RECENT_CONVERSATION_ALREADY_GREETED</greeting_context>")
+                        logger.debug(f"🔄 Recent conversation {conversation.id} (no greeting)")
                 else:
-                    # First AI message ever
-                    prompt_parts.append("<greeting_context>FIRST_MESSAGE</greeting_context>")
-                    # Set cache so next messages don't greet again
-                    cache.set(greeted_cache_key, True, timeout=3600)  # 1 hour
-                    logger.info(f"👋 First greeting for conversation {conversation.id}")
+                    # Lock already exists = another message already handled greeting
+                    prompt_parts.append("<greeting_context>RECENT_CONVERSATION_ALREADY_GREETED</greeting_context>")
+                    logger.debug(f"🔄 Conversation {conversation.id} already greeted (atomic lock exists)")
             
             # Combine all parts
             full_prompt = "\n\n".join(prompt_parts)
