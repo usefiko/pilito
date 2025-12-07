@@ -1106,8 +1106,8 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
                         name=self.user.business_type,
                         ai_answer_prompt__isnull=False
                     ).first()
-                if business and business.ai_answer_prompt:
-                    prompt_parts.append(business.ai_answer_prompt)
+                    if business and business.ai_answer_prompt:
+                        prompt_parts.append(business.ai_answer_prompt)
                         logger.debug(f"✅ Using BusinessPrompt: {business.name}")
                     else:
                         logger.debug(f"⚠️ No BusinessPrompt found for business_type: {self.user.business_type}")
