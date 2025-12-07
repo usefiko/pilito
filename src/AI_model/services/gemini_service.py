@@ -1089,12 +1089,12 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
             if conversation:
                 from message.models import Message
                 from django.utils import timezone
+                from django.core.cache import cache
                 
-                # Check if this is first AI message
-                ai_message_count = Message.objects.filter(
-                    conversation=conversation,
-                    type='AI'
-                ).count()
+                # ✅ Use cache to track if we've already greeted this conversation
+                # This prevents race conditions when multiple messages come quickly
+                greeted_cache_key = f"greeted_conv_{conversation.id}"
+                already_greeted = cache.get(greeted_cache_key, False)
                 
                 # Get last AI message time
                 last_ai_msg = Message.objects.filter(
@@ -1106,16 +1106,25 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
                 settings = GeneralSettings.get_settings()
                 threshold_hours = getattr(settings, 'welcome_back_threshold_hours', 12)
                 
-                # Determine greeting scenario (just add context marker, not full instructions)
-                # Use XML-like tags so Gemini treats them as instructions, not text to copy
-                if ai_message_count == 0:
-                    prompt_parts.append("<greeting_context>FIRST_MESSAGE</greeting_context>")
+                # Determine greeting scenario
+                if already_greeted:
+                    # Already greeted in this session (cached)
+                    logger.debug(f"🔄 Conversation {conversation.id} already greeted (cache hit)")
+                    prompt_parts.append("<greeting_context>RECENT_CONVERSATION_ALREADY_GREETED</greeting_context>")
                 elif last_ai_msg:
                     hours_since_last = (timezone.now() - last_ai_msg.created_at).total_seconds() / 3600
                     if hours_since_last >= threshold_hours:
                         prompt_parts.append(f"<greeting_context>WELCOME_BACK_AFTER_{threshold_hours}_HOURS</greeting_context>")
+                        # Set cache for future messages in this session
+                        cache.set(greeted_cache_key, True, timeout=3600)  # 1 hour
                     else:
                         prompt_parts.append("<greeting_context>RECENT_CONVERSATION_ALREADY_GREETED</greeting_context>")
+                else:
+                    # First AI message ever
+                    prompt_parts.append("<greeting_context>FIRST_MESSAGE</greeting_context>")
+                    # Set cache so next messages don't greet again
+                    cache.set(greeted_cache_key, True, timeout=3600)  # 1 hour
+                    logger.info(f"👋 First greeting for conversation {conversation.id}")
             
             # Combine all parts
             full_prompt = "\n\n".join(prompt_parts)
