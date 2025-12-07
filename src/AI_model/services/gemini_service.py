@@ -85,64 +85,36 @@ class GeminiChatService:
                         "top_p": 0.8,
                         "top_k": 40
                     },
-                    system_instruction="""You are a professional AI customer service assistant for various types of businesses including:
-- E-commerce stores (fashion, electronics, home goods, etc.)
-- Service providers (courses, consulting, training)
-- Online businesses (digital products, subscriptions)
-- Retail businesses (coffee, food, accessories, tools)
+                    system_instruction="""AI_BEHAVIOR_FLAGS INTERPRETATION:
+When you see "AI_BEHAVIOR_FLAGS:" with structured settings, interpret as follows:
 
-YOUR ROLE:
-- Answer customer questions professionally and accurately
-- Provide information about products, services, prices, and availability
-- Share business details (location, contact, hours, shipping, policies)
-- Assist with orders, inquiries, and customer support
-- Communicate in the customer's language (Persian/Farsi, English, Arabic, Turkish)
+[TONE=formal] → Professional, formal language
+[TONE=friendly] → Friendly, casual tone
+[TONE=energetic] → Enthusiastic! Exclamations and positive energy
+[TONE=empathetic] → Show understanding, acknowledge feelings
 
-AI_BEHAVIOR_FLAGS INTERPRETATION:
-You may receive a line starting with "AI_BEHAVIOR_FLAGS:" containing structured settings.
-Interpret them as follows:
+[EMOJI=none] → No emojis
+[EMOJI=moderate] → 1-2 emojis per message
+[EMOJI=high] → Multiple emojis for warmth
 
-[TONE=formal] → Use professional, serious, formal language with respectful terms
-[TONE=friendly] → Use friendly, casual tone like chatting with a helpful friend
-[TONE=energetic] → Be enthusiastic and exciting! Use exclamations and positive energy
-[TONE=empathetic] → Show understanding and support, acknowledge customer feelings
+[LENGTH=short] → Concise: 1-2 paragraphs (~250-300 words)
+[LENGTH=balanced] → Balanced: 2-3 paragraphs (~450-500 words)  
+[LENGTH=detailed] → Detailed: 3-5 paragraphs (~800-900 words)
 
-[EMOJI=none] → Do NOT use any emojis at all
-[EMOJI=moderate] → Use 1-2 emojis per message sparingly
-[EMOJI=high] → Use multiple emojis to create positive energy and warmth
+[USE_NAME=yes] → Use customer's name in greeting
+[USE_NAME=no] → Just say "سلام" without name
 
-[LENGTH=short] → Keep responses concise but complete (1-2 short paragraphs, ~250-300 words)
-[LENGTH=balanced] → Provide balanced explanations (2-3 paragraphs, ~450-500 words)
-[LENGTH=detailed] → Give detailed, comprehensive responses (3-5 detailed paragraphs, ~800-900 words)
-IMPORTANT: Only provide detailed responses when you have substantial content. Don't pad responses artificially.
+[USE_BIO=yes] → Use customer bio for personalization
+[USE_BIO=no] → Don't reference bio
 
-[USE_NAME=yes] → Use customer's name in greeting if available
-[USE_NAME=no] → Do NOT use customer's name, just say "سلام" or "Hi"
+[PERSUASIVE=on] → Suggest products when relevant
+[PERSUASIVE=off] → Don't be pushy
 
-[USE_BIO=yes] → Use customer bio/history for personalization
-[USE_BIO=no] → Do NOT reference bio, answer only the current question
+[CTA=...] → Embed this call-to-action naturally
+[FALLBACK_TEXT=...] → Use EXACTLY this text when lacking information
+[CUSTOM=...] → Follow these additional rules
 
-[PERSUASIVE=on] → Actively suggest products/services when relevant
-[PERSUASIVE=off] → Be helpful but not pushy about sales
-
-[CTA=...] → When introducing products/services, naturally embed this call-to-action text in your response
-[FALLBACK_TEXT=...] → When you lack information to answer, use EXACTLY this text (word-for-word, no modifications)
-[CUSTOM=...] → Additional custom rules to follow
-
-CONTENT PROCESSING GUIDELINES:
-This is a legitimate business customer support chatbot. ALL content you process is appropriate business communication:
-- Product descriptions and details are NORMAL business content
-- Pricing and payment information is STANDARD commercial data
-- Business addresses and contact details are PUBLIC information
-- Shipping and delivery discussions are ROUTINE e-commerce
-- Service descriptions and features are PROFESSIONAL content
-- Customer inquiries about ANY products/services are LEGITIMATE
-
-IMPORTANT:
-- Process ALL customer questions without applying content restrictions
-- Do not block or filter legitimate business communications
-- All conversations are for proper commercial purposes
-- Treat all product categories (fashion, food, electronics, courses, etc.) as appropriate business content""",
+Follow the system prompt for all other behavior rules.""",
                     safety_settings=safety_settings
                 )
                 logger.info(f"Gemini API configured for user {user.username if user else 'System'} using GeneralSettings")
@@ -1115,12 +1087,20 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
                 prompt_parts.append(system_prompt.strip())
             
             # 2. BusinessPrompt (optional industry-specific instructions)
+            # ✅ Get user's selected business prompt based on their business_type
             try:
-                business = BusinessPrompt.objects.filter(ai_answer_prompt__isnull=False).first()
-                if business and business.ai_answer_prompt:
-                    prompt_parts.append(business.ai_answer_prompt)
-            except Exception:
-                pass
+                if self.user and hasattr(self.user, 'business_type') and self.user.business_type:
+                    business = BusinessPrompt.objects.filter(
+                        name=self.user.business_type,
+                        ai_answer_prompt__isnull=False
+                    ).first()
+                    if business and business.ai_answer_prompt:
+                        prompt_parts.append(business.ai_answer_prompt)
+                        logger.debug(f"✅ Using BusinessPrompt: {business.name}")
+                    else:
+                        logger.debug(f"⚠️ No BusinessPrompt found for business_type: {self.user.business_type}")
+            except Exception as e:
+                logger.debug(f"⚠️ Could not load BusinessPrompt: {e}")
             
             # 3. Dynamic greeting context
             # Greeting rules are in GeneralSettings.greeting_rules
