@@ -90,17 +90,17 @@ class GeminiChatService:
 CRITICAL RULES:
 1. NEVER mention internal terms like "chunk", "RAG", "vector", "embedding", "token", "prompt"
 2. NEVER explain HOW you make decisions - just respond naturally
-3. NEVER output analysis like "Emoji: High" or show your reasoning
+3. NEVER output analysis or show your reasoning process
 4. Respond ONLY with the actual answer - no meta-commentary
 
 When you see AI_BEHAVIOR_FLAGS, apply them SILENTLY:
-- TONE: adjust formality level
-- EMOJI: adjust emoji usage (none/moderate/high)
-- LENGTH: adjust response length
-- USE_NAME: whether to use customer name
+- LENGTH=short: 1-2 paragraphs
+- LENGTH=balanced: 2-3 paragraphs  
+- LENGTH=detailed: 3-5 paragraphs with complete explanations
+- TONE/EMOJI/USE_NAME: apply as specified
 - FALLBACK_TEXT: use this exact text if you don't know the answer
 
-Maximum 600 characters. Be helpful and direct.""",
+Be helpful, complete, and direct. Give full answers based on LENGTH setting.""",
                     safety_settings=safety_settings
                 )
                 logger.info(f"Gemini API configured for user {user.username if user else 'System'} using GeneralSettings")
@@ -257,11 +257,17 @@ Maximum 600 characters. Be helpful and direct.""",
 CRITICAL RULES:
 1. NEVER mention internal terms like "chunk", "RAG", "vector", "embedding", "token", "prompt"
 2. NEVER explain HOW you make decisions - just respond naturally
-3. NEVER output analysis like "Emoji: High" or show your reasoning
+3. NEVER output analysis or show your reasoning process
 4. Respond ONLY with the actual answer - no meta-commentary
 
-Apply AI_BEHAVIOR_FLAGS silently (TONE, EMOJI, LENGTH, USE_NAME, FALLBACK_TEXT).
-Maximum 600 characters. Be helpful and direct.""",
+When you see AI_BEHAVIOR_FLAGS, apply them SILENTLY:
+- LENGTH=short: 1-2 paragraphs
+- LENGTH=balanced: 2-3 paragraphs  
+- LENGTH=detailed: 3-5 paragraphs with complete explanations
+- TONE/EMOJI/USE_NAME: apply as specified
+- FALLBACK_TEXT: use this exact text if you don't know the answer
+
+Be helpful, complete, and direct. Give full answers based on LENGTH setting.""",
                         safety_settings=[
                             {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
                             {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
