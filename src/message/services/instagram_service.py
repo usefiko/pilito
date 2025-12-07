@@ -34,7 +34,15 @@ class InstagramService:
         
         # ✅ اگر دکمه داریم → Button Template
         # محدودیت: متن نباید خیلی طولانی باشد (UX)
+        # ⚠️ Instagram Button Template does NOT support newlines well - sanitize text
         if buttons and len(buttons) > 0 and len(message_text or '') <= 400:
+            # Sanitize text for Button Template: replace newlines with space
+            sanitized_text = (message_text or " ").replace('\n\n', ' ').replace('\n', ' ')
+            # Remove multiple spaces
+            while '  ' in sanitized_text:
+                sanitized_text = sanitized_text.replace('  ', ' ')
+            sanitized_text = sanitized_text.strip()
+            
             payload = {
                 'recipient': {
                     'id': recipient_id
@@ -44,7 +52,7 @@ class InstagramService:
                         'type': 'template',
                         'payload': {
                             'template_type': 'button',
-                            'text': message_text or " ",  # حداقل یک فاصله (الزامی برای Instagram)
+                            'text': sanitized_text or " ",  # حداقل یک فاصله (الزامی برای Instagram)
                             'buttons': buttons[:3]  # Instagram max 3 buttons
                         }
                     }
