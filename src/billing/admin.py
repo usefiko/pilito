@@ -25,11 +25,11 @@ class FullPlanAdmin(ImportExportModelAdmin):
 
 @admin.register(Subscription)
 class SubscriptionAdmin(ImportExportModelAdmin):
-    list_display = ('user_email', 'plan_name', 'tokens_remaining', 'is_active', 'subscription_status', 'cancellation_status', 'days_left', 'start_date', 'end_date')
+    list_display = ('user_email', 'plan_name', 'actual_tokens_remaining', 'tokens_consumed', 'is_active', 'subscription_status', 'cancellation_status', 'days_left', 'start_date', 'end_date')
     list_filter = ('is_active', 'status', 'cancel_at_period_end', 'token_plan', 'full_plan', 'start_date', 'end_date')
     search_fields = ('user__email', 'user__first_name', 'user__last_name', 'token_plan__name', 'full_plan__name', 'stripe_subscription_id')
     ordering = ('-created_at',)
-    readonly_fields = ('created_at', 'updated_at', 'subscription_status_display', 'canceled_at')
+    readonly_fields = ('created_at', 'updated_at', 'subscription_status_display', 'canceled_at', 'actual_tokens_remaining', 'tokens_consumed')
     raw_id_fields = ('user', 'token_plan', 'full_plan')
     
     fieldsets = (
@@ -94,13 +94,48 @@ class SubscriptionAdmin(ImportExportModelAdmin):
             return "Expired"
     days_left.short_description = 'Days Remaining'
 
+    def actual_tokens_remaining(self, obj):
+        """Show ACCURATE remaining tokens based on actual AI usage"""
+        try:
+            from billing.utils import get_accurate_tokens_remaining
+            original, consumed, remaining = get_accurate_tokens_remaining(obj.user)
+            
+            if remaining <= 0:
+                return format_html('<span style="color: red; font-weight: bold;">0 ❌</span>')
+            elif remaining < 1000:
+                return format_html('<span style="color: orange;">{}</span>', remaining)
+            else:
+                return format_html('<span style="color: green;">{}</span>', remaining)
+        except Exception as e:
+            return format_html('<span style="color: gray;">Error: {}</span>', str(e)[:30])
+    actual_tokens_remaining.short_description = 'Actual Remaining'
+    
+    def tokens_consumed(self, obj):
+        """Show total tokens consumed since subscription started"""
+        try:
+            from billing.utils import get_accurate_tokens_remaining
+            original, consumed, remaining = get_accurate_tokens_remaining(obj.user)
+            return format_html('{} / {}', consumed, original)
+        except Exception:
+            return '-'
+    tokens_consumed.short_description = 'Consumed/Total'
+
     def subscription_status_display(self, obj):
+        """Detailed status display for subscription detail page"""
+        try:
+            from billing.utils import get_accurate_tokens_remaining
+            original, consumed, remaining = get_accurate_tokens_remaining(obj.user)
+        except Exception:
+            original, consumed, remaining = 0, 0, 0
+        
         status = "Active" if obj.is_subscription_active() else "Inactive"
         days = obj.days_remaining()
-        tokens = obj.tokens_remaining
         
         status_info = f"Status: {status}\n"
-        status_info += f"Tokens Remaining: {tokens}\n"
+        status_info += f"Original Tokens: {original}\n"
+        status_info += f"Consumed Tokens: {consumed}\n"
+        status_info += f"Actual Remaining: {remaining}\n"
+        status_info += f"DB tokens_remaining (stale): {obj.tokens_remaining}\n"
         
         if days is not None:
             status_info += f"Days Remaining: {days}"
@@ -108,7 +143,7 @@ class SubscriptionAdmin(ImportExportModelAdmin):
             status_info += "Duration: Unlimited"
             
         return status_info
-    subscription_status_display.short_description = 'Subscription Status'
+    subscription_status_display.short_description = 'Subscription Status (Detailed)'
 
 
 @admin.register(Payment)
