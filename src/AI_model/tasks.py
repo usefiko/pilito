@@ -17,42 +17,41 @@ def process_ai_response_async(self, message_id):
     Args:
         message_id: ID of the Message instance to process
     """
+    from django.core.cache import cache
+    
+    # ═══════════════════════════════════════════════════════════════════
+    # 🔒 REDIS LOCK - Prevent duplicate processing (Standard approach)
+    # ═══════════════════════════════════════════════════════════════════
+    lock_key = f"ai_lock_{message_id}"
+    lock_timeout = 120  # 2 minutes max processing time
+    
+    # Try to acquire lock (atomic operation)
+    lock_acquired = cache.add(lock_key, "processing", timeout=lock_timeout)
+    
+    if not lock_acquired:
+        # Another worker is already processing this message
+        logger.info(f"🔒 Message {message_id} already being processed by another worker - skipping")
+        return {'success': False, 'error': 'Already being processed'}
+    
+    logger.info(f"🔓 Acquired lock for message {message_id}")
+    
     try:
         from message.models import Message
         from AI_model.services.message_integration import MessageSystemIntegration
-        from django.core.cache import cache
         
-        # ═══════════════════════════════════════════════════════════════════
-        # 🔒 REDIS LOCK - Prevent duplicate processing (Standard approach)
-        # ═══════════════════════════════════════════════════════════════════
-        lock_key = f"ai_lock_{message_id}"
-        lock_timeout = 120  # 2 minutes max processing time
-        
-        # Try to acquire lock (atomic operation)
-        lock_acquired = cache.add(lock_key, "processing", timeout=lock_timeout)
-        
-        if not lock_acquired:
-            # Another worker is already processing this message
-            logger.info(f"🔒 Message {message_id} already being processed by another worker - skipping")
-            return {'success': False, 'error': 'Already being processed'}
-        
-        logger.info(f"🔓 Acquired lock for message {message_id}")
-        
+        # Get the message
         try:
-            # Get the message
-            try:
-                message = Message.objects.get(id=message_id)
-            except Message.DoesNotExist:
-                logger.error(f"Message {message_id} not found")
-                return {'success': False, 'error': 'Message not found'}
-            
-            # Double-check to prevent duplicate processing
-            if message.is_answered:
-                logger.warning(f"Message {message_id} already answered - skipping duplicate AI processing")
-                # Clear cache since processing is complete
-                cache_key = f"ai_processing_{message_id}"
-                cache.delete(cache_key)
-                return {'success': False, 'error': 'Message already answered'}
+            message = Message.objects.get(id=message_id)
+        except Message.DoesNotExist:
+            logger.error(f"Message {message_id} not found")
+            return {'success': False, 'error': 'Message not found'}
+        
+        # Double-check to prevent duplicate processing
+        if message.is_answered:
+            logger.warning(f"Message {message_id} already answered - skipping duplicate AI processing")
+            cache_key = f"ai_processing_{message_id}"
+            cache.delete(cache_key)
+            return {'success': False, 'error': 'Message already answered'}
         
         # Check if this is already an AI response
         if getattr(message, 'is_ai_response', False):
@@ -209,19 +208,19 @@ def process_ai_response_async(self, message_id):
             logger.info(f"Retrying AI response processing for message {message_id} in {countdown} seconds")
             raise self.retry(countdown=countdown, exc=e)
         
-            # Clear cache since all retries exhausted
-            cache_key = f"ai_processing_{message_id}"
-            cache.delete(cache_key)
-            return {
-                'success': False,
-                'message_id': message_id,
-                'error': str(e),
-                'retries_exhausted': True
-            }
-        finally:
-            # 🔓 Always release the lock when done
-            cache.delete(lock_key)
-            logger.info(f"🔓 Released lock for message {message_id}")
+        # Clear cache since all retries exhausted
+        cache_key = f"ai_processing_{message_id}"
+        cache.delete(cache_key)
+        return {
+            'success': False,
+            'message_id': message_id,
+            'error': str(e),
+            'retries_exhausted': True
+        }
+    finally:
+        # 🔓 Always release the lock when done
+        cache.delete(lock_key)
+        logger.info(f"🔓 Released lock for message {message_id}")
 
 
 @shared_task
