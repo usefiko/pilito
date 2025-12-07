@@ -77,6 +77,8 @@ class GeminiChatService:
                     {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
                 ]
                 
+                logger.info(f"🔧 Initializing Gemini with max_output_tokens: {max_tokens}")
+                
                 self.model = genai.GenerativeModel(
                     model_name=self.ai_config.model_name,
                     generation_config={
@@ -222,6 +224,13 @@ Be helpful, complete, and direct. Give full answers based on LENGTH setting.""",
             # Generate content using Gemini (safety_settings already set in model initialization)
             response = self.model.generate_content(prompt)
             
+            # ✅ LOG finish_reason for debugging incomplete responses
+            if response.candidates:
+                finish_reason = response.candidates[0].finish_reason
+                logger.info(f"🏁 Gemini finish_reason: {finish_reason}")
+                if str(finish_reason) not in ['STOP', 'FinishReason.STOP', '1']:
+                    logger.warning(f"⚠️ Unexpected finish_reason: {finish_reason} - Response may be incomplete!")
+            
             # Check for safety blocks or empty responses
             if not response.candidates or not response.candidates[0].content.parts:
                 # Safety block detected - try fallback to Gemini 2.0 Flash Experimental
@@ -296,6 +305,23 @@ Be helpful, complete, and direct. Give full answers based on LENGTH setting.""",
                 logger.warning(f"⚠️ Gemini returned very short response ({len(response_text)} chars): '{response_text}'")
                 logger.warning(f"🔍 finish_reason: {finish_reason}")
                 logger.warning(f"🔄 This indicates incomplete generation - consider using fallback or adjusting prompt")
+            
+            # ✅ Check if response is much shorter than expected (based on max_output_tokens)
+            try:
+                from settings.models import AIBehaviorSettings
+                expected_tokens = self.user.ai_behavior.get_max_output_tokens()
+            except:
+                expected_tokens = 700
+            
+            # Extract token usage for comparison
+            if hasattr(response, 'usage_metadata'):
+                actual_completion = getattr(response.usage_metadata, 'candidates_token_count', 0)
+                if actual_completion < expected_tokens * 0.2:  # Less than 20% of expected
+                    logger.warning(f"⚠️ Response MUCH shorter than expected!")
+                    logger.warning(f"   Expected up to: {expected_tokens} tokens")
+                    logger.warning(f"   Actual: {actual_completion} tokens ({actual_completion/expected_tokens*100:.1f}%)")
+                    logger.warning(f"   Response length: {len(response_text)} chars")
+                    logger.warning(f"   This may indicate the model stopped early - check prompt or try different settings")
             
             # Extract token usage if available
             prompt_tokens = 0
