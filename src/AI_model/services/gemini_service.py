@@ -1235,7 +1235,7 @@ INSTRUCTION: Adapt your tone and recommendations based on the customer's backgro
                 completion_tokens=completion_tokens,
                 response_time_ms=response_time_ms,
                 success=success,
-                model_name=self.ai_config.model_name if hasattr(self, 'ai_config') and self.ai_config else 'gemini-1.5-flash',
+                model_name=self.ai_config.model_name if hasattr(self, 'ai_config') and self.ai_config else 'gemini-flash-latest',
                 error_message=error_message,
                 metadata=metadata or {}
             )

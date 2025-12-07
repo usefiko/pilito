@@ -17,9 +17,9 @@ except ImportError:
 class AIGlobalConfig(models.Model):
     """
     Global AI configuration - single instance for all users
-    Everyone uses gemini-1.5-flash
+    Everyone uses gemini-flash-latest
     """
-    model_name = models.CharField(max_length=50, default="gemini-1.5-flash", help_text="Gemini model to use")
+    model_name = models.CharField(max_length=50, default="gemini-flash-latest", help_text="Gemini model to use")
     temperature = models.FloatField(default=0.7, help_text="Response creativity (0.0-1.0)")
     max_tokens = models.IntegerField(default=1000, help_text="Maximum tokens in response")
     auto_response_enabled = models.BooleanField(default=True, help_text="Enable automatic responses globally")
@@ -44,7 +44,7 @@ class AIGlobalConfig(models.Model):
         config, created = cls.objects.get_or_create(
             pk=1,  # Always use ID 1 for singleton
             defaults={
-                'model_name': 'gemini-1.5-flash',
+                'model_name': 'gemini-flash-latest',
                 'temperature': 0.7,
                 'max_tokens': 1000,
                 'auto_response_enabled': True,
@@ -103,8 +103,8 @@ class AIUsageLog(models.Model):
     model_name = models.CharField(
         max_length=100,
         blank=True,
-        default="gemini-1.5-flash",
-        help_text="AI model used (e.g., gemini-1.5-flash, gpt-4)"
+        default="gemini-flash-latest",
+        help_text="AI model used (e.g., gemini-flash-latest, gpt-4)"
     )
     error_message = models.TextField(blank=True, null=True, help_text="Error details if request failed")
     
@@ -136,7 +136,7 @@ class AIUsageLog(models.Model):
     
     @classmethod
     def log_usage(cls, user, section, prompt_tokens=0, completion_tokens=0, 
-                  response_time_ms=0, success=True, model_name="gemini-1.5-flash",
+                  response_time_ms=0, success=True, model_name="gemini-flash-latest",
                   error_message=None, metadata=None):
         """
         Convenience method to log AI usage

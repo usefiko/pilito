@@ -38,7 +38,7 @@ def track_ai_usage(
     completion_tokens=0,
     response_time_ms=0,
     success=True,
-    model_name="gemini-1.5-flash",
+    model_name="gemini-flash-latest",
     error_message=None,
     metadata=None
 ):
@@ -56,7 +56,7 @@ def track_ai_usage(
         completion_tokens: Number of output tokens
         response_time_ms: Response time in milliseconds
         success: Whether the request was successful
-        model_name: AI model used (default: gemini-1.5-flash)
+        model_name: AI model used (default: gemini-flash-latest)
         error_message: Error details if request failed
         metadata: Additional context dictionary
     
@@ -201,7 +201,7 @@ def track_ai_usage_safe(
     completion_tokens=0,
     response_time_ms=0,
     success=True,
-    model_name="gemini-1.5-flash",
+    model_name="gemini-flash-latest",
     error_message=None,
     metadata=None
 ):
@@ -248,7 +248,7 @@ class AIUsageTracker:
             tracker.set_metadata({'conversation_id': conv_id})
     """
     
-    def __init__(self, user, section, model_name="gemini-1.5-flash"):
+    def __init__(self, user, section, model_name="gemini-flash-latest"):
         self.user = user
         self.section = section
         self.model_name = model_name

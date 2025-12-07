@@ -77,7 +77,7 @@ class AIUsageLogCreateSerializer(serializers.Serializer):
     )
     model_name = serializers.CharField(
         max_length=100,
-        default="gemini-1.5-flash",
+        default="gemini-flash-latest",
         required=False,
         help_text="AI model used"
     )

@@ -1098,7 +1098,7 @@ class AIUsageLogAPIView(APIView):
             completion_tokens=serializer.validated_data.get('completion_tokens', 0),
             response_time_ms=serializer.validated_data.get('response_time_ms', 0),
             success=serializer.validated_data.get('success', True),
-            model_name=serializer.validated_data.get('model_name', 'gemini-1.5-flash'),
+            model_name=serializer.validated_data.get('model_name', 'gemini-flash-latest'),
             error_message=serializer.validated_data.get('error_message'),
             metadata=serializer.validated_data.get('metadata', {})
         )

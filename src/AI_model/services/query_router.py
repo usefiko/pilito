@@ -42,6 +42,12 @@ class QueryRouter:
             'en': ['contact', 'support', 'phone', 'email', 'address', 'reach', 'hours', 'location', 'call', 'about', 'about us', 'who are', 'bio', 'biography'],
             'ar': ['اتصال', 'دعم', 'هاتف', 'بريد', 'عنوان', 'موقع', 'من نحن', 'نبذة'],
             'tr': ['iletişim', 'destek', 'telefon', 'e-posta', 'adres', 'konum', 'hakkında', 'biz kimiz']
+        },
+        'general': {
+            'fa': ['پیلیتو', 'خدمات', 'کارایی', 'چیکار', 'چکار', 'شرکت', 'پلتفرم', 'سایت', 'وبسایت', 'معرفی'],
+            'en': ['pilito', 'services', 'company', 'platform', 'site', 'website', 'introduce', 'introduction'],
+            'ar': ['الشركة', 'المنصة', 'الخدمات'],
+            'tr': ['şirket', 'platform', 'hizmetler']
         }
     }
     
@@ -53,9 +59,9 @@ class QueryRouter:
             'token_budget': {'primary': 800, 'secondary': 300}
         },
         'product': {
-            'primary_source': 'products',
-            'secondary_sources': ['faq', 'website'],
-            'token_budget': {'primary': 800, 'secondary': 300}
+            'primary_source': 'manual',  # Manual has full company/product info
+            'secondary_sources': ['products', 'faq', 'website'],
+            'token_budget': {'primary': 900, 'secondary': 400}
         },
         'howto': {
             'primary_source': 'manual',
@@ -68,9 +74,9 @@ class QueryRouter:
             'token_budget': {'primary': 800, 'secondary': 300}
         },
         'general': {
-            'primary_source': 'faq',
-            'secondary_sources': ['manual'],
-            'token_budget': {'primary': 800, 'secondary': 300}
+            'primary_source': 'manual',  # Manual has full company info
+            'secondary_sources': ['faq', 'products', 'website'],
+            'token_budget': {'primary': 900, 'secondary': 400}
         }
     }
     
