@@ -980,16 +980,25 @@ Provide a concise summary (max 100 words):"""
                     "- Remember products/services the customer asked about\n"
                 )
             
+            # Get greeting context for HARD RULE
+            greeting_rule = ""
+            for part in prompt_parts:
+                if "RECENT_CONVERSATION_ALREADY_GREETED" in part:
+                    greeting_rule = "⛔ DO NOT START WITH سلام OR ANY GREETING - Start directly with the answer! "
+                    break
+            
             prompt_parts.append(
-                "\nINSTRUCTION: Answer the customer's question using the knowledge base above. "
-                "CRITICAL RULES: "
-                "- ✅ FIRST: Check if you have relevant chunks in the KNOWLEDGE BASE above. "
-                "- ✅ If chunks are provided → USE THEM! Answer COMPLETELY and FULLY using that information. "
-                "- ✅ If you see ANY relevant information in chunks → Share it ALL, don't be cautious! "
-                "- ❌ ONLY say 'متأسفانه این اطلاعات الان در دسترس نیست' if you have ZERO relevant chunks. "
-                "- ✅ If you see partial information → Provide what you have and be helpful. "
-                "- ✅ Don't be overly cautious - if information exists in chunks, use it fully! "
-                "- Be natural, concise, and friendly."
+                f"\n⚠️ INSTRUCTION:\n"
+                f"{greeting_rule}"
+                "Answer using KNOWLEDGE BASE above.\n\n"
+                "FORMAT YOUR RESPONSE:\n"
+                "- Put BLANK LINE between paragraphs\n"
+                "- Put each list item on SEPARATE LINE\n"
+                "- Use proper spacing for readability\n\n"
+                "CONTENT RULES:\n"
+                "- Use chunks fully if relevant\n"
+                "- If no relevant chunks, say 'متأسفانه این اطلاعات رو ندارم'\n"
+                "- Be helpful and complete"
                 + memory_guidance
             )
             
