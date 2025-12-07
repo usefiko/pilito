@@ -221,8 +221,24 @@ Be helpful, complete, and direct. Give full answers based on LENGTH setting.""",
             else:
                 logger.warning("❌ Link Handling rules NOT FOUND in prompt!")
             
-            # Generate content using Gemini (safety_settings already set in model initialization)
-            response = self.model.generate_content(prompt)
+            # Generate content using Gemini with EXPLICIT generation_config
+            # This ensures max_output_tokens is applied correctly
+            try:
+                from settings.models import AIBehaviorSettings
+                user_max_tokens = self.user.ai_behavior.get_max_output_tokens()
+            except:
+                user_max_tokens = 700
+            
+            effective_max_tokens = min(user_max_tokens, self.ai_config.max_tokens)
+            logger.info(f"🔧 Generating with max_output_tokens: {effective_max_tokens}")
+            
+            response = self.model.generate_content(
+                prompt,
+                generation_config={
+                    "max_output_tokens": effective_max_tokens,
+                    "temperature": self.ai_config.temperature,
+                }
+            )
             
             # ✅ LOG finish_reason for debugging incomplete responses
             if response.candidates:
