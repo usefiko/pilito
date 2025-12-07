@@ -17,7 +17,9 @@ class QueryRouter:
     Fast, rule-based routing for multilingual queries
     """
     
-    # Default keywords (fallback if DB is empty)
+    # ⚠️ FALLBACK ONLY - All keywords should be in database via Admin → IntentKeyword
+    # These are GENERIC keywords that work for ANY business
+    # Business-specific keywords (company names, product names) MUST be in database
     DEFAULT_KEYWORDS = {
         'pricing': {
             'fa': ['قیمت', 'هزینه', 'تعرفه', 'پلن', 'پکیج', 'اشتراک', 'خرید', 'فروش', 'تومان', 'دلار', 'پرداخت'],
@@ -38,45 +40,43 @@ class QueryRouter:
             'tr': ['nasıl', 'rehber', 'öğretici', 'adımlar', 'yardım']
         },
         'contact': {
-            'fa': ['تماس', 'ارتباط', 'پشتیبانی', 'شماره', 'ایمیل', 'آدرس', 'ساعت کاری', 'تلفن', 'بیوگرافی', 'بیو', 'درباره', 'درباره ما', 'کی هستیم', 'چه کسی', 'ما', 'مزون'],
-            'en': ['contact', 'support', 'phone', 'email', 'address', 'reach', 'hours', 'location', 'call', 'about', 'about us', 'who are', 'bio', 'biography'],
-            'ar': ['اتصال', 'دعم', 'هاتف', 'بريد', 'عنوان', 'موقع', 'من نحن', 'نبذة'],
-            'tr': ['iletişim', 'destek', 'telefon', 'e-posta', 'adres', 'konum', 'hakkında', 'biz kimiz']
-        },
-        'general': {
-            'fa': ['پیلیتو', 'خدمات', 'کارایی', 'چیکار', 'چکار', 'شرکت', 'پلتفرم', 'سایت', 'وبسایت', 'معرفی'],
-            'en': ['pilito', 'services', 'company', 'platform', 'site', 'website', 'introduce', 'introduction'],
-            'ar': ['الشركة', 'المنصة', 'الخدمات'],
-            'tr': ['şirket', 'platform', 'hizmetler']
+            'fa': ['تماس', 'ارتباط', 'پشتیبانی', 'شماره', 'ایمیل', 'آدرس', 'ساعت کاری', 'تلفن'],
+            'en': ['contact', 'support', 'phone', 'email', 'address', 'reach', 'hours', 'location', 'call'],
+            'ar': ['اتصال', 'دعم', 'هاتف', 'بريد', 'عنوان', 'موقع'],
+            'tr': ['iletişim', 'destek', 'telefon', 'e-posta', 'adres', 'konum']
         }
+        # ⚠️ NO 'general' in defaults - general intent is the fallback when no keywords match
+        # ⚠️ Business-specific keywords (company names, products) MUST be in database IntentKeyword
     }
     
-    # Default routing configuration
+    # ⚠️ DEFAULT_ROUTING is ONLY used as fallback when database IntentRouting is empty
+    # The actual routing config should be in database via Admin Panel → IntentRouting
+    # Standard RAG approach: search ALL sources, prioritize by relevance
     DEFAULT_ROUTING = {
         'pricing': {
-            'primary_source': 'faq',
-            'secondary_sources': ['products', 'manual'],
-            'token_budget': {'primary': 800, 'secondary': 300}
+            'primary_source': 'manual',
+            'secondary_sources': ['products', 'faq', 'website'],
+            'token_budget': {'primary': 600, 'secondary': 500}
         },
         'product': {
-            'primary_source': 'manual',  # Manual has full company/product info
+            'primary_source': 'manual',
             'secondary_sources': ['products', 'faq', 'website'],
-            'token_budget': {'primary': 900, 'secondary': 400}
+            'token_budget': {'primary': 600, 'secondary': 500}
         },
         'howto': {
             'primary_source': 'manual',
-            'secondary_sources': ['faq', 'website'],
-            'token_budget': {'primary': 800, 'secondary': 300}
+            'secondary_sources': ['faq', 'products', 'website'],
+            'token_budget': {'primary': 600, 'secondary': 500}
         },
         'contact': {
             'primary_source': 'manual',
-            'secondary_sources': ['website'],
-            'token_budget': {'primary': 800, 'secondary': 300}
+            'secondary_sources': ['faq', 'products', 'website'],
+            'token_budget': {'primary': 600, 'secondary': 500}
         },
         'general': {
-            'primary_source': 'manual',  # Manual has full company info
+            'primary_source': 'manual',
             'secondary_sources': ['faq', 'products', 'website'],
-            'token_budget': {'primary': 900, 'secondary': 400}
+            'token_budget': {'primary': 600, 'secondary': 500}
         }
     }
     

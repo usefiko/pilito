@@ -98,15 +98,15 @@ class ContextRetriever:
                 query_text=query_normalized  # ✅ Use normalized query for hybrid search
             )
             
-            # Retrieve from secondary sources (if budget allows)
+            # Retrieve from ALL secondary sources (standard RAG approach)
             secondary_chunks = []
             if secondary_budget > 50 and secondary_sources:
-                for source in secondary_sources[:2]:  # Limit to 2 secondary sources
+                for source in secondary_sources:  # ✅ Use ALL secondary sources
                     chunks = cls._search_source(
                         user=user,
                         source=source,
                         query_embedding=query_embedding,
-                        top_k=3,  # Fewer chunks for secondary
+                        top_k=5,  # ✅ More chunks per secondary source
                         query_text=query_normalized  # ✅ Use normalized query for hybrid search
                     )
                     secondary_chunks.extend(chunks)
@@ -314,8 +314,8 @@ class ContextRetriever:
                     'source_id': chunk.source_id
                 })
             
-            # Get from secondary sources
-            for source in secondary_sources[:1]:  # Only 1 secondary in fallback
+            # Get from ALL secondary sources
+            for source in secondary_sources:  # ✅ Use ALL secondary sources
                 chunk_type = cls.SOURCE_TO_CHUNK_TYPE.get(source, source)
                 recent_secondary = TenantKnowledge.objects.filter(
                     user=user,
