@@ -95,33 +95,47 @@ class TokenBudgetController:
         result['user_query_tokens'] = user_query_tokens
         
         # 2. System prompt (mandatory)
-        # ✅ Extract CRITICAL rules before trimming to preserve them
+        # ✅ Fixed: Remove critical rules from prompt BEFORE trimming, then add back ONCE at end
         system_prompt = components.get('system_prompt', '')
         critical_rules = cls._extract_critical_rules(system_prompt)
         
-        system_prompt_tokens = cls._count_tokens(system_prompt)
+        # Remove critical rules from system prompt to avoid duplication
+        # They will be added back ONCE at the end
+        non_critical_prompt = system_prompt
+        if critical_rules:
+            # Remove the critical rules section from the prompt
+            for marker in ["🚨 CRITICAL - Anti-Hallucination:", "🔗 CRITICAL - Links & URLs:", "🔗 CRITICAL - Links"]:
+                if marker in non_critical_prompt:
+                    start_idx = non_critical_prompt.find(marker)
+                    if start_idx != -1:
+                        # Find end of this section
+                        remaining = non_critical_prompt[start_idx:]
+                        next_section_markers = ["🧠 Language:", "💬 Style:", "📝 Response", "🎯 Greeting", "⚡ Additional", "When lacking"]
+                        end_idx = len(remaining)
+                        for next_marker in next_section_markers:
+                            marker_idx = remaining.find(next_marker)
+                            if marker_idx > 0 and marker_idx < end_idx:
+                                end_idx = marker_idx
+                        non_critical_prompt = non_critical_prompt[:start_idx] + non_critical_prompt[start_idx + end_idx:]
         
-        if system_prompt_tokens > cls.BUDGET['system_prompt']:
-            # Trim system prompt but preserve critical rules
-            trimmed_prompt = cls._trim_text_to_tokens(system_prompt, cls.BUDGET['system_prompt'])
-            # Re-add critical rules if they were removed
-            if critical_rules and critical_rules not in trimmed_prompt:
-                # Calculate space for critical rules
-                critical_tokens = cls._count_tokens(critical_rules)
-                available_space = cls.BUDGET['system_prompt'] - cls._count_tokens(trimmed_prompt)
-                if available_space >= critical_tokens:
-                    system_prompt = trimmed_prompt + "\n\n" + critical_rules
-                else:
-                    # If no space, trim more to make room for critical rules
-                    space_for_prompt = cls.BUDGET['system_prompt'] - critical_tokens - 20  # 20 for separator
-                    if space_for_prompt > 100:  # At least 100 tokens for main prompt
-                        system_prompt = cls._trim_text_to_tokens(system_prompt, space_for_prompt) + "\n\n" + critical_rules
-                    else:
-                        # Critical rules are more important, keep them
-                        system_prompt = trimmed_prompt + "\n\n" + critical_rules
-            else:
-                system_prompt = trimmed_prompt
-            system_prompt_tokens = cls._count_tokens(system_prompt)
+        # Count tokens for non-critical part
+        non_critical_tokens = cls._count_tokens(non_critical_prompt)
+        critical_tokens = cls._count_tokens(critical_rules) if critical_rules else 0
+        
+        # Reserve space for critical rules
+        non_critical_budget = cls.BUDGET['system_prompt'] - critical_tokens - 20  # 20 for separator
+        
+        if non_critical_tokens > non_critical_budget and non_critical_budget > 100:
+            # Trim only the non-critical part
+            non_critical_prompt = cls._trim_text_to_tokens(non_critical_prompt, non_critical_budget)
+        
+        # Combine: non-critical + critical rules (added exactly ONCE)
+        if critical_rules:
+            system_prompt = non_critical_prompt.strip() + "\n\n" + critical_rules
+        else:
+            system_prompt = non_critical_prompt.strip()
+        
+        system_prompt_tokens = cls._count_tokens(system_prompt)
         
         result['system_prompt'] = system_prompt
         result['system_prompt_tokens'] = system_prompt_tokens
