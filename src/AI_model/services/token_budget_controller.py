@@ -29,15 +29,16 @@ class TokenBudgetController:
     """
     
     # Token budget allocation (Optimized for Persian language)
+    # ✅ REBALANCED: Reduced system_prompt, increased knowledge context
     BUDGET = {
-        'system_prompt': 700,      # ✅ INCREASED to 700 - Critical for anti-hallucination rules
-        'bio_context': 60,          # Reduced -20 - Instagram bio for personalization
+        'system_prompt': 500,       # ✅ Reduced (GeneralSettings simplified)
+        'bio_context': 50,          # Instagram bio for personalization
         'customer_info': 30,        # Customer name, phone, source
-        'conversation': 250,        # Reduced -50 - Recent conversation context
-        'primary_context': 600,     # Reduced -50 - Main knowledge source
-        'secondary_context': 510,   # Reduced -180 - Secondary knowledge source
-        # Total: 2150 tokens (max 2200 with safety margin)
-        # ⚠️ system_prompt has highest priority - contains anti-hallucination rules
+        'conversation': 200,        # Recent conversation context
+        'primary_context': 900,     # ✅ INCREASED for better knowledge retrieval
+        'secondary_context': 700,   # ✅ INCREASED for more context
+        # Total: 2380 tokens (slightly over, will be trimmed to 2200)
+        # ⚠️ Knowledge context now has PRIORITY over system instructions
     }
     
     # Safety margin
