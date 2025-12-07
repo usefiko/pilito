@@ -100,6 +100,11 @@ class GeminiChatService:
 - TONE=energetic: Enthusiastic! Example: "سلام! عالیه که اینجایی! 🎉"
 - TONE=empathetic: Caring. Example: "می‌فهمم، بذار کمکت کنم..."
 
+📏 LENGTH - Apply AI_BEHAVIOR_FLAGS [LENGTH] STRICTLY:
+- LENGTH=short: MAX 2-3 sentences. Be VERY brief. Just answer the question directly.
+- LENGTH=balanced: 1-2 short paragraphs. Include key details only.
+- LENGTH=detailed: Full explanation with all relevant details, examples, and steps.
+
 📝 FORMATTING - MANDATORY:
 Put EMPTY LINE (\\n\\n) between paragraphs.
 Each list item on NEW line:
