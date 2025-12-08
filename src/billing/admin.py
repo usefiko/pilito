@@ -1,8 +1,11 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.utils import timezone
+from django.db.models import Sum, Count, Q
+from django.urls import reverse
 from import_export.admin import ImportExportModelAdmin
-from .models import TokenPlan, FullPlan, Subscription, Payment, TokenUsage, Purchases, WalletTransaction, BillingInformation, Withdraw
+from import_export import resources
+from .models import TokenPlan, FullPlan, Subscription, Payment, TokenUsage, Purchases, WalletTransaction, BillingInformation, Withdraw, UserAffiliateRule
 
 
 @admin.register(TokenPlan)
@@ -225,24 +228,30 @@ class WalletTransactionAdmin(ImportExportModelAdmin):
     """
     Admin interface for Wallet Transactions
     
-    Shows all wallet transactions including affiliate commissions
+    Shows all wallet transactions including affiliate commissions with multi-level support
     """
     list_display = (
-        'id', 'user_email', 'transaction_type', 'amount_display', 
+        'id', 'user_email', 'transaction_type', 'commission_level_display',
+        'amount_display', 'commission_percentage', 'source_amount',
         'balance_after', 'referred_user_email', 'created_at'
     )
-    list_filter = ('transaction_type', 'created_at')
+    list_filter = ('transaction_type', 'commission_level', 'created_at')
     search_fields = (
         'user__email', 'user__username', 
         'referred_user__email', 'description'
     )
     ordering = ('-created_at',)
-    readonly_fields = ('created_at', 'balance_after')
-    raw_id_fields = ('user', 'related_payment', 'referred_user', 'created_by')
+    readonly_fields = ('created_at', 'balance_after', 'commission_level', 'commission_percentage', 'source_amount', 'source_commission')
+    raw_id_fields = ('user', 'related_payment', 'referred_user', 'created_by', 'source_commission')
     
     fieldsets = (
         ('Transaction Information', {
             'fields': ('user', 'transaction_type', 'amount', 'balance_after', 'description')
+        }),
+        ('Commission Details', {
+            'fields': ('commission_level', 'commission_percentage', 'source_amount', 'source_commission'),
+            'classes': ('collapse',),
+            'description': 'Commission-specific information for affiliate transactions'
         }),
         ('Related Information', {
             'fields': ('related_payment', 'referred_user', 'created_by'),
@@ -258,6 +267,16 @@ class WalletTransactionAdmin(ImportExportModelAdmin):
         return obj.user.email
     user_email.short_description = 'User'
     user_email.admin_order_field = 'user__email'
+    
+    def commission_level_display(self, obj):
+        """Display commission level with visual indicator"""
+        if obj.commission_level == 1:
+            return format_html('<span style="color: #2196F3; font-weight: bold;">L1 Direct</span>')
+        elif obj.commission_level == 2:
+            return format_html('<span style="color: #9C27B0; font-weight: bold;">L2 Upline</span>')
+        return "-"
+    commission_level_display.short_description = 'Level'
+    commission_level_display.admin_order_field = 'commission_level'
     
     def amount_display(self, obj):
         """Display amount with color coding"""
@@ -466,3 +485,220 @@ class WithdrawAdmin(ImportExportModelAdmin):
             f'{updated} withdrawal(s) rejected and refunded.'
         )
     mark_as_rejected.short_description = 'Reject selected (with refund)'
+
+
+@admin.register(UserAffiliateRule)
+class UserAffiliateRuleAdmin(ImportExportModelAdmin):
+    """
+    Admin interface for User Affiliate Rules
+    
+    Configure per-user affiliate commission settings including multi-level support.
+    
+    Example Scenario:
+    - Nima: Direct 20% for 365 days (earns from his referrals' payments)
+    - Mohammad referred Nima: Upline 10% for 365 days (earns from Nima's affiliate income)
+    """
+    list_display = (
+        'user_email', 'direct_commission_display', 'direct_validity_display',
+        'upline_commission_display', 'upline_validity_display', 
+        'is_active', 'total_earnings', 'referral_count', 'created_at'
+    )
+    list_filter = ('is_active', 'created_at', 'updated_at')
+    search_fields = ('user__email', 'user__username', 'user__first_name', 'user__last_name', 'notes')
+    ordering = ('-created_at',)
+    readonly_fields = ('created_at', 'updated_at', 'total_earnings', 'referral_count', 'affiliate_chain', 'example_calculation')
+    raw_id_fields = ('user', 'created_by')
+    autocomplete_fields = ['user']
+    
+    fieldsets = (
+        ('👤 User', {
+            'fields': ('user',),
+            'description': 'Select the user to configure affiliate rules for'
+        }),
+        ('💰 Direct Commission (Level 1)', {
+            'fields': ('direct_commission_percentage', 'direct_validity_days'),
+            'description': '''
+                <p><strong>Direct Commission:</strong> What this user earns from their direct referrals' payments.</p>
+                <ul>
+                    <li><strong>Percentage:</strong> e.g., 20% means user earns 20% of each payment their referrals make</li>
+                    <li><strong>Validity:</strong> How many days after referral registration the commission applies (0 = forever)</li>
+                </ul>
+            '''
+        }),
+        ('🔗 Upline Commission (Level 2 - Multi-Level)', {
+            'fields': ('upline_commission_percentage', 'upline_validity_days'),
+            'description': '''
+                <p><strong>Upline Commission:</strong> What this user earns from their referrals' affiliate earnings.</p>
+                <ul>
+                    <li><strong>Example:</strong> If Mohammad has 10% upline commission and Nima (referred by Mohammad) earns 1,000 from affiliates, Mohammad gets 100</li>
+                    <li><strong>Validity:</strong> How many days from when the referral joined (0 = forever)</li>
+                </ul>
+            '''
+        }),
+        ('⚙️ Status', {
+            'fields': ('is_active', 'notes', 'created_by'),
+        }),
+        ('📊 Statistics', {
+            'fields': ('total_earnings', 'referral_count', 'affiliate_chain', 'example_calculation'),
+            'classes': ('collapse',),
+            'description': 'View affiliate statistics and earnings'
+        }),
+        ('📅 Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def user_email(self, obj):
+        url = reverse('admin:accounts_user_change', args=[obj.user.id])
+        return format_html('<a href="{}">{}</a>', url, obj.user.email)
+    user_email.short_description = 'User'
+    user_email.admin_order_field = 'user__email'
+    
+    def direct_commission_display(self, obj):
+        """Display direct commission with color"""
+        if obj.direct_commission_percentage > 0:
+            return format_html(
+                '<span style="color: #2196F3; font-weight: bold;">{}%</span>',
+                obj.direct_commission_percentage
+            )
+        return format_html('<span style="color: gray;">0%</span>')
+    direct_commission_display.short_description = 'Direct %'
+    direct_commission_display.admin_order_field = 'direct_commission_percentage'
+    
+    def direct_validity_display(self, obj):
+        """Display direct validity period"""
+        if obj.direct_validity_days == 0:
+            return "∞ Forever"
+        return f"{obj.direct_validity_days} days"
+    direct_validity_display.short_description = 'Direct Validity'
+    
+    def upline_commission_display(self, obj):
+        """Display upline commission with color"""
+        if obj.upline_commission_percentage > 0:
+            return format_html(
+                '<span style="color: #9C27B0; font-weight: bold;">{}%</span>',
+                obj.upline_commission_percentage
+            )
+        return format_html('<span style="color: gray;">0%</span>')
+    upline_commission_display.short_description = 'Upline %'
+    upline_commission_display.admin_order_field = 'upline_commission_percentage'
+    
+    def upline_validity_display(self, obj):
+        """Display upline validity period"""
+        if obj.upline_validity_days == 0:
+            return "∞ Forever"
+        return f"{obj.upline_validity_days} days"
+    upline_validity_display.short_description = 'Upline Validity'
+    
+    def total_earnings(self, obj):
+        """Calculate total affiliate earnings for this user"""
+        from decimal import Decimal
+        
+        # Direct commissions (Level 1)
+        direct = WalletTransaction.objects.filter(
+            user=obj.user,
+            transaction_type='commission',
+            commission_level=1
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+        
+        # Upline commissions (Level 2)
+        upline = WalletTransaction.objects.filter(
+            user=obj.user,
+            transaction_type='upline_commission',
+            commission_level=2
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+        
+        return format_html(
+            '<div style="line-height: 1.6;">'
+            '<strong>Direct (L1):</strong> <span style="color: #2196F3;">{:,.2f}</span><br>'
+            '<strong>Upline (L2):</strong> <span style="color: #9C27B0;">{:,.2f}</span><br>'
+            '<strong>Total:</strong> <span style="color: green; font-weight: bold;">{:,.2f}</span>'
+            '</div>',
+            direct, upline, direct + upline
+        )
+    total_earnings.short_description = 'Total Earnings'
+    
+    def referral_count(self, obj):
+        """Count of direct referrals"""
+        count = obj.user.referrals.count()
+        if count > 0:
+            url = reverse('admin:accounts_user_changelist') + f'?referred_by__id__exact={obj.user.id}'
+            return format_html('<a href="{}">{} referrals</a>', url, count)
+        return "0 referrals"
+    referral_count.short_description = 'Referrals'
+    
+    def affiliate_chain(self, obj):
+        """Show the affiliate chain (upline and downlines)"""
+        html_parts = []
+        
+        # Upline
+        if obj.user.referred_by:
+            upline = obj.user.referred_by
+            upline_url = reverse('admin:accounts_user_change', args=[upline.id])
+            html_parts.append(
+                f'<div style="margin-bottom: 10px;">'
+                f'<strong>⬆️ Upline (Referrer):</strong> <a href="{upline_url}">{upline.email}</a>'
+                f'</div>'
+            )
+        else:
+            html_parts.append('<div style="margin-bottom: 10px;"><strong>⬆️ Upline:</strong> None (top of chain)</div>')
+        
+        # Downlines (referrals)
+        referrals = obj.user.referrals.all()[:10]
+        if referrals:
+            html_parts.append('<div><strong>⬇️ Downlines (Referrals):</strong></div><ul>')
+            for referral in referrals:
+                ref_url = reverse('admin:accounts_user_change', args=[referral.id])
+                # Check if referral has custom rule
+                has_rule = UserAffiliateRule.objects.filter(user=referral).exists()
+                rule_badge = ' <span style="color: green;">✓ Has Rule</span>' if has_rule else ''
+                html_parts.append(f'<li><a href="{ref_url}">{referral.email}</a>{rule_badge}</li>')
+            if obj.user.referrals.count() > 10:
+                html_parts.append(f'<li>... and {obj.user.referrals.count() - 10} more</li>')
+            html_parts.append('</ul>')
+        else:
+            html_parts.append('<div><strong>⬇️ Downlines:</strong> No referrals yet</div>')
+        
+        return format_html(''.join(html_parts))
+    affiliate_chain.short_description = 'Affiliate Chain'
+    
+    def example_calculation(self, obj):
+        """Show example commission calculations"""
+        from decimal import Decimal
+        
+        payment_amounts = [100000, 500000, 1000000]
+        
+        html = '<table style="border-collapse: collapse; margin-top: 10px;">'
+        html += '<tr style="background: #f5f5f5;">'
+        html += '<th style="padding: 8px; border: 1px solid #ddd;">Payment Amount</th>'
+        html += f'<th style="padding: 8px; border: 1px solid #ddd;">Direct ({obj.direct_commission_percentage}%)</th>'
+        html += f'<th style="padding: 8px; border: 1px solid #ddd;">Upline from 10K ({obj.upline_commission_percentage}%)</th>'
+        html += '</tr>'
+        
+        for amount in payment_amounts:
+            direct = obj.calculate_direct_commission(amount)
+            # Example: if user's referral earned 10,000 commission
+            upline = obj.calculate_upline_commission(10000)
+            html += f'<tr>'
+            html += f'<td style="padding: 8px; border: 1px solid #ddd;">{amount:,}</td>'
+            html += f'<td style="padding: 8px; border: 1px solid #ddd; color: #2196F3;">{direct:,.2f}</td>'
+            html += f'<td style="padding: 8px; border: 1px solid #ddd; color: #9C27B0;">{upline:,.2f}</td>'
+            html += '</tr>'
+        
+        html += '</table>'
+        html += '<p style="margin-top: 10px; color: #666; font-size: 12px;">'
+        html += '<em>Note: Upline column shows what user earns if their referral earns 10,000 commission</em>'
+        html += '</p>'
+        
+        return format_html(html)
+    example_calculation.short_description = 'Example Calculations'
+    
+    def save_model(self, request, obj, form, change):
+        """Track who created/modified the rule"""
+        if not change:
+            obj.created_by = request.user
+        super().save_model(request, obj, form, change)
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('user', 'created_by')

@@ -181,3 +181,16 @@ class OTPToken(models.Model):
     def __str__(self):
         return f"OTP for {self.phone_number} - {'Used' if self.is_used else 'Active'}"
 
+
+class AffiliateUserSummary(User):
+    """
+    Proxy model for displaying affiliate summary in admin.
+    
+    This allows us to have a separate admin view focused on
+    affiliate income and statistics without modifying the main User admin.
+    """
+    class Meta:
+        proxy = True
+        verbose_name = "📊 Affiliate Summary"
+        verbose_name_plural = "📊 Affiliate Summaries"
+

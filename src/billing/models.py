@@ -271,10 +271,16 @@ class WalletTransaction(models.Model):
     """
     TRANSACTION_TYPE_CHOICES = [
         ('commission', 'Affiliate Commission'),
+        ('upline_commission', 'Upline Commission'),
         ('payment', 'Payment'),
         ('refund', 'Refund'),
         ('withdrawal', 'Withdrawal'),
         ('adjustment', 'Manual Adjustment'),
+    ]
+    
+    COMMISSION_LEVEL_CHOICES = [
+        (1, 'Level 1 - Direct'),
+        (2, 'Level 2 - Upline'),
     ]
     
     user = models.ForeignKey(
@@ -302,6 +308,28 @@ class WalletTransaction(models.Model):
         help_text="Description of the transaction"
     )
     
+    # Commission-specific fields
+    commission_level = models.PositiveSmallIntegerField(
+        choices=COMMISSION_LEVEL_CHOICES,
+        null=True,
+        blank=True,
+        help_text="Commission level: 1=Direct (from referral's payment), 2=Upline (from referral's commission)"
+    )
+    commission_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Commission percentage applied for this transaction"
+    )
+    source_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Original amount the commission was calculated from"
+    )
+    
     # Reference fields for traceability
     related_payment = models.ForeignKey(
         Payment,
@@ -318,6 +346,14 @@ class WalletTransaction(models.Model):
         blank=True,
         related_name='generated_commissions',
         help_text="User who made the payment that generated this commission"
+    )
+    source_commission = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='upline_commissions',
+        help_text="For upline commissions: the direct commission that triggered this"
     )
     
     # Metadata
@@ -338,10 +374,158 @@ class WalletTransaction(models.Model):
         indexes = [
             models.Index(fields=['user', '-created_at']),
             models.Index(fields=['related_payment']),
+            models.Index(fields=['transaction_type', '-created_at']),
+            models.Index(fields=['commission_level']),
         ]
     
     def __str__(self):
-        return f"{self.user.email} - {self.get_transaction_type_display()} - {self.amount}"
+        level_str = f" (L{self.commission_level})" if self.commission_level else ""
+        return f"{self.user.email} - {self.get_transaction_type_display()}{level_str} - {self.amount}"
+
+
+class UserAffiliateRule(models.Model):
+    """
+    Per-user affiliate commission rules.
+    
+    Allows customizing affiliate settings for individual users instead of using
+    the global default configuration. Supports multi-level affiliate commissions
+    where referrers can earn from their referrals' affiliate income.
+    
+    Example Scenario:
+    - Nima has: direct 20% for 365 days
+    - Mohammad referred Nima, Mohammad has: upline 10% for 365 days
+    - User A (referred by Nima) makes a payment of 100,000
+    - Nima earns: 20% of 100,000 = 20,000 (direct commission)
+    - Mohammad earns: 10% of 20,000 = 2,000 (upline commission from Nima's earnings)
+    """
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='affiliate_rule',
+        help_text="User who receives these affiliate commission settings"
+    )
+    
+    # Direct commission settings (what user earns from their referrals' payments)
+    direct_commission_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=10.00,
+        verbose_name="Direct Commission %",
+        help_text="Percentage of payment amount user earns when their referral makes a payment"
+    )
+    direct_validity_days = models.PositiveIntegerField(
+        default=30,
+        verbose_name="Direct Commission Validity (Days)",
+        help_text="Days after referral registration during which payments qualify for direct commission (0 = unlimited)"
+    )
+    
+    # Upline commission settings (what user earns from their referrals' affiliate income)
+    upline_commission_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0.00,
+        verbose_name="Upline Commission %",
+        help_text="Percentage of referral's affiliate earnings that user receives (multi-level)"
+    )
+    upline_validity_days = models.PositiveIntegerField(
+        default=365,
+        verbose_name="Upline Commission Validity (Days)",
+        help_text="Days during which upline commissions apply from when referral joined (0 = unlimited)"
+    )
+    
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name="Rule Active",
+        help_text="Enable/disable this user's custom affiliate rule"
+    )
+    
+    notes = models.TextField(
+        blank=True,
+        verbose_name="Admin Notes",
+        help_text="Internal notes about this user's affiliate arrangement"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_affiliate_rules',
+        help_text="Admin who created/modified this rule"
+    )
+    
+    class Meta:
+        verbose_name = "🎯 User Affiliate Rule"
+        verbose_name_plural = "🎯 User Affiliate Rules"
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        status = "Active" if self.is_active else "Inactive"
+        return f"{self.user.email}: Direct {self.direct_commission_percentage}% / Upline {self.upline_commission_percentage}% ({status})"
+    
+    def calculate_direct_commission(self, payment_amount):
+        """Calculate direct commission amount from payment"""
+        from decimal import Decimal
+        amount_decimal = Decimal(str(payment_amount))
+        percentage_decimal = Decimal(str(self.direct_commission_percentage))
+        return (amount_decimal * percentage_decimal / Decimal('100')).quantize(Decimal('0.01'))
+    
+    def calculate_upline_commission(self, referral_commission_amount):
+        """Calculate upline commission from referral's commission earnings"""
+        from decimal import Decimal
+        amount_decimal = Decimal(str(referral_commission_amount))
+        percentage_decimal = Decimal(str(self.upline_commission_percentage))
+        return (amount_decimal * percentage_decimal / Decimal('100')).quantize(Decimal('0.01'))
+    
+    def is_within_direct_validity(self, referral_registration_date, payment_date=None):
+        """Check if payment is within direct commission validity period"""
+        from datetime import timedelta
+        
+        if self.direct_validity_days == 0:
+            return True  # Unlimited
+        
+        if payment_date is None:
+            payment_date = timezone.now()
+        
+        if timezone.is_naive(referral_registration_date):
+            referral_registration_date = timezone.make_aware(referral_registration_date)
+        if timezone.is_naive(payment_date):
+            payment_date = timezone.make_aware(payment_date)
+        
+        validity_deadline = referral_registration_date + timedelta(days=self.direct_validity_days)
+        return payment_date <= validity_deadline
+    
+    def is_within_upline_validity(self, referral_join_date, commission_date=None):
+        """Check if commission is within upline commission validity period"""
+        from datetime import timedelta
+        
+        if self.upline_validity_days == 0:
+            return True  # Unlimited
+        
+        if commission_date is None:
+            commission_date = timezone.now()
+        
+        if timezone.is_naive(referral_join_date):
+            referral_join_date = timezone.make_aware(referral_join_date)
+        if timezone.is_naive(commission_date):
+            commission_date = timezone.make_aware(commission_date)
+        
+        validity_deadline = referral_join_date + timedelta(days=self.upline_validity_days)
+        return commission_date <= validity_deadline
+    
+    @classmethod
+    def get_user_rule(cls, user):
+        """
+        Get affiliate rule for a user.
+        Returns the user's custom rule if exists, otherwise None.
+        The signal will fall back to global config if no custom rule exists.
+        """
+        try:
+            return cls.objects.get(user=user, is_active=True)
+        except cls.DoesNotExist:
+            return None
 
 
 class BillingInformation(models.Model):

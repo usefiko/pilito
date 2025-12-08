@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.utils.html import format_html
 from settings.models import Settings, GeneralSettings, TelegramChannel, InstagramChannel, AIPrompts, IntercomTicketType, SupportTicket, SupportMessage, SupportMessageAttachment, BusinessPrompt, UpToPro, AIBehaviorSettings, AffiliationConfig
 
 # =============================================
@@ -102,12 +103,14 @@ class GeneralSettingsAdmin(admin.ModelAdmin):
             combined = obj.get_combined_system_prompt()
             if combined:
                 preview = combined[:500] + "..." if len(combined) > 500 else combined
-                return f"<pre style='background: #f5f5f5; padding: 10px; border-radius: 5px;'>{preview}</pre>"
+                return format_html(
+                    '<pre style="background: #f5f5f5; padding: 10px; border-radius: 5px; white-space: pre-wrap;">{}</pre>',
+                    preview
+                )
             return "No prompt configured"
         except Exception as e:
             return f"Error: {e}"
     preview_combined_prompt.short_description = "🔍 Preview Combined Prompt"
-    preview_combined_prompt.allow_tags = True
     
     def has_add_permission(self, request):
         # Only allow one instance (singleton pattern)
@@ -182,14 +185,13 @@ class AffiliationConfigAdmin(admin.ModelAdmin):
             (500, obj.calculate_commission(500)),
             (1000, obj.calculate_commission(1000)),
         ]
-        html = "<table style='margin-top:10px;'>"
-        html += "<tr><th>Payment Amount</th><th>Commission ({0}%)</th></tr>".format(obj.percentage)
+        html = "<table style='margin-top:10px; border-collapse: collapse;'>"
+        html += "<tr style='background: #f5f5f5;'><th style='padding: 8px; border: 1px solid #ddd;'>Payment Amount</th><th style='padding: 8px; border: 1px solid #ddd;'>Commission ({0}%)</th></tr>".format(obj.percentage)
         for amount, commission in examples:
-            html += f"<tr><td>{amount:,}</td><td>{commission:,.2f}</td></tr>"
+            html += f"<tr><td style='padding: 8px; border: 1px solid #ddd;'>{amount:,}</td><td style='padding: 8px; border: 1px solid #ddd; color: green;'>{commission:,.2f}</td></tr>"
         html += "</table>"
-        return html
+        return format_html(html)
     example_calculation.short_description = "Example Calculations"
-    example_calculation.allow_tags = True
     
     def validity_display(self, obj):
         """Show validity period in list display"""
@@ -198,24 +200,28 @@ class AffiliationConfigAdmin(admin.ModelAdmin):
     
     def validity_info(self, obj):
         """Show detailed validity information"""
-        from django.utils import timezone
-        from datetime import timedelta
-        
         if obj.commission_validity_days == 0:
-            info = "<p><strong>⏰ Validity:</strong> Unlimited - commissions apply to all payments forever</p>"
+            return format_html(
+                '<div style="background: #e8f5e9; padding: 10px; border-radius: 5px;">'
+                '<strong>⏰ Validity:</strong> Unlimited - commissions apply to all payments forever'
+                '</div>'
+            )
         else:
-            info = f"""
-                <p><strong>⏰ Validity Period:</strong> {obj.commission_validity_days} days after registration</p>
-                <p><strong>Example:</strong></p>
-                <ul>
-                    <li>User registers on Jan 1</li>
-                    <li>Commissions apply until: Jan {obj.commission_validity_days} (inclusive)</li>
-                    <li>Payments after {obj.commission_validity_days} days do NOT generate commissions</li>
-                </ul>
-            """
-        return info
+            return format_html(
+                '<div style="background: #fff3e0; padding: 10px; border-radius: 5px;">'
+                '<p><strong>⏰ Validity Period:</strong> {} days after registration</p>'
+                '<p><strong>Example:</strong></p>'
+                '<ul>'
+                '<li>User registers on Jan 1</li>'
+                '<li>Commissions apply until: Jan {} (inclusive)</li>'
+                '<li>Payments after {} days do NOT generate commissions</li>'
+                '</ul>'
+                '</div>',
+                obj.commission_validity_days,
+                obj.commission_validity_days,
+                obj.commission_validity_days
+            )
     validity_info.short_description = "Validity Details"
-    validity_info.allow_tags = True
     
     def has_add_permission(self, request):
         # Only allow one instance (singleton pattern)
@@ -625,11 +631,13 @@ class AIBehaviorSettingsAdmin(admin.ModelAdmin):
         """
         if obj.pk:
             flags = obj.get_prompt_additions()
-            return f'<pre style="background:#f5f5f5;padding:10px;border-radius:4px;">{flags}</pre>'
+            return format_html(
+                '<pre style="background:#f5f5f5;padding:10px;border-radius:4px;white-space:pre-wrap;">{}</pre>',
+                flags
+            )
         return "ذخیره کنید تا پیش‌نمایش نمایش داده شود"
     
     preview_prompt_flags.short_description = "پیش‌نمایش Flag های AI"
-    preview_prompt_flags.allow_tags = True
     
     def get_queryset(self, request):
         """Optimize queryset with select_related"""
