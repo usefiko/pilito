@@ -72,6 +72,31 @@ class TemplateAdmin(admin.ModelAdmin):
     ordering = ['-created_at']
     readonly_fields = ['created_at', 'updated_at', 'cover_image_preview']
     filter_horizontal = []
+    actions = ['duplicate_templates']
+    
+    def duplicate_templates(self, request, queryset):
+        """Duplicate selected templates"""
+        count = 0
+        for template in queryset:
+            # Store original values
+            original_name = template.name
+            original_language = template.language
+            original_type = template.type
+            original_tag = template.tag
+            original_status = template.status
+            original_description = template.description
+            original_jsonfield = template.jsonfield
+            original_is_active = template.is_active
+            
+            # Create new template
+            template.pk = None
+            template.name = f"{original_name} (Copy)"
+            template.save()
+            count += 1
+        
+        self.message_user(request, f"✅ {count} template(s) duplicated successfully.")
+    
+    duplicate_templates.short_description = "📋 Duplicate selected templates"
     
     fieldsets = (
         ('Basic Information', {
