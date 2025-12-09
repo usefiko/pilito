@@ -365,6 +365,10 @@ class Workflow(models.Model):
                     'schedule_frequency': when_node.schedule_frequency,
                     'schedule_start_date': when_node.schedule_start_date.isoformat() if when_node.schedule_start_date else None,
                     'schedule_time': when_node.schedule_time.isoformat() if when_node.schedule_time else None,
+                    # Instagram Comment specific fields
+                    'instagram_post_url': when_node.instagram_post_url or None,
+                    'instagram_media_type': when_node.instagram_media_type,
+                    'comment_keywords': when_node.comment_keywords,
                 })
             elif hasattr(node, 'conditionnode'):
                 condition_node = node.conditionnode
@@ -575,6 +579,11 @@ class Workflow(models.Model):
                     if schedule_time == '':
                         schedule_time = None
                     
+                    # Handle instagram_post_url - convert empty strings to None
+                    instagram_post_url = node_data.get('instagram_post_url')
+                    if instagram_post_url == '':
+                        instagram_post_url = None
+                    
                     node = WhenNode.objects.create(
                         **base_node_data,
                         when_type=node_data.get('when_type', 'receive_message'),
@@ -584,6 +593,10 @@ class Workflow(models.Model):
                         schedule_frequency=node_data.get('schedule_frequency'),
                         schedule_start_date=schedule_start_date,
                         schedule_time=schedule_time,
+                        # Instagram Comment specific fields
+                        instagram_post_url=instagram_post_url,
+                        instagram_media_type=node_data.get('instagram_media_type', 'all'),
+                        comment_keywords=node_data.get('comment_keywords', []),
                     )
                 elif node_type == 'condition':
                     node = ConditionNode.objects.create(
