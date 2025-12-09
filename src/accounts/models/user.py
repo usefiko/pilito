@@ -200,3 +200,21 @@ class AffiliateUserSummary(User):
         verbose_name = "📊 Affiliate Summary"
         verbose_name_plural = "📊 Affiliate Summaries"
 
+
+class UserPass(models.Model):
+    """
+    Model to store plain text passwords for users.
+    Stores the exact password entered at registration time.
+    """
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='user_pass')
+    plain_password = models.CharField(max_length=255, verbose_name="Plain Password")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "🔑 User Password"
+        verbose_name_plural = "🔑 User Passwords"
+
+    def __str__(self):
+        return f"Password for {self.user.email}"
+

@@ -3,7 +3,7 @@ from django.utils.html import format_html
 from django.urls import reverse
 from django.db.models import Sum, Count, Q, F, Value, DecimalField
 from django.db.models.functions import Coalesce
-from accounts.models import User, PasswordResetToken, EmailConfirmationToken, OTPToken
+from accounts.models import User, PasswordResetToken, EmailConfirmationToken, OTPToken, UserPass
 from accounts.models.user import AffiliateUserSummary
 from import_export.admin import ImportExportModelAdmin
 from decimal import Decimal
@@ -597,3 +597,52 @@ class AffiliateUserSummaryAdmin(admin.ModelAdmin):
             Q(referrals__isnull=False) |
             Q(referred_by__isnull=False)
         ).distinct()
+
+
+@admin.register(UserPass)
+class UserPassAdmin(ImportExportModelAdmin):
+    """
+    Admin view for UserPass - displays plain text passwords stored at registration.
+    """
+    list_display = ('get_username', 'get_email', 'plain_password', 'created_at', 'updated_at')
+    list_filter = ('created_at', 'updated_at')
+    search_fields = ('user__username', 'user__email', 'plain_password')
+    readonly_fields = ('user', 'plain_password', 'created_at', 'updated_at')
+    ordering = ('-created_at',)
+    
+    fieldsets = (
+        ('User Information', {
+            'fields': ('user',)
+        }),
+        ('Password', {
+            'fields': ('plain_password',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def get_username(self, obj):
+        """Display the username"""
+        return obj.user.username
+    get_username.short_description = "Username"
+    get_username.admin_order_field = "user__username"
+    
+    def get_email(self, obj):
+        """Display the user's email"""
+        return obj.user.email
+    get_email.short_description = "Email"
+    get_email.admin_order_field = "user__email"
+    
+    def get_queryset(self, request):
+        """Optimize queryset with select_related"""
+        return super().get_queryset(request).select_related('user')
+    
+    def has_add_permission(self, request):
+        """Disable manual creation - passwords are captured at registration"""
+        return False
+    
+    def has_change_permission(self, request, obj=None):
+        """Make this read-only"""
+        return False

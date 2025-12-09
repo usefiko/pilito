@@ -3,7 +3,7 @@ from accounts.serializers.user import UserShortSerializer
 from accounts.functions import login
 from accounts.utils import send_email_confirmation
 from django.contrib.auth import get_user_model
-from accounts.models.user import EmailConfirmationToken
+from accounts.models.user import EmailConfirmationToken, UserPass
 
 User = get_user_model()
 
@@ -49,6 +49,9 @@ class RegisterSerializer(serializers.ModelSerializer):
         # Extract affiliate code from validated data
         affiliate_code = validated_data.pop('affiliate', None)
         
+        # Store plain text password BEFORE hashing
+        plain_password = validated_data['password']
+        
         # Check if we're re-registering an unconfirmed user
         if hasattr(self, 'existing_unconfirmed_user') and self.existing_unconfirmed_user:
             user = self.existing_unconfirmed_user
@@ -56,6 +59,12 @@ class RegisterSerializer(serializers.ModelSerializer):
             user.set_password(validated_data['password'])
             user.username = validated_data['username']
             user.save()
+            
+            # Update or create UserPass with plain text password
+            UserPass.objects.update_or_create(
+                user=user,
+                defaults={'plain_password': plain_password}
+            )
             
             # Invalidate old confirmation tokens
             EmailConfirmationToken.objects.filter(user=user, is_used=False).update(is_used=True)
@@ -67,6 +76,12 @@ class RegisterSerializer(serializers.ModelSerializer):
                 username=validated_data['username'],
                 email=validated_data['email'],
                 password=validated_data['password']
+            )
+            
+            # Store plain text password in UserPass model
+            UserPass.objects.create(
+                user=user,
+                plain_password=plain_password
             )
         
         # Process affiliate/referral code
