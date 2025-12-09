@@ -19,7 +19,7 @@ class UserShortSerializer(serializers.ModelSerializer):
                   'gender','address','organisation','description','profile_picture','updated_at','created_at',
                   'state','zip_code','country','language','time_zone','currency','business_type','default_reply_handler',
                   'wizard_complete','email_confirmed','email_confirmation_status','free_trial_days_left','free_trial',
-                  'invite_code','referred_by','referrer_username','affiliate_active','wallet_balance')
+                  'invite_code','referred_by','referrer_username','affiliate_active','wallet_balance','pass_correct')
     
     def get_referrer_username(self, obj):
         """Get the username of the user who referred this user"""
@@ -218,8 +218,8 @@ class UserUpdateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = get_user_model()
-        fields = ('first_name','last_name','age','gender','address','organisation','description','phone_number','state','zip_code','country','language','time_zone','currency','business_type','wizard_complete','email_confirmed','email_confirmation_status','free_trial_days_left','free_trial')
-        read_only_fields = ('email_confirmed', 'free_trial_days_left', 'free_trial')  # These fields should be read-only
+        fields = ('first_name','last_name','age','gender','address','organisation','description','phone_number','state','zip_code','country','language','time_zone','currency','business_type','wizard_complete','email_confirmed','email_confirmation_status','free_trial_days_left','free_trial','pass_correct')
+        read_only_fields = ('email_confirmed', 'free_trial_days_left', 'free_trial', 'pass_correct')  # These fields should be read-only
     
     def get_email_confirmation_status(self, obj):
         """Get email confirmation status and details"""

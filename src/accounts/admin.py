@@ -28,13 +28,13 @@ class UserAdmin(ImportExportModelAdmin):
 
     list_display = (
         'img_tag', 'email', 'username', 'first_name', 'last_name', 
-        'email_confirmed', 'is_google_user', 'wizard_complete', 
+        'email_confirmed', 'pass_correct', 'is_google_user', 'wizard_complete', 
         'invite_code', 'wallet_balance', 'affiliate_earnings_display', 'affiliate_active', 'has_custom_rule', 'referral_count',
         'is_active', 'created_at'
     )
     
     list_filter = (
-        'email_confirmed', 'is_google_user', 'wizard_complete', 'is_active', 
+        'email_confirmed', 'pass_correct', 'is_google_user', 'wizard_complete', 'is_active', 
         'is_staff', 'affiliate_active', 'gender', 'country', 'business_type', 'default_reply_handler',
         'created_at', 'updated_at'
     )
@@ -51,7 +51,7 @@ class UserAdmin(ImportExportModelAdmin):
             'fields': ('email', 'username', 'first_name', 'last_name', 'phone_number')
         }),
         ('Account Status', {
-            'fields': ('is_active', 'is_staff', 'is_superuser', 'email_confirmed', 'wizard_complete')
+            'fields': ('is_active', 'is_staff', 'is_superuser', 'email_confirmed', 'pass_correct', 'wizard_complete')
         }),
         ('🤝 Affiliate Marketing', {
             'fields': ('invite_code', 'referred_by', 'wallet_balance', 'affiliate_active', 'affiliate_rule_info', 'affiliate_earnings_detail', 'referral_list'),

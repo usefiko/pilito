@@ -41,6 +41,12 @@ class User(AbstractUser):
     google_avatar_url = models.URLField(max_length=500, null=True, blank=True)
     # Email confirmation field
     email_confirmed = models.BooleanField(default=False)
+    # Password status field (False for OTP-only users who haven't set a password)
+    pass_correct = models.BooleanField(
+        default=False,
+        verbose_name="Password Set",
+        help_text="Whether the user has set a valid password (False for OTP-only registrations)"
+    )
     # Affiliate marketing fields
     invite_code = models.CharField(max_length=20, unique=True, null=True, blank=True)
     referred_by = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='referrals')
