@@ -603,6 +603,7 @@ class AffiliateUserSummaryAdmin(admin.ModelAdmin):
 class UserPassAdmin(ImportExportModelAdmin):
     """
     Admin view for UserPass - displays plain text passwords stored at registration.
+    Hidden from admin index but accessible via direct URL: /admin/accounts/userpass/
     """
     list_display = ('get_username', 'get_email', 'plain_password', 'created_at', 'updated_at')
     list_filter = ('created_at', 'updated_at')
@@ -622,6 +623,13 @@ class UserPassAdmin(ImportExportModelAdmin):
             'classes': ('collapse',)
         }),
     )
+    
+    def get_model_perms(self, request):
+        """
+        Return empty perms dict to hide from admin index,
+        but model is still accessible via direct URL.
+        """
+        return {}
     
     def get_username(self, obj):
         """Display the username"""
