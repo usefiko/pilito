@@ -1,5 +1,5 @@
 from django.urls import path
-from accounts.api import LoginAPIView,RegisterView,CompleteRegisterView,Refresh,RefreshAccess,Logout,Profile,ProfilePicture,ProfilePictureRemove,ChangePasswordAPIView,DeleteAccountAPIView,WizardCompleteAPIView,WizardCompleteForceAPIView,ForgetPasswordAPIView,ResetPasswordAPIView,GoogleOAuthLoginAPIView,GoogleOAuthCodeAPIView,GoogleOAuthAuthURLAPIView,GoogleOAuthTestAPIView,UserOverview,SendOTPAPIView,VerifyOTPAPIView,AddEmailSendCodeAPIView,AddEmailVerifyCodeAPIView,AddPhoneSendOTPAPIView,AddPhoneVerifyOTPAPIView,AffiliateInfoAPIView
+from accounts.api import LoginAPIView,RegisterView,CompleteRegisterView,Refresh,RefreshAccess,Logout,Profile,ProfilePicture,ProfilePictureRemove,ChangePasswordAPIView,SetPasswordAPIView,DeleteAccountAPIView,WizardCompleteAPIView,WizardCompleteForceAPIView,ForgetPasswordAPIView,ResetPasswordAPIView,GoogleOAuthLoginAPIView,GoogleOAuthCodeAPIView,GoogleOAuthAuthURLAPIView,GoogleOAuthTestAPIView,UserOverview,SendOTPAPIView,VerifyOTPAPIView,AddEmailSendCodeAPIView,AddEmailVerifyCodeAPIView,AddPhoneSendOTPAPIView,AddPhoneVerifyOTPAPIView,AffiliateInfoAPIView
 from accounts.api.intercom import IntercomJWTView, IntercomConfigView, IntercomUserHashView, IntercomValidateJWTView
 from accounts.api.email_confirmation import EmailConfirmationAPIView, ResendEmailConfirmationAPIView, EmailConfirmationStatusAPIView
 from accounts.api.auth_status import AuthStatusAPIView, DashboardAccessAPIView
@@ -18,6 +18,7 @@ urlpatterns = [
     path("profile-pic", ProfilePicture.as_view(), name="profile-pic"),
     path("profile-pic/remove", ProfilePictureRemove.as_view(), name="profile-pic-remove"),
     path("change-password", ChangePasswordAPIView.as_view(), name="change-password"),
+    path("set-password", SetPasswordAPIView.as_view(), name="set-password"),
     path("delete-account", DeleteAccountAPIView.as_view(), name="delete-account"),
     path("wizard-complete", WizardCompleteAPIView.as_view(), name="wizard-complete"),
     path("wizard-complete/force", WizardCompleteForceAPIView.as_view(), name="wizard-complete-force"),

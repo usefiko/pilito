@@ -600,6 +600,48 @@ class ChangePasswordSerializer(serializers.Serializer):
         return user
 
 
+class SetPasswordSerializer(serializers.Serializer):
+    """
+    Serializer for setting password without requiring current password.
+    Only requires authentication.
+    """
+    new_password = serializers.CharField(write_only=True)
+    confirm_new_password = serializers.CharField(write_only=True)
+
+    def validate_new_password(self, value):
+        """Validate new password meets requirements"""
+        # Minimum 8 characters long
+        if len(value) < 8:
+            raise serializers.ValidationError("Password must be at least 8 characters long.")
+        
+        # At least one lowercase character
+        if not re.search(r'[a-z]', value):
+            raise serializers.ValidationError("Password must contain at least one lowercase character.")
+        
+        # At least one number, symbol, or whitespace character
+        if not re.search(r'[\d\W]', value):
+            raise serializers.ValidationError("Password must contain at least one number, symbol, or whitespace character.")
+        
+        return value
+
+    def validate(self, data):
+        """Validate that new password and confirm password match"""
+        new_password = data.get('new_password')
+        confirm_new_password = data.get('confirm_new_password')
+        
+        if new_password != confirm_new_password:
+            raise serializers.ValidationError("New password and confirm password do not match.")
+        
+        return data
+
+    def save(self):
+        """Update the user's password"""
+        user = self.context['request'].user
+        user.set_password(self.validated_data['new_password'])
+        user.save()
+        return user
+
+
 class DeleteAccountSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
     confirm_deletion = serializers.CharField(write_only=True)

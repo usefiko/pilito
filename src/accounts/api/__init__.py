@@ -5,6 +5,7 @@ from accounts.api.refresh_access import RefreshAccess
 from accounts.api.logout import Logout
 from accounts.api.profile import Profile,ProfilePicture,ProfilePictureRemove,UserOverview
 from accounts.api.change_password import ChangePasswordAPIView
+from accounts.api.set_password import SetPasswordAPIView
 from accounts.api.wizard_complete import WizardCompleteAPIView, WizardCompleteForceAPIView
 from accounts.api.delete_account import DeleteAccountAPIView
 from accounts.api.forget_password import ForgetPasswordAPIView, ResetPasswordAPIView
