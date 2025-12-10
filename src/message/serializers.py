@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from message.models import Conversation,Tag,Customer,Message
+from message.models import Conversation,Tag,Customer,Message,CustomerData
 import json
 
 
@@ -329,3 +329,43 @@ class CustomerWithConversationSerializer(serializers.ModelSerializer):
             })
         
         return conversation_data
+
+
+class CustomerDataSerializer(serializers.ModelSerializer):
+    """Serializer for CustomerData model"""
+    customer_name = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = CustomerData
+        fields = ['id', 'customer', 'user', 'key', 'value', 'customer_name', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'user', 'created_at', 'updated_at']
+    
+    def get_customer_name(self, obj):
+        """Get customer display name"""
+        return str(obj.customer)
+
+
+class CustomerDataCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating CustomerData"""
+    class Meta:
+        model = CustomerData
+        fields = ['customer', 'key', 'value']
+    
+    def validate(self, data):
+        """Check if the key already exists for this customer and user"""
+        user = self.context['request'].user
+        customer = data.get('customer')
+        key = data.get('key')
+        
+        if CustomerData.objects.filter(customer=customer, user=user, key=key).exists():
+            raise serializers.ValidationError({
+                'key': f"A data field with key '{key}' already exists for this customer. Use PUT to update it."
+            })
+        return data
+
+
+class CustomerDataUpdateSerializer(serializers.ModelSerializer):
+    """Serializer for updating CustomerData"""
+    class Meta:
+        model = CustomerData
+        fields = ['key', 'value']

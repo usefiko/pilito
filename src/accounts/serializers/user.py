@@ -596,6 +596,7 @@ class ChangePasswordSerializer(serializers.Serializer):
         """Update the user's password"""
         user = self.context['request'].user
         user.set_password(self.validated_data['new_password'])
+        user.pass_correct = True
         user.save()
         return user
 
@@ -638,6 +639,7 @@ class SetPasswordSerializer(serializers.Serializer):
         """Update the user's password"""
         user = self.context['request'].user
         user.set_password(self.validated_data['new_password'])
+        user.pass_correct = True
         user.save()
         return user
 

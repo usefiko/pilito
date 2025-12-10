@@ -301,12 +301,12 @@ class ActionNodeSerializer(serializers.ModelSerializer):
         read_only_fields = ('id', 'node_type', 'created_at', 'updated_at')
 
     def to_representation(self, instance):
-        """Add config object for Instagram actions for frontend compatibility"""
+        """Add configuration object for Instagram actions for frontend compatibility"""
         data = super().to_representation(instance)
         
-        # Add legacy 'config' object for Instagram actions
+        # Add 'configuration' object for Instagram actions
         if instance.action_type == 'instagram_comment_dm_reply':
-            data['config'] = {
+            data['configuration'] = {
                 'dm_mode': instance.instagram_dm_mode or 'STATIC',
                 'dm_text_template': instance.instagram_dm_text_template or '',
                 'product_id': str(instance.instagram_product_id) if instance.instagram_product_id else None,
@@ -592,7 +592,9 @@ class UnifiedNodeSerializer(serializers.ModelSerializer):
     instagram_product_id = serializers.UUIDField(required=False, allow_null=True)
     instagram_public_reply_enabled = serializers.BooleanField(required=False, default=False)
     instagram_public_reply_text = serializers.CharField(required=False, allow_blank=True)
-    # Legacy config field for frontend (write-only, handled in to_internal_value)
+    # Configuration field for frontend (write-only on input, added to output in to_representation)
+    configuration = serializers.JSONField(required=False, write_only=True, default=dict)
+    # Legacy config field for backwards compatibility (write-only, handled in to_internal_value)
     config = serializers.JSONField(required=False, write_only=True, default=dict)
     
     # Waiting Node specific fields
@@ -1114,24 +1116,29 @@ class UnifiedNodeSerializer(serializers.ModelSerializer):
         import logging
         logger = logging.getLogger(__name__)
         
-        # Handle legacy 'config' object from frontend (map to direct fields)
+        # Handle 'configuration' (and legacy 'config') object from frontend
         # This is now handled in to_internal_value, but keep as fallback
-        if 'config' in validated_data:
-            config = validated_data['config']
-            logger.info(f"[Serializer] Found config in validated_data: {config}")
-            if isinstance(config, dict):
-                # Map config fields to ActionNode fields
-                field_mapping = {
-                    'dm_mode': 'instagram_dm_mode',
-                    'dm_text_template': 'instagram_dm_text_template',
-                    'product_id': 'instagram_product_id',
-                    'public_reply_enabled': 'instagram_public_reply_enabled',
-                    'public_reply_template': 'instagram_public_reply_text',
-                }
-                for config_key, model_field in field_mapping.items():
-                    if config_key in config:
-                        validated_data[model_field] = config[config_key]
-                        logger.info(f"[Serializer] Mapped {config_key}={config[config_key]} to {model_field}")
+        config_data = None
+        if 'configuration' in validated_data:
+            config_data = validated_data['configuration']
+            logger.info(f"[Serializer] Found configuration in validated_data: {config_data}")
+        elif 'config' in validated_data:
+            config_data = validated_data['config']
+            logger.info(f"[Serializer] Found legacy config in validated_data: {config_data}")
+        
+        if config_data and isinstance(config_data, dict):
+            # Map configuration fields to ActionNode fields
+            field_mapping = {
+                'dm_mode': 'instagram_dm_mode',
+                'dm_text_template': 'instagram_dm_text_template',
+                'product_id': 'instagram_product_id',
+                'public_reply_enabled': 'instagram_public_reply_enabled',
+                'public_reply_template': 'instagram_public_reply_text',
+            }
+            for config_key, model_field in field_mapping.items():
+                if config_key in config_data:
+                    validated_data[model_field] = config_data[config_key]
+                    logger.info(f"[Serializer] Mapped {config_key}={config_data[config_key]} to {model_field}")
         
         # Direct field updates
         action_fields = [
@@ -1244,9 +1251,9 @@ class UnifiedNodeSerializer(serializers.ModelSerializer):
             specific_instance = ActionNode.objects.get(id=instance.actionnode.id)
             data.update(ActionNodeSerializer(specific_instance).data)
             
-            # Add legacy 'config' object for frontend compatibility (Instagram actions)
+            # Add 'configuration' object for frontend compatibility (Instagram actions)
             if specific_instance.action_type == 'instagram_comment_dm_reply':
-                data['config'] = {
+                data['configuration'] = {
                     'dm_mode': specific_instance.instagram_dm_mode or 'STATIC',
                     'dm_text_template': specific_instance.instagram_dm_text_template or '',
                     'product_id': str(specific_instance.instagram_product_id) if specific_instance.instagram_product_id else None,
@@ -1260,7 +1267,7 @@ class UnifiedNodeSerializer(serializers.ModelSerializer):
         return data
     
     def to_internal_value(self, data):
-        """Handle legacy 'config' object before validation"""
+        """Handle 'configuration' (and legacy 'config') object before validation"""
         import logging
         logger = logging.getLogger(__name__)
         
@@ -1269,10 +1276,17 @@ class UnifiedNodeSerializer(serializers.ModelSerializer):
         
         logger.info(f"[to_internal_value] Original data keys: {list(data.keys())}")
         
-        # Handle legacy 'config' object from frontend (map to direct fields)
-        if 'config' in data and isinstance(data['config'], dict):
-            config = data['config']
-            logger.info(f"[to_internal_value] Found config: {config}")
+        # Handle 'configuration' object from frontend (primary name)
+        # Also support legacy 'config' for backwards compatibility
+        config_data = None
+        if 'configuration' in data and isinstance(data['configuration'], dict):
+            config_data = data['configuration']
+            logger.info(f"[to_internal_value] Found configuration: {config_data}")
+        elif 'config' in data and isinstance(data['config'], dict):
+            config_data = data['config']
+            logger.info(f"[to_internal_value] Found legacy config: {config_data}")
+        
+        if config_data:
             field_mapping = {
                 'dm_mode': 'instagram_dm_mode',
                 'dm_text_template': 'instagram_dm_text_template',
@@ -1281,9 +1295,9 @@ class UnifiedNodeSerializer(serializers.ModelSerializer):
                 'public_reply_template': 'instagram_public_reply_text',
             }
             for config_key, model_field in field_mapping.items():
-                if config_key in config:
-                    data[model_field] = config[config_key]
-                    logger.info(f"[to_internal_value] Mapped config.{config_key}={config[config_key]} to data.{model_field}")
+                if config_key in config_data:
+                    data[model_field] = config_data[config_key]
+                    logger.info(f"[to_internal_value] Mapped {config_key}={config_data[config_key]} to data.{model_field}")
         
         logger.info(f"[to_internal_value] Final data keys: {list(data.keys())}")
         return super().to_internal_value(data)

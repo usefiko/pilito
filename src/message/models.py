@@ -220,3 +220,38 @@ class Message(models.Model):
 
     def __str__(self):
         return f"{self.content} | {self.content}"
+
+
+class CustomerData(models.Model):
+    """
+    Model to store custom key-value data for customers.
+    Each user can assign custom data fields to any customer.
+    """
+    customer = models.ForeignKey(
+        Customer, 
+        on_delete=models.CASCADE, 
+        related_name='custom_data'
+    )
+    user = models.ForeignKey(
+        User, 
+        on_delete=models.CASCADE, 
+        related_name='customer_data'
+    )
+    key = models.CharField(
+        max_length=255, 
+        help_text="Name of the data field (e.g., 'birthday', 'company', 'notes')"
+    )
+    value = models.TextField(
+        help_text="Value of the data field"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Customer Data"
+        verbose_name_plural = "Customer Data"
+        unique_together = ['customer', 'user', 'key']  # Each user can only have one value per key per customer
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.customer} | {self.key}: {self.value[:50]}..."

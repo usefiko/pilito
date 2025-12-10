@@ -3,6 +3,8 @@
 ## Overview
 This API endpoint allows authenticated users to set a new password without requiring their current password. The user only needs to be authenticated (provide a valid JWT token).
 
+**Note:** When a password is successfully set using this endpoint, the user's `pass_correct` field is automatically updated to `True`, indicating that the user now has a valid password set.
+
 ## Endpoint
 
 **URL:** `/accounts/set-password`  

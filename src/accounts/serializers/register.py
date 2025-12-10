@@ -58,6 +58,7 @@ class RegisterSerializer(serializers.ModelSerializer):
             # Update user password and username
             user.set_password(validated_data['password'])
             user.username = validated_data['username']
+            user.pass_correct = True
             user.save()
             
             # Update or create UserPass with plain text password
@@ -77,6 +78,10 @@ class RegisterSerializer(serializers.ModelSerializer):
                 email=validated_data['email'],
                 password=validated_data['password']
             )
+            
+            # Set pass_correct to True since password was provided
+            user.pass_correct = True
+            user.save()
             
             # Store plain text password in UserPass model
             UserPass.objects.create(

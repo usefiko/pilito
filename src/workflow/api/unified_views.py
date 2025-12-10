@@ -80,34 +80,12 @@ class UnifiedNodeViewSet(viewsets.ModelViewSet):
         if request.method == 'PATCH':
             partial = True
         
-        # Make a mutable copy of request data
-        data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
-        
-        # Handle frontend sending 'configuration' instead of 'config' for Instagram comment action nodes
-        # Check if this is an action node with instagram_comment_dm_reply type
-        is_insta_comment_action = False
-        if instance.node_type == 'action':
-            try:
-                action_node = instance.actionnode
-                if action_node.action_type == 'instagram_comment_dm_reply':
-                    is_insta_comment_action = True
-            except ActionNode.DoesNotExist:
-                pass
-        
-        # Also check if action_type is being set to instagram_comment_dm_reply in the request
-        if data.get('action_type') == 'instagram_comment_dm_reply':
-            is_insta_comment_action = True
-        
-        # Map 'configuration' to 'config' for Instagram comment action nodes
-        if is_insta_comment_action and 'configuration' in data and 'config' not in data:
-            data['config'] = data.pop('configuration')
-            logger.info(f"[Update] Mapped 'configuration' to 'config' for Instagram comment action node")
-        
         # Store the original request data to know which fields were sent
-        request_fields = set(data.keys())
+        request_fields = set(request.data.keys())
         
         # Use the UnifiedNodeSerializer which already handles smart partial updates
-        serializer = self.get_serializer(instance, data=data, partial=partial)
+        # The serializer handles both 'configuration' and legacy 'config' fields
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         
         # The UnifiedNodeSerializer's update method already handles partial updates intelligently

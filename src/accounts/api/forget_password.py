@@ -142,6 +142,7 @@ class ResetPasswordAPIView(APIView):
                 # Reset the password
                 user = reset_token.user
                 user.set_password(new_password)
+                user.pass_correct = True
                 user.save()
                 
                 # Mark token as used
