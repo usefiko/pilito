@@ -3,6 +3,12 @@ from message.api import FullUserConversationsAPIView,UserConversationsAPIView,Co
     CustomersListAPIView,CustomerItemAPIView,UserMessagesAPIView,SupportAnswerAPIView,ActivateAllUserConversationsAPIView,DisableAllUserConversationsAPIView
 from message.api.customer import CustomerBulkDeleteAPIView, CustomerBulkExportAPIView
 from message.api.customer_tags import CustomerTagsAPIView, CustomerSingleTagAPIView
+from message.api.customer_data import (
+    CustomerDataListAPIView, 
+    CustomerDataItemAPIView, 
+    CustomerDataByCustomerAPIView,
+    CustomerDataBulkDeleteAPIView
+)
 from message.api.tag import TagItemAPIView, TagBulkDeleteAPIView
 from message.api.instagram_callback import (
     InstagramAuthURLAPIView,
@@ -40,6 +46,12 @@ urlpatterns = [
     # Customer Tags Management
     path("customer/<int:customer_id>/tags/", CustomerTagsAPIView.as_view(), name="customer-tags"),
     path("customer/<int:customer_id>/tags/<int:tag_id>/", CustomerSingleTagAPIView.as_view(), name="customer-single-tag"),
+    
+    # Customer Data Management (CRUD)
+    path("customer-data/", CustomerDataListAPIView.as_view(), name="customer-data-list"),
+    path("customer-data/<int:data_id>/", CustomerDataItemAPIView.as_view(), name="customer-data-item"),
+    path("customer-data/bulk-delete/", CustomerDataBulkDeleteAPIView.as_view(), name="customer-data-bulk-delete"),
+    path("customer/<int:customer_id>/data/", CustomerDataByCustomerAPIView.as_view(), name="customer-data-by-customer"),
     
     path("user-messages", UserMessagesAPIView.as_view(), name="user-messages"),
     path("support-answer/<str:id>/", SupportAnswerAPIView.as_view(), name="support-answer"),

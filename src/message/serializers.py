@@ -332,24 +332,47 @@ class CustomerWithConversationSerializer(serializers.ModelSerializer):
 
 
 class CustomerDataSerializer(serializers.ModelSerializer):
-    """Serializer for CustomerData model"""
+    """Serializer for CustomerData model - supports both text values and file attachments"""
     customer_name = serializers.SerializerMethodField()
+    file_url = serializers.SerializerMethodField()
+    file_name = serializers.SerializerMethodField()
     
     class Meta:
         model = CustomerData
-        fields = ['id', 'customer', 'user', 'key', 'value', 'customer_name', 'created_at', 'updated_at']
+        fields = [
+            'id', 'customer', 'user', 'key', 'value', 
+            'file', 'file_url', 'file_name',
+            'customer_name', 'created_at', 'updated_at'
+        ]
         read_only_fields = ['id', 'user', 'created_at', 'updated_at']
     
     def get_customer_name(self, obj):
         """Get customer display name"""
         return str(obj.customer)
+    
+    def get_file_url(self, obj):
+        """Get full URL for the file"""
+        if obj.file:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.file.url)
+            return obj.file.url
+        return None
+    
+    def get_file_name(self, obj):
+        """Get file name"""
+        return obj.file_name
 
 
 class CustomerDataCreateSerializer(serializers.ModelSerializer):
-    """Serializer for creating CustomerData"""
+    """Serializer for creating CustomerData - supports both text and file uploads"""
     class Meta:
         model = CustomerData
-        fields = ['customer', 'key', 'value']
+        fields = ['customer', 'key', 'value', 'file']
+        extra_kwargs = {
+            'value': {'required': False, 'allow_blank': True},
+            'file': {'required': False, 'allow_null': True}
+        }
     
     def validate(self, data):
         """Check if the key already exists for this customer and user"""
@@ -361,11 +384,38 @@ class CustomerDataCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({
                 'key': f"A data field with key '{key}' already exists for this customer. Use PUT to update it."
             })
+        
+        # Ensure at least value or file is provided
+        value = data.get('value', '')
+        file = data.get('file')
+        if not value and not file:
+            raise serializers.ValidationError({
+                'non_field_errors': "Either 'value' (text) or 'file' must be provided."
+            })
+        
         return data
 
 
 class CustomerDataUpdateSerializer(serializers.ModelSerializer):
-    """Serializer for updating CustomerData"""
+    """Serializer for updating CustomerData - supports partial updates for text and file"""
+    remove_file = serializers.BooleanField(required=False, write_only=True, default=False)
+    
     class Meta:
         model = CustomerData
-        fields = ['key', 'value']
+        fields = ['key', 'value', 'file', 'remove_file']
+        extra_kwargs = {
+            'key': {'required': False},
+            'value': {'required': False, 'allow_blank': True},
+            'file': {'required': False, 'allow_null': True}
+        }
+    
+    def update(self, instance, validated_data):
+        """Handle file removal and updates"""
+        remove_file = validated_data.pop('remove_file', False)
+        
+        # If remove_file is True, delete the existing file
+        if remove_file and instance.file:
+            instance.file.delete(save=False)
+            instance.file = None
+        
+        return super().update(instance, validated_data)

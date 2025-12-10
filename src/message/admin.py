@@ -1,5 +1,5 @@
 from django.contrib import admin
-from message.models import Conversation,Tag,Customer,Message
+from message.models import Conversation,Tag,Customer,Message,CustomerData
 
 class ConversationAdmin(admin.ModelAdmin):
     list_display = ('id', 'user', 'title', 'created_at', 'status')
@@ -75,3 +75,55 @@ class MessageAdmin(admin.ModelAdmin):
     feedback_display.short_description = "Feedback Status"
 
 admin.site.register(Message, MessageAdmin)
+
+
+class CustomerDataAdmin(admin.ModelAdmin):
+    list_display = ('customer', 'user', 'key', 'value_preview', 'has_file', 'created_at', 'updated_at')
+    list_filter = ('user', 'created_at', 'updated_at')
+    search_fields = ('key', 'value', 'customer__first_name', 'customer__last_name', 'customer__username')
+    readonly_fields = ('created_at', 'updated_at', 'file_link')
+    raw_id_fields = ('customer', 'user')
+    
+    fieldsets = (
+        ('Customer Data', {
+            'fields': ('customer', 'user', 'key', 'value')
+        }),
+        ('File Attachment', {
+            'fields': ('file', 'file_link'),
+            'classes': ('collapse',),
+            'description': 'Attach a file to this customer data (optional)'
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def value_preview(self, obj):
+        """Show first 50 chars of value"""
+        if obj.value:
+            return obj.value[:50] + '...' if len(obj.value) > 50 else obj.value
+        return '[No text value]'
+    value_preview.short_description = 'Value'
+    
+    def has_file(self, obj):
+        """Show if file is attached"""
+        if obj.file:
+            return "📎 Yes"
+        return "—"
+    has_file.short_description = 'File'
+    
+    def file_link(self, obj):
+        """Show clickable file link"""
+        if obj.file:
+            from django.utils.html import format_html
+            return format_html('<a href="{}" target="_blank">📥 Download: {}</a>', obj.file.url, obj.file_name)
+        return "No file attached"
+    file_link.short_description = 'File Download'
+    
+    def get_queryset(self, request):
+        """Optimize queryset to reduce database queries"""
+        qs = super().get_queryset(request)
+        return qs.select_related('customer', 'user')
+
+admin.site.register(CustomerData, CustomerDataAdmin)

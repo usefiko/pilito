@@ -226,6 +226,7 @@ class CustomerData(models.Model):
     """
     Model to store custom key-value data for customers.
     Each user can assign custom data fields to any customer.
+    Supports both text values and file attachments.
     """
     customer = models.ForeignKey(
         Customer, 
@@ -239,10 +240,18 @@ class CustomerData(models.Model):
     )
     key = models.CharField(
         max_length=255, 
-        help_text="Name of the data field (e.g., 'birthday', 'company', 'notes')"
+        help_text="Name of the data field (e.g., 'birthday', 'company', 'notes', 'contract')"
     )
     value = models.TextField(
-        help_text="Value of the data field"
+        blank=True,
+        default='',
+        help_text="Text value of the data field (optional if file is provided)"
+    )
+    file = models.FileField(
+        upload_to='customer_data/%Y/%m/%d/',
+        null=True,
+        blank=True,
+        help_text="File attachment for this data field (e.g., contract, ID card, document)"
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -254,4 +263,19 @@ class CustomerData(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"{self.customer} | {self.key}: {self.value[:50]}..."
+        value_preview = self.value[:50] if self.value else '[File Only]'
+        return f"{self.customer} | {self.key}: {value_preview}"
+    
+    @property
+    def file_url(self):
+        """Return the file URL if file exists"""
+        if self.file:
+            return self.file.url
+        return None
+    
+    @property
+    def file_name(self):
+        """Return the file name if file exists"""
+        if self.file:
+            return self.file.name.split('/')[-1]
+        return None
