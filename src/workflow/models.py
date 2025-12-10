@@ -381,6 +381,7 @@ class Workflow(models.Model):
                 node_data.update({
                     'action_type': action_node.action_type,
                     'message_content': action_node.message_content,
+                    'key_values': action_node.key_values,
                     'delay_amount': action_node.delay_amount,
                     'delay_unit': action_node.delay_unit,
                     'redirect_destination': action_node.redirect_destination,
@@ -399,6 +400,7 @@ class Workflow(models.Model):
                 node_data.update({
                     'storage_type': waiting_node.storage_type,
                     'customer_message': waiting_node.customer_message,
+                    'key_values': waiting_node.key_values,
                     'error_message': waiting_node.error_message,
                     'choice_options': waiting_node.choice_options,
                     'allowed_errors': waiting_node.allowed_errors,
@@ -609,6 +611,7 @@ class Workflow(models.Model):
                         **base_node_data,
                         action_type=node_data.get('action_type', 'send_message'),
                         message_content=node_data.get('message_content', ''),
+                        key_values=node_data.get('key_values', []),
                         delay_amount=node_data.get('delay_amount', 0),
                         delay_unit=node_data.get('delay_unit', 'minutes'),
                         redirect_destination=node_data.get('redirect_destination', ''),
@@ -627,6 +630,7 @@ class Workflow(models.Model):
                         **base_node_data,
                         storage_type=node_data.get('storage_type', 'text'),
                         customer_message=node_data.get('customer_message', ''),
+                        key_values=node_data.get('key_values', []),
                         error_message=node_data.get('error_message', ''),
                         choice_options=node_data.get('choice_options', []),
                         allowed_errors=node_data.get('allowed_errors', 3),
@@ -1116,6 +1120,15 @@ class ActionNode(WorkflowNode):
     
     action_type = models.CharField(max_length=30, choices=ACTION_TYPE_CHOICES)
     message_content = models.TextField(blank=True, help_text="Message content for send_message action")
+    
+    # Key-value pairs for CTA buttons in send_message and instagram_comment operations
+    # Format: [["CTA:Title|https://url.com"], ["CTA:Another|https://url2.com"]]
+    key_values = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Key-value pairs for CTA buttons (e.g., [['CTA:Title|https://url.com']])"
+    )
+    
     delay_amount = models.PositiveIntegerField(default=0, help_text="Delay amount")
     delay_unit = models.CharField(
         max_length=10, 
@@ -1222,6 +1235,15 @@ class WaitingNode(WorkflowNode):
     storage_type = models.CharField(max_length=20, choices=STORAGE_TYPE_CHOICES, default='text')
     # storage_field = models.CharField(max_length=100, blank=True, help_text="Field name to store answer")
     customer_message = models.TextField(help_text="Message sent to customer requesting response")
+    
+    # Key-value pairs for CTA buttons in waiting node messages
+    # Format: [["CTA:Title|https://url.com"], ["CTA:Another|https://url2.com"]]
+    key_values = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Key-value pairs for CTA buttons (e.g., [['CTA:Title|https://url.com']])"
+    )
+    
     error_message = models.TextField(
         blank=True,
         default="",

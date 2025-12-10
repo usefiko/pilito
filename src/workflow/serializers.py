@@ -314,6 +314,10 @@ class ActionNodeSerializer(serializers.ModelSerializer):
                 'public_reply_template': instance.instagram_public_reply_text or '',
             }
         
+        # Ensure key_values is always a list
+        if 'key_values' not in data or data['key_values'] is None:
+            data['key_values'] = []
+        
         return data
 
 
@@ -335,6 +339,16 @@ class WaitingNodeSerializer(serializers.ModelSerializer):
         model = WaitingNode
         fields = '__all__'
         read_only_fields = ('id', 'node_type', 'created_at', 'updated_at')
+    
+    def to_representation(self, instance):
+        """Ensure key_values is always a list"""
+        data = super().to_representation(instance)
+        
+        # Ensure key_values is always a list
+        if 'key_values' not in data or data['key_values'] is None:
+            data['key_values'] = []
+        
+        return data
     
     def validate(self, data):
         """Handle skip_keywords to exit_keywords mapping for frontend compatibility"""
@@ -449,6 +463,7 @@ class CreateNodeSerializer(serializers.Serializer):
     # Action node fields
     action_type = serializers.ChoiceField(choices=ActionNode.ACTION_TYPE_CHOICES, required=False)
     message_content = serializers.CharField(required=False, allow_blank=True)
+    key_values = serializers.ListField(required=False, default=list, help_text="Key-value pairs for CTA buttons")
     delay_amount = serializers.IntegerField(required=False, default=0)
     delay_unit = serializers.CharField(required=False, default='minutes')
     redirect_destination = serializers.ChoiceField(choices=ActionNode.REDIRECT_DESTINATIONS, required=False)
@@ -498,6 +513,10 @@ class CreateNodeSerializer(serializers.Serializer):
             action_type = data.get('action_type', 'send_message')
             if action_type == 'send_message' and not data.get('message_content'):
                 data['message_content'] = 'Default message'
+        
+        # Ensure key_values is always a list if provided
+        if 'key_values' in data and data['key_values'] is None:
+            data['key_values'] = []
         
         return data
 
@@ -549,6 +568,10 @@ class UnifiedNodeSerializer(serializers.ModelSerializer):
     action_type = serializers.CharField(required=False, allow_blank=True)
     action_type_display = serializers.CharField(source='get_action_type_display', read_only=True)
     message_content = serializers.CharField(required=False, allow_blank=True)
+    
+    # Key-value pairs for CTA buttons (used in both Action and Waiting nodes)
+    key_values = serializers.JSONField(required=False, default=list)
+    
     redirect_destination = serializers.CharField(required=False, allow_blank=True)
     delay_amount = serializers.IntegerField(required=False, allow_null=True)
     delay_unit = serializers.CharField(required=False, allow_blank=True)
@@ -1112,7 +1135,7 @@ class UnifiedNodeSerializer(serializers.ModelSerializer):
         
         # Direct field updates
         action_fields = [
-            'action_type', 'message_content', 'delay_amount', 'delay_unit',
+            'action_type', 'message_content', 'key_values', 'delay_amount', 'delay_unit',
             'redirect_destination', 'tag_name', 'webhook_url', 'webhook_method',
             'webhook_headers', 'webhook_payload', 'email_to', 'email_subject',
             'email_body', 'custom_code',
@@ -1126,7 +1149,7 @@ class UnifiedNodeSerializer(serializers.ModelSerializer):
                 old_value = getattr(instance, field, None)
                 new_value = validated_data[field]
                 setattr(instance, field, new_value)
-                if field.startswith('instagram_'):
+                if field.startswith('instagram_') or field == 'key_values':
                     logger.info(f"[Serializer] Updated {field}: {old_value} -> {new_value}")
         
         # Smart handling for JSON fields
@@ -1170,7 +1193,7 @@ class UnifiedNodeSerializer(serializers.ModelSerializer):
         
         # Direct field updates
         waiting_fields = [
-            'storage_type', 'customer_message', 'error_message',
+            'storage_type', 'customer_message', 'key_values', 'error_message',
             'allowed_errors', 'response_time_limit_enabled', 'response_timeout_amount',
             'response_timeout_unit', 'response_timeout'
         ]
