@@ -15,6 +15,14 @@ from settings.support_views import (
     SupportStatsAPIView
 )
 from settings.api.intercom_webhooks import intercom_webhook_handler
+from settings.api.business_prompt_data import (
+    BusinessPromptListAPIView,
+    BusinessPromptDetailAPIView,
+    BusinessPromptDataListAPIView,
+    BusinessPromptDataItemAPIView,
+    BusinessPromptDataByBusinessAPIView,
+    BusinessPromptDataByKeyAPIView
+)
 
 
 urlpatterns = [
@@ -44,4 +52,12 @@ urlpatterns = [
     path("support/stats/", SupportStatsAPIView.as_view(), name="support-stats"),
     # Intercom Webhooks (for two-way sync)
     path("webhooks/intercom/", intercom_webhook_handler, name="intercom-webhook"),
+    
+    # BusinessPrompt & BusinessPromptData (Read-only Public APIs)
+    path("business-prompts/", BusinessPromptListAPIView.as_view(), name="business-prompts-list"),
+    path("business-prompts/<int:business_id>/", BusinessPromptDetailAPIView.as_view(), name="business-prompt-detail"),
+    path("business-prompts/<int:business_id>/data/", BusinessPromptDataByBusinessAPIView.as_view(), name="business-prompt-data-by-business"),
+    path("business-prompts/<int:business_id>/data/<str:key>/", BusinessPromptDataByKeyAPIView.as_view(), name="business-prompt-data-by-key"),
+    path("business-prompt-data/", BusinessPromptDataListAPIView.as_view(), name="business-prompt-data-list"),
+    path("business-prompt-data/<int:data_id>/", BusinessPromptDataItemAPIView.as_view(), name="business-prompt-data-item"),
 ]

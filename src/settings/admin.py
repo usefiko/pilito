@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from settings.models import Settings, GeneralSettings, TelegramChannel, InstagramChannel, AIPrompts, IntercomTicketType, SupportTicket, SupportMessage, SupportMessageAttachment, BusinessPrompt, UpToPro, AIBehaviorSettings, AffiliationConfig
+from settings.models import Settings, GeneralSettings, TelegramChannel, InstagramChannel, AIPrompts, IntercomTicketType, SupportTicket, SupportMessage, SupportMessageAttachment, BusinessPrompt, BusinessPromptData, UpToPro, AIBehaviorSettings, AffiliationConfig
 
 # =============================================
 # SYSTEM CONFIGURATION
@@ -286,13 +286,29 @@ class AIPromptsAdmin(admin.ModelAdmin):
     has_manual_prompt.short_description = 'Manual Prompt'
 
 
+class BusinessPromptDataInline(admin.TabularInline):
+    """Inline admin for BusinessPromptData within BusinessPrompt"""
+    model = BusinessPromptData
+    extra = 1
+    readonly_fields = ('file_link', 'created_at', 'updated_at')
+    fields = ('key', 'value', 'file', 'file_link', 'created_at')
+    
+    def file_link(self, obj):
+        """Show clickable file link"""
+        if obj.file:
+            return format_html('<a href="{}" target="_blank">📥 {}</a>', obj.file.url, obj.file_name)
+        return "—"
+    file_link.short_description = 'Download'
+
+
 @admin.register(BusinessPrompt)
 class BusinessPromptAdmin(admin.ModelAdmin):
-    list_display = ("name", "prompt_preview", "created_at", "updated_at")
+    list_display = ("name", "prompt_preview", "data_count", "created_at", "updated_at")
     search_fields = ("name", "prompt", "ai_answer_prompt")
     list_filter = ("created_at", "updated_at")
     readonly_fields = ("created_at", "updated_at")
     list_per_page = 25
+    inlines = [BusinessPromptDataInline]
     
     fieldsets = (
         ('Business Prompt Information', {
@@ -316,6 +332,69 @@ class BusinessPromptAdmin(admin.ModelAdmin):
             return preview
         return "No prompt"
     prompt_preview.short_description = 'Prompt Preview'
+    
+    def data_count(self, obj):
+        """Show count of associated data items"""
+        count = obj.prompt_data.count()
+        return f"📎 {count}" if count > 0 else "—"
+    data_count.short_description = 'Data Items'
+    
+    def get_queryset(self, request):
+        """Optimize queryset"""
+        qs = super().get_queryset(request)
+        return qs.prefetch_related('prompt_data')
+
+
+@admin.register(BusinessPromptData)
+class BusinessPromptDataAdmin(admin.ModelAdmin):
+    """Standalone admin for BusinessPromptData for detailed management"""
+    list_display = ('business', 'key', 'value_preview', 'has_file', 'created_at', 'updated_at')
+    list_filter = ('business', 'created_at', 'updated_at')
+    search_fields = ('key', 'value', 'business__name')
+    readonly_fields = ('created_at', 'updated_at', 'file_link')
+    raw_id_fields = ('business',)
+    list_per_page = 25
+    
+    fieldsets = (
+        ('Business Prompt Data', {
+            'fields': ('business', 'key', 'value'),
+            'description': 'Associate key-value data with a BusinessPrompt'
+        }),
+        ('File Attachment', {
+            'fields': ('file', 'file_link'),
+            'description': 'Attach a file to this data entry (optional)'
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def value_preview(self, obj):
+        """Show first 50 chars of value"""
+        if obj.value:
+            return obj.value[:50] + '...' if len(obj.value) > 50 else obj.value
+        return '[No text value]'
+    value_preview.short_description = 'Value'
+    
+    def has_file(self, obj):
+        """Show if file is attached"""
+        if obj.file:
+            return "📎 Yes"
+        return "—"
+    has_file.short_description = 'File'
+    
+    def file_link(self, obj):
+        """Show clickable file link"""
+        if obj.file:
+            return format_html('<a href="{}" target="_blank">📥 Download: {}</a>', obj.file.url, obj.file_name)
+        return "No file attached"
+    file_link.short_description = 'File Download'
+    
+    def get_queryset(self, request):
+        """Optimize queryset"""
+        qs = super().get_queryset(request)
+        return qs.select_related('business')
 
 
 @admin.register(UpToPro)

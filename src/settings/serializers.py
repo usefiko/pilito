@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from settings.models import Settings,TelegramChannel,InstagramChannel,AIPrompts,SupportTicket,SupportMessage,SupportMessageAttachment,UpToPro,AIBehaviorSettings
+from settings.models import Settings,TelegramChannel,InstagramChannel,AIPrompts,SupportTicket,SupportMessage,SupportMessageAttachment,UpToPro,AIBehaviorSettings,BusinessPrompt,BusinessPromptData
 
 class SettingsSerializer(serializers.ModelSerializer):
     class Meta:
@@ -381,3 +381,66 @@ class AIBehaviorSettingsSerializer(serializers.ModelSerializer):
                 f"طول فعلی: {len(value)} کاراکتر"
             )
         return value
+
+
+# =============================================
+# BUSINESS PROMPT DATA SERIALIZERS
+# =============================================
+
+class BusinessPromptDataSerializer(serializers.ModelSerializer):
+    """Serializer for BusinessPromptData model - supports text values and file attachments"""
+    business_name = serializers.SerializerMethodField()
+    file_url = serializers.SerializerMethodField()
+    file_name = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = BusinessPromptData
+        fields = [
+            'id', 'business', 'business_name', 'key', 'value',
+            'file', 'file_url', 'file_name',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def get_business_name(self, obj):
+        """Get BusinessPrompt name"""
+        return obj.business.name
+    
+    def get_file_url(self, obj):
+        """Get full URL for the file"""
+        if obj.file:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.file.url)
+            return obj.file.url
+        return None
+    
+    def get_file_name(self, obj):
+        """Get file name"""
+        return obj.file_name
+
+
+class BusinessPromptSerializer(serializers.ModelSerializer):
+    """Serializer for BusinessPrompt with its associated data"""
+    prompt_data = BusinessPromptDataSerializer(many=True, read_only=True)
+    
+    class Meta:
+        model = BusinessPrompt
+        fields = [
+            'id', 'name', 'prompt', 'ai_answer_prompt',
+            'prompt_data', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class BusinessPromptListSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for BusinessPrompt list view"""
+    data_count = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = BusinessPrompt
+        fields = ['id', 'name', 'data_count', 'created_at', 'updated_at']
+    
+    def get_data_count(self, obj):
+        """Count of associated data items"""
+        return obj.prompt_data.count()

@@ -912,6 +912,61 @@ class BusinessPrompt(models.Model):
         return self.name
 
 
+class BusinessPromptData(models.Model):
+    """
+    Model to store custom key-value data (with optional file) for BusinessPrompts.
+    Admin can assign custom data fields to any BusinessPrompt.
+    Supports both text values and file attachments.
+    """
+    business = models.ForeignKey(
+        BusinessPrompt,
+        on_delete=models.CASCADE,
+        related_name='prompt_data',
+        help_text="The BusinessPrompt this data belongs to"
+    )
+    key = models.CharField(
+        max_length=255,
+        help_text="Name of the data field (e.g., 'logo', 'document', 'config')"
+    )
+    value = models.TextField(
+        blank=True,
+        default='',
+        help_text="Text value of the data field (optional if file is provided)"
+    )
+    file = models.FileField(
+        upload_to='business_prompt_data/%Y/%m/%d/',
+        null=True,
+        blank=True,
+        help_text="File attachment for this data field (e.g., logo, document, PDF)"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "📎 Business Prompt Data"
+        verbose_name_plural = "📎 Business Prompt Data"
+        unique_together = ['business', 'key']  # Each key must be unique per BusinessPrompt
+        ordering = ['-created_at']
+
+    def __str__(self):
+        value_preview = self.value[:50] if self.value else '[File Only]'
+        return f"{self.business.name} | {self.key}: {value_preview}"
+    
+    @property
+    def file_url(self):
+        """Return the file URL if file exists"""
+        if self.file:
+            return self.file.url
+        return None
+    
+    @property
+    def file_name(self):
+        """Return the file name if file exists"""
+        if self.file:
+            return self.file.name.split('/')[-1]
+        return None
+
+
 class UpToPro(models.Model):
     rate = models.IntegerField(help_text="Rating value")
     signedup = models.IntegerField(help_text="Number of signups")
