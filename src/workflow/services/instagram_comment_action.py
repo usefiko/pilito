@@ -176,6 +176,17 @@ def handle_instagram_comment_dm_reply(
     if dm_mode == 'STATIC':
         # Static template
         dm_text = render_template(dm_text_template, base_ctx)
+        
+        # Append key_values as CTA tags if they exist
+        key_values = config.get('key_values', [])
+        if key_values:
+            logger.info(f"[InstagramCommentAction] Processing {len(key_values)} key_values for CTA buttons")
+            for key_value in key_values:
+                # key_value format: "CTA:Title|https://url.com"
+                # Wrap in [[]] format for CTA extraction
+                if key_value and isinstance(key_value, str):
+                    dm_text += f" [[{key_value}]]"
+        
         clean_dm, buttons = extract_cta_from_text(dm_text)
         
         dm_result = instagram_service.send_dm_by_instagram_id(
@@ -235,6 +246,15 @@ def handle_instagram_comment_dm_reply(
             logger.warning(f"[InstagramCommentAction] AI failed, using fallback")
         
         dm_text = ai_response['response']
+        
+        # Append key_values as CTA tags if they exist (even for AI-generated content)
+        key_values = config.get('key_values', [])
+        if key_values:
+            logger.info(f"[InstagramCommentAction] Processing {len(key_values)} key_values for CTA buttons in PRODUCT mode")
+            for key_value in key_values:
+                if key_value and isinstance(key_value, str):
+                    dm_text += f" [[{key_value}]]"
+        
         clean_dm, buttons = extract_cta_from_text(dm_text)
         
         dm_result = instagram_service.send_dm_by_instagram_id(

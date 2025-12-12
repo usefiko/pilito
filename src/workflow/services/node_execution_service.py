@@ -810,6 +810,15 @@ class NodeBasedWorkflowExecutionService:
             customer_message = substitute_template_placeholders(waiting_node.customer_message, context)
             logger.info(f"🕐 [WaitingNode {waiting_node.id}] Prepared customer message: '{customer_message}'")
             
+            # Append key_values as CTA tags if they exist
+            if waiting_node.key_values:
+                logger.info(f"🕐 [WaitingNode {waiting_node.id}] Processing {len(waiting_node.key_values)} key_values for CTA buttons")
+                for key_value in waiting_node.key_values:
+                    # key_value format: "CTA:Title|https://url.com"
+                    # Wrap in [[]] format for CTA extraction
+                    if key_value and isinstance(key_value, str):
+                        customer_message += f" [[{key_value}]]"
+            
             # Send the message
             logger.info(f"🕐 [WaitingNode {waiting_node.id}] Sending customer message...")
             send_result = self._send_customer_message(customer_message, context)
@@ -965,6 +974,15 @@ class NodeBasedWorkflowExecutionService:
             
             if not message_content:
                 return NodeExecutionResult(success=False, error="Message content is required")
+            
+            # Append key_values as CTA tags if they exist
+            if action_node.key_values:
+                logger.info(f"[SendMessage] Processing {len(action_node.key_values)} key_values for CTA buttons")
+                for key_value in action_node.key_values:
+                    # key_value format: "CTA:Title|https://url.com"
+                    # Wrap in [[]] format for CTA extraction
+                    if key_value and isinstance(key_value, str):
+                        message_content += f" [[{key_value}]]"
             
             # Send the message
             # Ensure conversation exists; if not, create one for the owner and customer
@@ -1394,6 +1412,7 @@ class NodeBasedWorkflowExecutionService:
                         'product_id': str(node.instagram_product_id) if node.instagram_product_id else None,
                         'public_reply_enabled': node.instagram_public_reply_enabled,
                         'public_reply_template': node.instagram_public_reply_text,
+                        'key_values': node.key_values or [],  # Include key_values for CTA buttons
                     }
             
             workflow_action = MockWorkflowAction(action_node)

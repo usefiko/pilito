@@ -470,7 +470,7 @@ class ActionNodeAdmin(admin.ModelAdmin):
             'fields': ('workflow', 'title', 'action_type', 'is_active')
         }),
         ('Message Action', {
-            'fields': ('message_content',),
+            'fields': ('message_content', 'key_values'),
             'classes': ('collapse',)
         }),
         ('Delay Action', {
@@ -532,7 +532,7 @@ class WaitingNodeAdmin(admin.ModelAdmin):
             'fields': ('workflow', 'title', 'is_active')
         }),
         ('Customer Interaction', {
-            'fields': ('customer_message', 'error_message', 'choice_options'),
+            'fields': ('customer_message', 'key_values', 'error_message', 'choice_options'),
         }),
         ('Response Storage', {
             'fields': ('storage_type',),
