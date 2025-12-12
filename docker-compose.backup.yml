@@ -1,0 +1,102 @@
+version: '3.8'
+
+###############################################################################
+# PostgreSQL Backup Service for Backblaze B2
+# 
+# This Docker Compose file runs a PostgreSQL backup that:
+# - Connects to your PostgreSQL database
+# - Creates a compressed dump
+# - Uploads to Backblaze B2 using AWS CLI
+# - Stores local backups in ./db_backups/
+#
+# Usage:
+#   docker compose -f docker-compose.backup.yml up
+#   
+# For automated daily backups, add to crontab:
+#   0 2 * * * cd /Users/nima/Projects/pilito && docker compose -f docker-compose.backup.yml up --abort-on-container-exit
+###############################################################################
+
+services:
+  postgres-backup:
+    image: postgres:15
+    container_name: postgres_backup
+    
+    # Install AWS CLI and run backup script
+    entrypoint: /bin/bash
+    command: >
+      -c "
+      echo '========================================';
+      echo 'PostgreSQL Backup Container Starting...';
+      echo '========================================';
+      echo '';
+      echo 'Installing AWS CLI...';
+      apt-get update -qq && 
+      apt-get install -y -qq python3-pip curl unzip > /dev/null 2>&1 &&
+      curl -s 'https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip' -o 'awscliv2.zip' &&
+      unzip -q awscliv2.zip &&
+      ./aws/install > /dev/null 2>&1 &&
+      rm -rf aws awscliv2.zip &&
+      echo 'AWS CLI installed successfully.';
+      echo '';
+      echo 'Starting backup script...';
+      echo '';
+      chmod +x /scripts/backup.sh &&
+      /scripts/backup.sh
+      "
+    
+    working_dir: /scripts
+    
+    volumes:
+      # Mount the backup script
+      - ./backup:/scripts
+      # Mount the local backup directory
+      - ./db_backups:/backups
+    
+    environment:
+      # PostgreSQL Connection
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - PGHOST=db
+      - PGPORT=5432
+      
+      # Backblaze B2 Credentials (S3-Compatible API)
+      - AWS_ACCESS_KEY_ID=61242eff92a8
+      - AWS_SECRET_ACCESS_KEY=${B2_APPLICATION_KEY}
+      - AWS_DEFAULT_REGION=us-west-004
+      - B2_BUCKET=pilito
+    
+    # Connect to the same network as your main services
+    networks:
+      - default
+    
+    # Only run when the database is available
+    depends_on:
+      - db
+    
+    # Remove container after backup completes
+    restart: "no"
+
+  # Reference to existing PostgreSQL database
+  db:
+    image: pgvector/pgvector:pg15
+    container_name: postgres_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    command: >
+      postgres -c shared_preload_libraries='vector'
+
+networks:
+  default:
+    external: true
+    name: pilito_default
+
+volumes:
+  postgres_data:
+    external: true
+    name: pilito_postgres_data
+
