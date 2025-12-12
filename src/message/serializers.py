@@ -124,10 +124,56 @@ class CustomerSerializer(serializers.ModelSerializer):
         return TagSerializer(user_tags, many=True).data
 
 
+class FlexibleJSONField(serializers.Field):
+    """Custom field that accepts JSON data as dict, string, or null"""
+    
+    def to_internal_value(self, data):
+        """Convert input data to dict"""
+        # Handle None/null explicitly
+        if data is None or data == 'null':
+            return {}
+        
+        # Handle empty string
+        if data == '' or data == '{}':
+            return {}
+        
+        # If already a dict, return it
+        if isinstance(data, dict):
+            return data
+        
+        # If string, try to parse as JSON
+        if isinstance(data, str):
+            data = data.strip()
+            if data == '' or data == '{}':
+                return {}
+            try:
+                parsed = json.loads(data)
+                if not isinstance(parsed, dict):
+                    raise serializers.ValidationError(
+                        "data must be a valid JSON object. "
+                        "Example: {\"key\": \"value\"}"
+                    )
+                return parsed
+            except (json.JSONDecodeError, ValueError):
+                raise serializers.ValidationError(
+                    "data must be a valid JSON object. "
+                    "Example: {\"key\": \"value\"}"
+                )
+        
+        raise serializers.ValidationError(
+            f"data must be a JSON object or null, got {type(data).__name__}"
+        )
+    
+    def to_representation(self, value):
+        """Return the dict as-is"""
+        return value or {}
+
+
 class CustomerUpdateSerializer(serializers.ModelSerializer):
-    """Serializer for updating Customer with writable tag field"""
+    """Serializer for updating Customer with writable tag and data fields"""
     # Sentinel value to distinguish between "not provided" and "explicitly null/empty"
     _TAG_NOT_PROVIDED = object()
+    _DATA_NOT_PROVIDED = object()
     
     tag = FlexibleTagField(
         required=False,
@@ -135,10 +181,16 @@ class CustomerUpdateSerializer(serializers.ModelSerializer):
         help_text="List of tag IDs to assign to the customer. Example: [1, 2, 3]. Send empty array [] or null to clear all user tags."
     )
     
+    data = FlexibleJSONField(
+        required=False,
+        allow_null=True,
+        help_text="Custom key-value data for this customer. Example: {\"company\": \"ACME\", \"notes\": \"VIP customer\"}"
+    )
+    
     class Meta:
         model = Customer
         fields = ['first_name', 'last_name', 'username', 'phone_number', 'description', 
-                 'profile_picture', 'email', 'tag']
+                 'profile_picture', 'email', 'tag', 'data']
     
     def to_representation(self, instance):
         """Customize output representation to show tag details instead of IDs"""
@@ -146,6 +198,8 @@ class CustomerUpdateSerializer(serializers.ModelSerializer):
         # Replace tag IDs with tag objects (excluding system tags)
         user_tags = instance.tag.exclude(name__in=["Telegram", "Whatsapp", "Instagram"])
         representation['tag'] = TagSerializer(user_tags, many=True).data
+        # Ensure data is always a dict
+        representation['data'] = instance.data or {}
         return representation
 
     def update(self, instance, validated_data):
@@ -154,11 +208,17 @@ class CustomerUpdateSerializer(serializers.ModelSerializer):
         
         # Extract tag if provided (using sentinel to distinguish "not provided" from "null/empty")
         tag_ids = validated_data.pop('tag', self._TAG_NOT_PROVIDED)
+        data_value = validated_data.pop('data', self._DATA_NOT_PROVIDED)
         logger.info(f"🔄 Updating customer {instance.id} - tag from validated_data: {tag_ids}")
         
         # Update regular fields
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
+        
+        # Handle data updates - only if data was explicitly provided in the request
+        if data_value is not self._DATA_NOT_PROVIDED:
+            logger.info(f"🔄 Updating customer data: {data_value}")
+            instance.data = data_value
         
         # Handle tag updates - only if tag was explicitly provided in the request
         # Check if tag is NOT the sentinel value (meaning it was provided)
@@ -210,17 +270,22 @@ class MessageSupportAnswerSerializer(serializers.ModelSerializer):
 class WSCustomerSerializer(serializers.ModelSerializer):
     """Enhanced customer serializer for WebSocket messages with complete customer data"""
     tag = serializers.SerializerMethodField()
+    data = serializers.SerializerMethodField()
     
     class Meta:
         model = Customer
         fields = ['id', 'first_name', 'last_name', 'username', 'email', 'phone_number', 
                  'description', 'source', 'source_id', 'profile_picture', 'created_at', 
-                 'updated_at', 'tag']
+                 'updated_at', 'tag', 'data']
     
     def get_tag(self, obj):
         """Filter out system tags (Instagram, Telegram, Whatsapp) from customer tags"""
         user_tags = obj.tag.exclude(name__in=["Telegram", "Whatsapp", "Instagram"])
         return TagSerializer(user_tags, many=True).data
+    
+    def get_data(self, obj):
+        """Return customer data as dict, default to empty dict"""
+        return obj.data or {}
 
 
 class WSConversationSerializer(serializers.ModelSerializer):
@@ -271,21 +336,26 @@ class ChatMessageInputSerializer(serializers.Serializer):
 
 
 class CustomerWithConversationSerializer(serializers.ModelSerializer):
-    """Enhanced customer serializer including conversation data and tags for WebSocket"""
+    """Enhanced customer serializer including conversation data, tags and custom data for WebSocket"""
     conversations = serializers.SerializerMethodField()
     tags = serializers.SerializerMethodField()
+    data = serializers.SerializerMethodField()
     
     class Meta:
         model = Customer
         fields = ['id', 'first_name', 'last_name', 'username', 'email', 'phone_number', 
                  'source', 'source_id', 'profile_picture', 'created_at', 'updated_at', 
-                 'conversations', 'tags']
+                 'conversations', 'tags', 'data']
     
     def get_tags(self, obj):
         """Get customer tags (excluding system tags: Instagram, Telegram, Whatsapp)"""
         # Filter out system tags from display
         user_tags = obj.tag.exclude(name__in=["Telegram", "Whatsapp", "Instagram"])
         return [{'id': tag.id, 'name': tag.name} for tag in user_tags]
+    
+    def get_data(self, obj):
+        """Return customer data as dict, default to empty dict"""
+        return obj.data or {}
     
     def get_conversations(self, obj):
         """Get conversations for this customer filtered by the current user"""

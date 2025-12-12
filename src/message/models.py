@@ -44,6 +44,14 @@ class Customer(models.Model):
         help_text="Auto-extracted persona info from bio: interests, tone_preference, profession"
     )
     
+    # Custom data storage (key-value pairs in JSON format)
+    data = models.JSONField(
+        null=True,
+        blank=True,
+        default=dict,
+        help_text="Custom key-value data for this customer. Format: {\"key1\": \"value1\", \"key2\": \"value2\"}"
+    )
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
