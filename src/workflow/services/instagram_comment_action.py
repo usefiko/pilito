@@ -181,11 +181,13 @@ def handle_instagram_comment_dm_reply(
         key_values = config.get('key_values', [])
         if key_values:
             logger.info(f"[InstagramCommentAction] Processing {len(key_values)} key_values for CTA buttons")
+            # Add empty line for spacing before CTA buttons
+            dm_text += "\n\n"
             for key_value in key_values:
                 # key_value format: "CTA:Title|https://url.com"
                 # Wrap in [[]] format for CTA extraction
                 if key_value and isinstance(key_value, str):
-                    dm_text += f" [[{key_value}]]"
+                    dm_text += f"[[{key_value}]] "
         
         clean_dm, buttons = extract_cta_from_text(dm_text)
         
@@ -251,9 +253,11 @@ def handle_instagram_comment_dm_reply(
         key_values = config.get('key_values', [])
         if key_values:
             logger.info(f"[InstagramCommentAction] Processing {len(key_values)} key_values for CTA buttons in PRODUCT mode")
+            # Add empty line for spacing before CTA buttons
+            dm_text += "\n\n"
             for key_value in key_values:
                 if key_value and isinstance(key_value, str):
-                    dm_text += f" [[{key_value}]]"
+                    dm_text += f"[[{key_value}]] "
         
         clean_dm, buttons = extract_cta_from_text(dm_text)
         

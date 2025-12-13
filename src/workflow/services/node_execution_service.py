@@ -813,11 +813,13 @@ class NodeBasedWorkflowExecutionService:
             # Append key_values as CTA tags if they exist
             if waiting_node.key_values:
                 logger.info(f"🕐 [WaitingNode {waiting_node.id}] Processing {len(waiting_node.key_values)} key_values for CTA buttons")
+                # Add empty line for spacing before CTA buttons
+                customer_message += "\n\n"
                 for key_value in waiting_node.key_values:
                     # key_value format: "CTA:Title|https://url.com"
                     # Wrap in [[]] format for CTA extraction
                     if key_value and isinstance(key_value, str):
-                        customer_message += f" [[{key_value}]]"
+                        customer_message += f"[[{key_value}]] "
             
             # Send the message
             logger.info(f"🕐 [WaitingNode {waiting_node.id}] Sending customer message...")
@@ -978,11 +980,13 @@ class NodeBasedWorkflowExecutionService:
             # Append key_values as CTA tags if they exist
             if action_node.key_values:
                 logger.info(f"[SendMessage] Processing {len(action_node.key_values)} key_values for CTA buttons")
+                # Add empty line for spacing before CTA buttons
+                message_content += "\n\n"
                 for key_value in action_node.key_values:
                     # key_value format: "CTA:Title|https://url.com"
                     # Wrap in [[]] format for CTA extraction
                     if key_value and isinstance(key_value, str):
-                        message_content += f" [[{key_value}]]"
+                        message_content += f"[[{key_value}]] "
             
             # Send the message
             # Ensure conversation exists; if not, create one for the owner and customer
