@@ -187,7 +187,7 @@ def handle_instagram_comment_dm_reply(
                 # key_value format: "CTA:Title|https://url.com"
                 # Wrap in [[]] format for CTA extraction
                 if key_value and isinstance(key_value, str):
-                    dm_text += f"[[{key_value}]] "
+                    dm_text += f"[[{key_value}]] \n\n"
         
         clean_dm, buttons = extract_cta_from_text(dm_text)
         
@@ -257,7 +257,7 @@ def handle_instagram_comment_dm_reply(
             dm_text += "\n\n"
             for key_value in key_values:
                 if key_value and isinstance(key_value, str):
-                    dm_text += f"[[{key_value}]] "
+                    dm_text += f"[[{key_value}]] \n\n"
         
         clean_dm, buttons = extract_cta_from_text(dm_text)
         

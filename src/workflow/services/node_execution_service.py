@@ -819,7 +819,7 @@ class NodeBasedWorkflowExecutionService:
                     # key_value format: "CTA:Title|https://url.com"
                     # Wrap in [[]] format for CTA extraction
                     if key_value and isinstance(key_value, str):
-                        customer_message += f"[[{key_value}]] "
+                        customer_message += f"[[{key_value}]] \n\n"
             
             # Send the message
             logger.info(f"🕐 [WaitingNode {waiting_node.id}] Sending customer message...")
@@ -986,7 +986,7 @@ class NodeBasedWorkflowExecutionService:
                     # key_value format: "CTA:Title|https://url.com"
                     # Wrap in [[]] format for CTA extraction
                     if key_value and isinstance(key_value, str):
-                        message_content += f"[[{key_value}]] "
+                        message_content += f"[[{key_value}]] \n\n"
             
             # Send the message
             # Ensure conversation exists; if not, create one for the owner and customer
