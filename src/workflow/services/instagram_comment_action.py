@@ -176,21 +176,9 @@ def handle_instagram_comment_dm_reply(
     if dm_mode == 'STATIC':
         # Static template
         dm_text = render_template(dm_text_template, base_ctx)
-        
-        # Append key_values as CTA tags if they exist
-        key_values = config.get('key_values', [])
-        if key_values:
-            logger.info(f"[InstagramCommentAction] Processing {len(key_values)} key_values for CTA buttons")
-            # Add empty line for spacing before CTA buttons
-            dm_text += "\n\n"
-            for key_value in key_values:
-                # key_value format: "CTA:Title|https://url.com"
-                # Wrap in [[]] format for CTA extraction
-                if key_value and isinstance(key_value, str):
-                    dm_text += f"[[{key_value}]] \n\n"
-        
         clean_dm, buttons = extract_cta_from_text(dm_text)
         
+        # Send main DM
         dm_result = instagram_service.send_dm_by_instagram_id(
             ig_user_id=ig_user_id,
             text=clean_dm,
@@ -202,6 +190,24 @@ def handle_instagram_comment_dm_reply(
             result['error'] = dm_result.get('error')
         
         logger.info(f"[InstagramCommentAction] STATIC DM to {ig_username}: {result['dm_sent']}")
+        
+        # Send each key_value as a separate DM
+        key_values = config.get('key_values', [])
+        if key_values:
+            logger.info(f"[InstagramCommentAction] Sending {len(key_values)} key_values as separate DMs")
+            for key_value in key_values:
+                if key_value and isinstance(key_value, str):
+                    cta_text = f"[[{key_value}]]"
+                    clean_cta, cta_buttons = extract_cta_from_text(cta_text)
+                    try:
+                        cta_result = instagram_service.send_dm_by_instagram_id(
+                            ig_user_id=ig_user_id,
+                            text=clean_cta,
+                            buttons=cta_buttons
+                        )
+                        logger.info(f"[InstagramCommentAction] Sent CTA DM: {key_value}, success: {cta_result.get('success')}")
+                    except Exception as e:
+                        logger.warning(f"[InstagramCommentAction] Failed to send CTA DM: {e}")
     
     elif dm_mode == 'PRODUCT':
         # ✅ CHECK TOKENS BEFORE AI USAGE
@@ -248,19 +254,9 @@ def handle_instagram_comment_dm_reply(
             logger.warning(f"[InstagramCommentAction] AI failed, using fallback")
         
         dm_text = ai_response['response']
-        
-        # Append key_values as CTA tags if they exist (even for AI-generated content)
-        key_values = config.get('key_values', [])
-        if key_values:
-            logger.info(f"[InstagramCommentAction] Processing {len(key_values)} key_values for CTA buttons in PRODUCT mode")
-            # Add empty line for spacing before CTA buttons
-            dm_text += "\n\n"
-            for key_value in key_values:
-                if key_value and isinstance(key_value, str):
-                    dm_text += f"[[{key_value}]] \n\n"
-        
         clean_dm, buttons = extract_cta_from_text(dm_text)
         
+        # Send main DM
         dm_result = instagram_service.send_dm_by_instagram_id(
             ig_user_id=ig_user_id,
             text=clean_dm,
@@ -272,6 +268,24 @@ def handle_instagram_comment_dm_reply(
             result['error'] = dm_result.get('error')
         
         logger.info(f"[InstagramCommentAction] PRODUCT DM to {ig_username}: {result['dm_sent']}")
+        
+        # Send each key_value as a separate DM (even for AI-generated content)
+        key_values = config.get('key_values', [])
+        if key_values:
+            logger.info(f"[InstagramCommentAction] Sending {len(key_values)} key_values as separate DMs in PRODUCT mode")
+            for key_value in key_values:
+                if key_value and isinstance(key_value, str):
+                    cta_text = f"[[{key_value}]]"
+                    clean_cta, cta_buttons = extract_cta_from_text(cta_text)
+                    try:
+                        cta_result = instagram_service.send_dm_by_instagram_id(
+                            ig_user_id=ig_user_id,
+                            text=clean_cta,
+                            buttons=cta_buttons
+                        )
+                        logger.info(f"[InstagramCommentAction] Sent CTA DM: {key_value}, success: {cta_result.get('success')}")
+                    except Exception as e:
+                        logger.warning(f"[InstagramCommentAction] Failed to send CTA DM: {e}")
     
     # ✅ Save DM as Marketing Message in database
     if result['dm_sent'] and dm_text:

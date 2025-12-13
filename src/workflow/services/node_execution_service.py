@@ -810,21 +810,24 @@ class NodeBasedWorkflowExecutionService:
             customer_message = substitute_template_placeholders(waiting_node.customer_message, context)
             logger.info(f"🕐 [WaitingNode {waiting_node.id}] Prepared customer message: '{customer_message}'")
             
-            # Append key_values as CTA tags if they exist
+            # Send the main message
+            logger.info(f"🕐 [WaitingNode {waiting_node.id}] Sending customer message...")
+            send_result = self._send_customer_message(customer_message, context)
+            logger.info(f"🕐 [WaitingNode {waiting_node.id}] Message sent result: {send_result}")
+            
+            # Send each key_value as a separate message
             if waiting_node.key_values:
-                logger.info(f"🕐 [WaitingNode {waiting_node.id}] Processing {len(waiting_node.key_values)} key_values for CTA buttons")
-                # Add empty line for spacing before CTA buttons
-                customer_message += "\n\n"
+                logger.info(f"🕐 [WaitingNode {waiting_node.id}] Processing {len(waiting_node.key_values)} key_values as separate messages")
                 for key_value in waiting_node.key_values:
                     # key_value format: "CTA:Title|https://url.com"
                     # Wrap in [[]] format for CTA extraction
                     if key_value and isinstance(key_value, str):
-                        customer_message += f"[[{key_value}]] \n\n"
-            
-            # Send the message
-            logger.info(f"🕐 [WaitingNode {waiting_node.id}] Sending customer message...")
-            send_result = self._send_customer_message(customer_message, context)
-            logger.info(f"🕐 [WaitingNode {waiting_node.id}] Message sent result: {send_result}")
+                        cta_message = f"[[{key_value}]]"
+                        try:
+                            self._send_customer_message(cta_message, context)
+                            logger.info(f"🕐 [WaitingNode {waiting_node.id}] Sent CTA message: {key_value}")
+                        except Exception as e:
+                            logger.warning(f"🕐 [WaitingNode {waiting_node.id}] Failed to send CTA message: {e}")
 
             # Broadcast to websocket and ensure external channels mirror (similar to action send)
             logger.info(f"🕐 [WaitingNode {waiting_node.id}] Broadcasting message via websocket and external channels...")
@@ -977,17 +980,6 @@ class NodeBasedWorkflowExecutionService:
             if not message_content:
                 return NodeExecutionResult(success=False, error="Message content is required")
             
-            # Append key_values as CTA tags if they exist
-            if action_node.key_values:
-                logger.info(f"[SendMessage] Processing {len(action_node.key_values)} key_values for CTA buttons")
-                # Add empty line for spacing before CTA buttons
-                message_content += "\n\n"
-                for key_value in action_node.key_values:
-                    # key_value format: "CTA:Title|https://url.com"
-                    # Wrap in [[]] format for CTA extraction
-                    if key_value and isinstance(key_value, str):
-                        message_content += f"[[{key_value}]] \n\n"
-            
             # Send the message
             # Ensure conversation exists; if not, create one for the owner and customer
             if not context.get('event', {}).get('conversation_id'):
@@ -1017,13 +1009,29 @@ class NodeBasedWorkflowExecutionService:
                 except Exception as ce:
                     return NodeExecutionResult(success=False, error=f"Failed to ensure conversation: {ce}")
             
+            # Send main message content first
             result = self._send_customer_message(message_content, context)
+            
+            # Send each key_value as a separate message
+            if action_node.key_values:
+                logger.info(f"[SendMessage] Processing {len(action_node.key_values)} key_values as separate messages")
+                for key_value in action_node.key_values:
+                    # key_value format: "CTA:Title|https://url.com"
+                    # Wrap in [[]] format for CTA extraction
+                    if key_value and isinstance(key_value, str):
+                        cta_message = f"[[{key_value}]]"
+                        try:
+                            self._send_customer_message(cta_message, context)
+                            logger.info(f"[SendMessage] Sent CTA message: {key_value}")
+                        except Exception as e:
+                            logger.warning(f"[SendMessage] Failed to send CTA message: {e}")
             
             return NodeExecutionResult(
                 success=True,
                 data={
                     'message_sent': message_content,
-                    'channel_result': result
+                    'channel_result': result,
+                    'cta_messages_count': len(action_node.key_values) if action_node.key_values else 0
                 }
             )
         
